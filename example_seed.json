@@ -1,0 +1,21 @@
+[
+  {
+    "system": "You are a {role} who specializes in {domain}.",
+    "user": "Explain {topic} in simple terms.",
+    "metadata": {
+      "role": "teacher",
+      "domain": "physics",
+      "topic": "gravity",
+      "num_samples": 2
+    }
+  },
+  {
+    "system": "You are a helpful {role}.",
+    "user": "What is {concept}?",
+    "metadata": {
+      "role": "assistant",
+      "concept": "machine learning",
+      "num_samples": 3
+    }
+  }
+]

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QADataGen</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { margin-bottom: 20px; color: #333; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .tab { padding: 10px 20px; cursor: pointer; background: none; border: none; font-size: 16px; }
+        .tab.active { border-bottom: 3px solid #007bff; color: #007bff; }
+        .panel { display: none; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .panel.active { display: block; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; }
+        input[type="file"], input[type="number"], select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .record { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+        .record-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-accept { background: #28a745; }
+        .btn-reject { background: #dc3545; }
+        .btn-edit { background: #ffc107; }
+        .status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+        .status.pending { background: #ffc107; }
+        .status.accepted { background: #28a745; color: white; }
+        .status.rejected { background: #dc3545; color: white; }
+        .status.edited { background: #17a2b8; color: white; }
+        textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 100px; }
+        .message { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .message.success { background: #d4edda; color: #155724; }
+        .message.error { background: #f8d7da; color: #721c24; }
+        .pagination { display: flex; gap: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QADataGen</h1>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('generator')">Generator</button>
+            <button class="tab" onclick="switchTab('reviewer')">Reviewer</button>
+            <button class="tab" onclick="switchTab('exporter')">Exporter</button>
+        </div>
+
+        <!-- Generator Panel -->
+        <div id="generator" class="panel active">
+            <h2>Generate Records</h2>
+            <div id="gen-message"></div>
+            <div class="form-group">
+                <label>Seed File (JSON)</label>
+                <input type="file" id="seedFile" accept=".json">
+            </div>
+            <button onclick="generateRecords()">Generate</button>
+        </div>
+
+        <!-- Reviewer Panel -->
+        <div id="reviewer" class="panel">
+            <h2>Review Records</h2>
+            <div class="form-group">
+                <label>Filter by Status</label>
+                <select id="filterStatus" onchange="loadRecords()">
+                    <option value="">All</option>
+                    <option value="pending" selected>Pending</option>
+                    <option value="accepted">Accepted</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="edited">Edited</option>
+                </select>
+            </div>
+            <div id="recordsList"></div>
+            <div class="pagination">
+                <button onclick="prevPage()">Previous</button>
+                <span id="pageInfo">Page 1</span>
+                <button onclick="nextPage()">Next</button>
+            </div>
+        </div>
+
+        <!-- Exporter Panel -->
+        <div id="exporter" class="panel">
+            <h2>Export Records</h2>
+            <div class="form-group">
+                <label>Filter by Status</label>
+                <select id="exportStatus">
+                    <option value="">All</option>
+                    <option value="pending">Pending</option>
+                    <option value="accepted" selected>Accepted</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="edited">Edited</option>
+                </select>
+            </div>
+            <button onclick="downloadExport()">Download JSONL</button>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 0;
+        const pageSize = 10;
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            if (tabName === 'reviewer') loadRecords();
+        }
+
+        async function generateRecords() {
+            const fileInput = document.getElementById('seedFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                showMessage('gen-message', 'Please select a file', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/generate', { method: 'POST', body: formData });
+                const result = await response.json();
+                showMessage('gen-message', `Generated ${result.success}/${result.total} records`, 'success');
+            } catch (error) {
+                showMessage('gen-message', 'Generation failed: ' + error.message, 'error');
+            }
+        }
+
+        async function loadRecords() {
+            const status = document.getElementById('filterStatus').value;
+            const url = `/records?limit=${pageSize}&offset=${currentPage * pageSize}${status ? '&status=' + status : ''}`;
+
+            try {
+                const response = await fetch(url);
+                const records = await response.json();
+                displayRecords(records);
+                document.getElementById('pageInfo').textContent = `Page ${currentPage + 1}`;
+            } catch (error) {
+                console.error('Failed to load records:', error);
+            }
+        }
+
+        function displayRecords(records) {
+            const list = document.getElementById('recordsList');
+            if (records.length === 0) {
+                list.innerHTML = '<p>No records found</p>';
+                return;
+            }
+
+            list.innerHTML = records.map(r => `
+                <div class="record">
+                    <div><strong>ID:</strong> ${r.id} <span class="status ${r.status}">${r.status}</span></div>
+                    <div><strong>System:</strong> ${r.system}</div>
+                    <div><strong>User:</strong> ${r.user}</div>
+                    <div><strong>Assistant:</strong> ${r.assistant}</div>
+                    <div class="record-actions">
+                        <button class="btn-accept" onclick="updateStatus(${r.id}, 'accepted')">Accept</button>
+                        <button class="btn-reject" onclick="updateStatus(${r.id}, 'rejected')">Reject</button>
+                        <button class="btn-edit" onclick="editRecord(${r.id})">Edit</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateStatus(id, status) {
+            try {
+                await fetch(`/records/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                loadRecords();
+            } catch (error) {
+                console.error('Failed to update record:', error);
+            }
+        }
+
+        function editRecord(id) {
+            const newAssistant = prompt('Edit assistant response:');
+            if (newAssistant) {
+                fetch(`/records/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ assistant: newAssistant, status: 'edited' })
+                }).then(() => loadRecords());
+            }
+        }
+
+        async function downloadExport() {
+            const status = document.getElementById('exportStatus').value;
+            window.location.href = `/export/download${status ? '?status=' + status : ''}`;
+        }
+
+        function prevPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                loadRecords();
+            }
+        }
+
+        function nextPage() {
+            currentPage++;
+            loadRecords();
+        }
+
+        function showMessage(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => el.innerHTML = '', 5000);
+        }
+    </script>
+</body>
+</html>

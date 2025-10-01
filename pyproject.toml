@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qadatagen"
+version = "0.1.0"
+description = "Q&A dataset generation and validation tool"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pydantic>=2.9.0",
+    "aiosqlite>=0.20.0",
+    "httpx>=0.27.0",
+    "python-dotenv>=1.0.0",
+    "python-multipart>=0.0.20",
+]
+
+[tool.setuptools.packages.find]
+include = ["lib*"]
+exclude = ["ui*", "data*"]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.7.0",
+    "mypy>=1.13.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
