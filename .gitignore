@@ -27,4 +27,3 @@ data/*.db-journal
 
 # uv
 uv.lock
-README.md
