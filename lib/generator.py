@@ -22,10 +22,13 @@ class Generator:
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
+        # openai-compatible format (works with ollama, openai, anthropic)
         payload = {
             "model": self.model,
-            "prompt": f"System: {system}\n\nUser: {user}\n\nAssistant:",
-            "stream": False,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
         }
 
         if self.config.temperature is not None:
@@ -38,9 +41,8 @@ class Generator:
             response.raise_for_status()
             data = response.json()
 
-            if "response" in data:
-                return data["response"]
-            elif "choices" in data and len(data["choices"]) > 0:
-                return data["choices"][0].get("message", {}).get("content", "")
+            # openai format response
+            if "choices" in data and len(data["choices"]) > 0:
+                return data["choices"][0]["message"]["content"]
             else:
                 raise ValueError(f"unexpected response format: {data}")

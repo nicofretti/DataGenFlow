@@ -2,6 +2,9 @@ import asyncio
 import json
 from pathlib import Path
 
+from loguru import logger
+from tqdm import tqdm
+
 from lib.generator import Generator
 from lib.storage import Storage
 from lib.validator import Validator
@@ -23,32 +26,49 @@ class Pipeline:
         self, file_path: str, config: GenerationConfig | None = None
     ) -> dict[str, int]:
         seeds = self._parse_seed_file(file_path)
+        logger.info(f"parsed {len(seeds)} seed inputs")
+
         if config:
             self.generator = Generator(config)
+
+        # calculate total samples
+        total_samples = sum(
+            seed.metadata.get("num_samples", 1)
+            if isinstance(seed.metadata.get("num_samples"), int)
+            else 1
+            for seed in seeds
+        )
+
+        logger.info(f"generating {total_samples} samples...")
 
         total = 0
         success = 0
         failed = 0
 
-        for seed in seeds:
-            try:
-                num_samples = seed.metadata.get("num_samples", 1)
-                if not isinstance(num_samples, int):
-                    num_samples = 1
+        with tqdm(total=total_samples, desc="generating", unit="sample") as pbar:
+            for seed in seeds:
+                try:
+                    num_samples = seed.metadata.get("num_samples", 1)
+                    if not isinstance(num_samples, int):
+                        num_samples = 1
 
-                tasks = [self._generate_single(seed) for _ in range(num_samples)]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+                    tasks = [self._generate_single(seed) for _ in range(num_samples)]
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                for result in results:
+                    for result in results:
+                        total += 1
+                        if isinstance(result, Exception):
+                            failed += 1
+                            logger.debug(f"generation failed: {result}")
+                        else:
+                            success += 1
+                        pbar.update(1)
+
+                except Exception as e:
+                    failed += 1
                     total += 1
-                    if isinstance(result, Exception):
-                        failed += 1
-                    else:
-                        success += 1
-
-            except Exception:
-                failed += 1
-                total += 1
+                    logger.debug(f"seed processing failed: {e}")
+                    pbar.update(1)
 
         return {"total": total, "success": success, "failed": failed}
 
