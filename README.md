@@ -1,6 +1,6 @@
 # QADataGen
 
-Minimal library to generate and validate Q&A datasets in JSONL format.
+Minimal CLI tool to generate and validate Q&A datasets in JSONL format.
 
 ## Quick Start
 
@@ -12,19 +12,49 @@ make dev
 # run mock llm (terminal 1)
 make mock-llm
 
-# run server (terminal 2)
-make run
+# generate records (terminal 2)
+python3 cli.py generate example_seed.json
 
-# open browser
-http://localhost:8000
+# list records
+python3 cli.py list
+
+# update record status
+python3 cli.py update 1 accepted
+
+# export to jsonl
+python3 cli.py export output.jsonl --status accepted
 ```
 
-## Usage
+## CLI Commands
 
-1. Upload JSON seed file with templates
-2. Generate Q&A records via LLM
-3. Review and validate records
-4. Export to JSONL
+### Generate
+```bash
+python3 cli.py generate <seed_file> [options]
+  --model MODEL          LLM model name
+  --endpoint URL         LLM endpoint
+  --temperature FLOAT    Temperature (default: 0.7)
+  --max-tokens INT       Max tokens
+```
+
+### List
+```bash
+python3 cli.py list [options]
+  --status STATUS        Filter by status (pending/accepted/rejected/edited)
+  --limit INT            Max records (default: 10)
+  --offset INT           Offset (default: 0)
+```
+
+### Update
+```bash
+python3 cli.py update <record_id> <status>
+  status: accepted/rejected/edited
+```
+
+### Export
+```bash
+python3 cli.py export <output_file> [options]
+  --status STATUS        Filter by status
+```
 
 ## Configuration
 
