@@ -190,53 +190,83 @@ export default function Review() {
       {/* keyboard shortcuts hint */}
       <Box sx={{ mb: 3, display: 'flex', gap: 3, fontSize: 1, alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <kbd style={{
-            padding: '2px 6px',
-            border: '1px solid var(--borderColor-default)',
-            borderRadius: '3px',
-            fontSize: '11px',
-            fontFamily: 'monospace'
-          }}>A</kbd>
+          <Box
+            as="kbd"
+            sx={{
+              padding: '2px 6px',
+              border: '1px solid',
+              borderColor: 'border.default',
+              borderRadius: '3px',
+              fontSize: '11px',
+              fontFamily: 'monospace',
+              color: 'fg.default',
+              bg: 'canvas.subtle'
+            }}
+          >A</Box>
           <Text sx={{ color: 'fg.default' }}>Accept</Text>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <kbd style={{
-            padding: '2px 6px',
-            border: '1px solid var(--borderColor-default)',
-            borderRadius: '3px',
-            fontSize: '11px',
-            fontFamily: 'monospace'
-          }}>R</kbd>
+          <Box
+            as="kbd"
+            sx={{
+              padding: '2px 6px',
+              border: '1px solid',
+              borderColor: 'border.default',
+              borderRadius: '3px',
+              fontSize: '11px',
+              fontFamily: 'monospace',
+              color: 'fg.default',
+              bg: 'canvas.subtle'
+            }}
+          >R</Box>
           <Text sx={{ color: 'fg.default' }}>Reject</Text>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <kbd style={{
-            padding: '2px 6px',
-            border: '1px solid var(--borderColor-default)',
-            borderRadius: '3px',
-            fontSize: '11px',
-            fontFamily: 'monospace'
-          }}>E</kbd>
+          <Box
+            as="kbd"
+            sx={{
+              padding: '2px 6px',
+              border: '1px solid',
+              borderColor: 'border.default',
+              borderRadius: '3px',
+              fontSize: '11px',
+              fontFamily: 'monospace',
+              color: 'fg.default',
+              bg: 'canvas.subtle'
+            }}
+          >E</Box>
           <Text sx={{ color: 'fg.default' }}>Edit</Text>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <kbd style={{
-            padding: '2px 6px',
-            border: '1px solid var(--borderColor-default)',
-            borderRadius: '3px',
-            fontSize: '11px',
-            fontFamily: 'monospace'
-          }}>N</kbd>
+          <Box
+            as="kbd"
+            sx={{
+              padding: '2px 6px',
+              border: '1px solid',
+              borderColor: 'border.default',
+              borderRadius: '3px',
+              fontSize: '11px',
+              fontFamily: 'monospace',
+              color: 'fg.default',
+              bg: 'canvas.subtle'
+            }}
+          >N</Box>
           <Text sx={{ color: 'fg.default' }}>Next</Text>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <kbd style={{
-            padding: '2px 6px',
-            border: '1px solid var(--borderColor-default)',
-            borderRadius: '3px',
-            fontSize: '11px',
-            fontFamily: 'monospace'
-          }}>P</kbd>
+          <Box
+            as="kbd"
+            sx={{
+              padding: '2px 6px',
+              border: '1px solid',
+              borderColor: 'border.default',
+              borderRadius: '3px',
+              fontSize: '11px',
+              fontFamily: 'monospace',
+              color: 'fg.default',
+              bg: 'canvas.subtle'
+            }}
+          >P</Box>
           <Text sx={{ color: 'fg.default' }}>Previous</Text>
         </Box>
       </Box>
@@ -292,7 +322,7 @@ export default function Review() {
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Text sx={{ fontWeight: 'bold', color: 'fg.muted', fontSize: 1 }}>#{currentRecord.id}</Text>
+                <Text sx={{ fontWeight: 'bold', color: 'fg.default', fontSize: 1 }}>#{currentRecord.id}</Text>
                 <Label variant={getStatusVariant(currentRecord.status)}>{currentRecord.status}</Label>
               </Box>
             </Box>
@@ -300,7 +330,9 @@ export default function Review() {
             {/* assistant response - main focus */}
             <Box sx={{ mb: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <CommentIcon size={16} />
+                <Box sx={{ color: 'fg.default' }}>
+                  <CommentIcon size={16} />
+                </Box>
                 <Text as="div" sx={{ fontSize: 2, fontWeight: 'bold', color: 'fg.default' }}>
                   Assistant Response
                 </Text>
@@ -311,7 +343,14 @@ export default function Review() {
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                     rows={12}
-                    sx={{ width: '100%', fontFamily: 'mono', fontSize: 1 }}
+                    sx={{
+                      width: '100%',
+                      fontFamily: 'mono',
+                      fontSize: 1,
+                      color: 'fg.default',
+                      bg: 'canvas.default',
+                      borderColor: 'border.default'
+                    }}
                   />
                   <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                     <Button size="small" variant="primary" onClick={saveEdit}>
@@ -339,7 +378,7 @@ export default function Review() {
                       position: 'relative',
                     }}
                   >
-                    <Text as="div" sx={{ fontSize: 2, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                    <Text as="div" sx={{ fontSize: 2, whiteSpace: 'pre-wrap', lineHeight: 1.6, color: 'fg.default' }}>
                       {currentRecord.assistant}
                     </Text>
                     {!isExpanded && currentRecord.assistant.length > 500 && (
@@ -382,14 +421,18 @@ export default function Review() {
               <details>
                 <summary style={{ cursor: 'pointer', fontWeight: 600, marginBottom: '12px', color: 'inherit' }}>
                   <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: 'fg.default' }}>
-                    <GearIcon size={16} />
+                    <Box sx={{ color: 'fg.default' }}>
+                      <GearIcon size={16} />
+                    </Box>
                     <Text sx={{ fontSize: 1, fontWeight: 'semibold', color: 'fg.default' }}>System & User Context</Text>
                   </Box>
                 </summary>
 
                 <Box sx={{ mt: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <GearIcon size={14} />
+                    <Box sx={{ color: 'fg.default' }}>
+                      <GearIcon size={14} />
+                    </Box>
                     <Text as="div" sx={{ fontSize: 1, fontWeight: 'semibold', color: 'fg.default' }}>
                       System Prompt
                     </Text>
@@ -399,7 +442,9 @@ export default function Review() {
                   </Text>
 
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <PersonIcon size={14} />
+                    <Box sx={{ color: 'fg.default' }}>
+                      <PersonIcon size={14} />
+                    </Box>
                     <Text as="div" sx={{ fontSize: 1, fontWeight: 'semibold', color: 'fg.default' }}>
                       User Message
                     </Text>

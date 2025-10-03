@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { Box, IconButton, ThemeProvider, useTheme, Heading, Text } from '@primer/react'
 import { SunIcon, MoonIcon, BeakerIcon, ChecklistIcon } from '@primer/octicons-react'
@@ -14,6 +14,12 @@ function Navigation() {
     { path: '/', label: 'Generator', icon: BeakerIcon },
     { path: '/review', label: 'Review', icon: ChecklistIcon },
   ]
+
+  const handleToggleTheme = () => {
+    const newMode = isDark ? 'light' : 'dark'
+    setColorMode(newMode)
+    localStorage.setItem('colorMode', newMode)
+  }
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -33,8 +39,8 @@ function Navigation() {
       >
         {/* brand */}
         <Box sx={{ p: 4, borderBottom: '1px solid', borderColor: 'border.default' }}>
-          <Heading sx={{ fontSize: 3, mb: 1 }}>QADataGen</Heading>
-          <Text sx={{ fontSize: 1, color: 'fg.muted' }}>Dataset Generation</Text>
+          <Heading sx={{ fontSize: 3, mb: 1, color: 'fg.default' }}>QADataGen</Heading>
+          <Text sx={{ fontSize: 1, color: 'fg.default' }}>Dataset Generation</Text>
         </Box>
 
         {/* navigation links */}
@@ -75,7 +81,7 @@ function Navigation() {
           <IconButton
             icon={isDark ? SunIcon : MoonIcon}
             aria-label="Toggle theme"
-            onClick={() => setColorMode(isDark ? 'light' : 'dark')}
+            onClick={handleToggleTheme}
             variant="invisible"
             size="large"
             sx={{ width: '100%' }}
@@ -97,7 +103,14 @@ function Navigation() {
 }
 
 export default function App() {
-  const [colorMode, setColorMode] = useState<'light' | 'dark'>('light')
+  const [colorMode, setColorMode] = useState<'light' | 'dark' | 'auto'>(() => {
+    // read from localStorage or default to light
+    const stored = localStorage.getItem('colorMode')
+    if (stored === 'dark' || stored === 'light' || stored === 'auto') {
+      return stored
+    }
+    return 'light'
+  })
 
   return (
     <ThemeProvider colorMode={colorMode}>
