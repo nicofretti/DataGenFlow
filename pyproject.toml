@@ -18,6 +18,8 @@ dependencies = [
     "python-multipart>=0.0.20",
     "loguru>=0.7.0",
     "tqdm>=4.66.0",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=0.24.0",
 ]
 
 [tool.setuptools.packages.find]

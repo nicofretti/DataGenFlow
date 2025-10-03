@@ -12,8 +12,19 @@ class Storage:
         self.db_path = db_path
 
     async def init_db(self) -> None:
-        settings.ensure_data_dir()
+        # only ensure data dir if not using in-memory database
+        if self.db_path != ":memory:":
+            settings.ensure_data_dir()
         async with aiosqlite.connect(self.db_path) as db:
+            # create pipelines table first to avoid foreign key issues
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS pipelines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    definition TEXT NOT NULL,
+                    created_at TIMESTAMP NOT NULL
+                )
+            """)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS records (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,8 +33,10 @@ class Storage:
                     assistant TEXT NOT NULL,
                     metadata TEXT NOT NULL,
                     status TEXT NOT NULL,
+                    pipeline_id INTEGER,
                     created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL
+                    updated_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY (pipeline_id) REFERENCES pipelines(id)
                 )
             """)
             await db.execute("""
@@ -34,13 +47,13 @@ class Storage:
             """)
             await db.commit()
 
-    async def save_record(self, record: Record) -> int:
+    async def save_record(self, record: Record, pipeline_id: int | None = None) -> int:
         now = datetime.now()
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
                 """
-                INSERT INTO records (system, user, assistant, metadata, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO records (system, user, assistant, metadata, status, pipeline_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.system,
@@ -48,6 +61,7 @@ class Storage:
                     record.assistant,
                     json.dumps(record.metadata),
                     record.status.value,
+                    pipeline_id,
                     now,
                     now,
                 ),
@@ -133,6 +147,51 @@ class Storage:
             }
             lines.append(json.dumps(obj))
         return "\n".join(lines)
+
+    async def save_pipeline(self, name: str, definition: dict) -> int:
+        now = datetime.now()
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                "INSERT INTO pipelines (name, definition, created_at) VALUES (?, ?, ?)",
+                (name, json.dumps(definition), now),
+            )
+            await db.commit()
+            return cursor.lastrowid or 0
+
+    async def get_pipeline(self, pipeline_id: int) -> dict | None:
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM pipelines WHERE id = ?", (pipeline_id,))
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row["id"],
+                "name": row["name"],
+                "definition": json.loads(row["definition"]),
+                "created_at": row["created_at"],
+            }
+
+    async def list_pipelines(self) -> list[dict]:
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM pipelines ORDER BY created_at DESC")
+            rows = await cursor.fetchall()
+            return [
+                {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "definition": json.loads(row["definition"]),
+                    "created_at": row["created_at"],
+                }
+                for row in rows
+            ]
+
+    async def delete_pipeline(self, pipeline_id: int) -> bool:
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("DELETE FROM pipelines WHERE id = ?", (pipeline_id,))
+            await db.commit()
+            return cursor.rowcount > 0
 
     def _row_to_record(self, row: aiosqlite.Row) -> Record:
         return Record(
