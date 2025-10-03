@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { Box, IconButton, ThemeProvider, useTheme, Heading, Text } from '@primer/react'
-import { SunIcon, MoonIcon, BeakerIcon, ChecklistIcon } from '@primer/octicons-react'
+import { SunIcon, MoonIcon, BeakerIcon, ChecklistIcon, WorkflowIcon, ListUnorderedIcon } from '@primer/octicons-react'
 import Generator from './pages/Generator'
 import Review from './pages/Review'
+import Builder from './pages/Builder'
+import Pipelines from './pages/Pipelines'
 
 function Navigation() {
   const location = useLocation()
@@ -13,6 +15,8 @@ function Navigation() {
   const navItems = [
     { path: '/', label: 'Generator', icon: BeakerIcon },
     { path: '/review', label: 'Review', icon: ChecklistIcon },
+    { path: '/builder', label: 'Builder', icon: WorkflowIcon },
+    { path: '/pipelines', label: 'Pipelines', icon: ListUnorderedIcon },
   ]
 
   const handleToggleTheme = () => {
@@ -95,6 +99,8 @@ function Navigation() {
           <Routes>
             <Route path="/" element={<Generator />} />
             <Route path="/review" element={<Review />} />
+            <Route path="/builder" element={<Builder />} />
+            <Route path="/pipelines" element={<Pipelines />} />
           </Routes>
         </Box>
       </Box>
