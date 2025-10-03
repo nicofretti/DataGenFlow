@@ -8,8 +8,10 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from config import settings
+from lib.blocks.registry import registry
 from lib.pipeline import Pipeline
 from lib.storage import Storage
+from lib.workflow import Pipeline as WorkflowPipeline
 from models import GenerationConfig, RecordStatus, RecordUpdate
 
 storage = Storage()
@@ -88,6 +90,57 @@ async def download_export(status: RecordStatus | None = None) -> FileResponse:
         media_type="application/x-ndjson",
         filename="qa_export.jsonl",
     )
+
+
+@api.get("/blocks")
+async def list_blocks() -> list[dict[str, Any]]:
+    return registry.list_blocks()
+
+
+@api.post("/pipelines")
+async def create_pipeline(pipeline_data: dict[str, Any]) -> dict[str, Any]:
+    name = pipeline_data.get("name")
+    blocks = pipeline_data.get("blocks")
+
+    if not name or not blocks:
+        raise HTTPException(status_code=400, detail="name and blocks required")
+
+    pipeline_id = await storage.save_pipeline(name, pipeline_data)
+    return {"id": pipeline_id, "name": name}
+
+
+@api.get("/pipelines")
+async def list_pipelines() -> list[dict[str, Any]]:
+    return await storage.list_pipelines()
+
+
+@api.get("/pipelines/{pipeline_id}")
+async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
+    pipeline = await storage.get_pipeline(pipeline_id)
+    if not pipeline:
+        raise HTTPException(status_code=404, detail="pipeline not found")
+    return pipeline
+
+
+@api.post("/pipelines/{pipeline_id}/execute")
+async def execute_pipeline(
+    pipeline_id: int, data: dict[str, Any]
+) -> dict[str, Any]:
+    pipeline_data = await storage.get_pipeline(pipeline_id)
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="pipeline not found")
+
+    pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
+    result = await pipeline.execute(data)
+    return result
+
+
+@api.delete("/pipelines/{pipeline_id}")
+async def delete_pipeline(pipeline_id: int) -> dict[str, bool]:
+    success = await storage.delete_pipeline(pipeline_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="pipeline not found")
+    return {"success": True}
 
 
 # mount api routes
