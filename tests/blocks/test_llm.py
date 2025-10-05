@@ -1,142 +1,155 @@
 """
-Tests for LLMBlock in lib/blocks/llm.py
+Tests for LLMBlock in lib/blocks/builtin/llm.py
 """
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from lib.blocks.llm import LLMBlock
+from lib.blocks.builtin.llm import LLMBlock
 
 
 class TestLLMBlock:
     """Test LLM block functionality"""
-    
+
     def test_llm_block_init(self):
         """Test LLMBlock initialization"""
-        block = LLMBlock(model="test-model", endpoint="http://test")
+        block = LLMBlock(model="test-model", temperature=0.5, max_tokens=1024)
         assert block.model == "test-model"
-        assert block.endpoint == "http://test"
-        
+        assert block.temperature == 0.5
+        assert block.max_tokens == 1024
+
         # test with default values
         block_default = LLMBlock()
-        assert block_default.model is not None
-        assert block_default.endpoint is not None
-    
+        assert block_default.model is None
+        assert block_default.temperature == 0.7
+        assert block_default.max_tokens == 2048
+
     def test_llm_block_schema(self):
         """Test LLMBlock schema generation"""
         block = LLMBlock()
         schema = block.get_schema()
-        
+
         assert "type" in schema
-        assert schema["type"] == "object"
-        assert "properties" in schema
-        
-        properties = schema["properties"]
-        assert "system" in properties
-        assert "user" in properties
-        
-        # check that system and user are required
-        assert "required" in schema
-        assert "system" in schema["required"]
-        assert "user" in schema["required"]
-    
+        assert schema["type"] == "LLMBlock"
+        assert "name" in schema
+        assert schema["name"] == "LLM Generator"
+        assert "inputs" in schema
+        assert schema["inputs"] == ["system", "user"]
+        assert "outputs" in schema
+        assert schema["outputs"] == ["assistant"]
+
     @pytest.mark.asyncio
     async def test_llm_block_execute_success(self):
         """Test LLMBlock execution with mocked LLM response"""
         block = LLMBlock(model="test-model")
-        
-        # mock the generator to return a test response
-        with patch.object(block.generator, 'generate', new_callable=AsyncMock) as mock_generate:
-            mock_generate.return_value = "This is a test response"
-            
+
+        # mock generator.generate
+        with patch('lib.blocks.builtin.llm.Generator') as MockGenerator:
+            mock_instance = MockGenerator.return_value
+            mock_instance.generate = AsyncMock(return_value="This is a test response")
+
             input_data = {
                 "system": "You are a helpful assistant",
                 "user": "Say hello"
             }
-            
+
             result = await block.execute(input_data)
-            
-            # check that generator was called with correct parameters
-            mock_generate.assert_called_once_with(
-                "You are a helpful assistant",
-                "Say hello"
-            )
-            
+
             # check result
             assert "assistant" in result
             assert result["assistant"] == "This is a test response"
-            
-            # check that original input is preserved
-            assert result["system"] == "You are a helpful assistant"
-            assert result["user"] == "Say hello"
-    
+
+            # check generator was called
+            mock_instance.generate.assert_called_once_with(
+                "You are a helpful assistant",
+                "Say hello"
+            )
+
     @pytest.mark.asyncio
     async def test_llm_block_execute_with_error(self):
         """Test LLMBlock execution when LLM call fails"""
         block = LLMBlock(model="test-model")
-        
-        # mock the generator to raise an exception
-        with patch.object(block.generator, 'generate', new_callable=AsyncMock) as mock_generate:
-            mock_generate.side_effect = Exception("LLM API error")
-            
+
+        # mock generator to raise exception
+        with patch('lib.blocks.builtin.llm.Generator') as MockGenerator:
+            mock_instance = MockGenerator.return_value
+            mock_instance.generate = AsyncMock(side_effect=Exception("LLM API error"))
+
             input_data = {
                 "system": "You are a helpful assistant",
                 "user": "Say hello"
             }
-            
-            # the block should handle the error gracefully
+
             with pytest.raises(Exception):
                 await block.execute(input_data)
-    
+
     @pytest.mark.asyncio
-    async def test_llm_block_execute_missing_required_fields(self):
-        """Test LLMBlock execution with missing required fields"""
+    async def test_llm_block_execute_missing_fields(self):
+        """Test LLMBlock execution with missing fields"""
         block = LLMBlock()
-        
-        # test with missing system
-        with pytest.raises(KeyError):
-            await block.execute({"user": "Say hello"})
-        
-        # test with missing user
-        with pytest.raises(KeyError):
-            await block.execute({"system": "You are helpful"})
-        
-        # test with empty input
-        with pytest.raises(KeyError):
-            await block.execute({})
-    
+
+        # missing fields default to empty strings
+        with patch('lib.blocks.builtin.llm.Generator') as MockGenerator:
+            mock_instance = MockGenerator.return_value
+            mock_instance.generate = AsyncMock(return_value="response")
+
+            # test with missing system
+            result = await block.execute({"user": "Say hello"})
+            assert result["assistant"] == "response"
+            mock_instance.generate.assert_called_with("", "Say hello")
+
+            # test with missing user
+            mock_instance.reset_mock()
+            result = await block.execute({"system": "You are helpful"})
+            assert result["assistant"] == "response"
+            mock_instance.generate.assert_called_with("You are helpful", "")
+
+            # test with empty input
+            mock_instance.reset_mock()
+            result = await block.execute({})
+            assert result["assistant"] == "response"
+            mock_instance.generate.assert_called_with("", "")
+
     @pytest.mark.asyncio
-    async def test_llm_block_execute_with_additional_fields(self):
-        """Test LLMBlock execution with additional input fields"""
+    async def test_llm_block_execute_only_returns_declared_outputs(self):
+        """Test LLMBlock returns only assistant field"""
         block = LLMBlock(model="test-model")
-        
-        with patch.object(block.generator, 'generate', new_callable=AsyncMock) as mock_generate:
-            mock_generate.return_value = "Test response"
-            
+
+        with patch('lib.blocks.builtin.llm.Generator') as MockGenerator:
+            mock_instance = MockGenerator.return_value
+            mock_instance.generate = AsyncMock(return_value="Test response")
+
             input_data = {
                 "system": "You are helpful",
                 "user": "Say hello",
                 "metadata": {"test": "value"},
-                "extra_field": "should be preserved"
+                "extra_field": "should not be in output"
             }
-            
+
             result = await block.execute(input_data)
-            
-            # check that additional fields are preserved
-            assert result["metadata"] == {"test": "value"}
-            assert result["extra_field"] == "should be preserved"
-            assert result["assistant"] == "Test response"
-    
-    def test_llm_block_schema_validation(self):
-        """Test that LLMBlock schema can validate inputs"""
+
+            # only declared output
+            assert result == {"assistant": "Test response"}
+            assert "metadata" not in result
+            assert "extra_field" not in result
+            assert "system" not in result
+            assert "user" not in result
+
+    def test_llm_block_config_schema(self):
+        """Test LLMBlock config schema"""
         block = LLMBlock()
         schema = block.get_schema()
-        
-        # this would typically be used by a JSON schema validator
-        # we'll do basic checks here
-        assert "properties" in schema
-        assert "system" in schema["properties"]
-        assert "user" in schema["properties"]
-        
-        # check property types
-        assert schema["properties"]["system"]["type"] == "string"
-        assert schema["properties"]["user"]["type"] == "string"
+
+        assert "config_schema" in schema
+        config = schema["config_schema"]
+
+        assert "model" in config
+        assert config["model"]["type"] == "string"
+        assert config["model"]["default"] is None
+
+        assert "temperature" in config
+        assert config["temperature"]["type"] == "number"
+        assert config["temperature"]["default"] == 0.7
+
+        assert "max_tokens" in config
+        assert config["max_tokens"]["type"] == "number"
+        assert config["max_tokens"]["default"] == 2048

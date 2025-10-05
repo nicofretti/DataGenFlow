@@ -139,7 +139,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_block_execution_error_handling(self):
         """Test that block execution errors are handled properly"""
-        from lib.blocks.transformer import TransformerBlock
+        from lib.blocks.builtin.transformer import TransformerBlock
         
         block = TransformerBlock(operation="invalid_operation")
         
@@ -296,8 +296,8 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_empty_input_handling(self):
         """Test handling of empty inputs"""
-        from lib.blocks.transformer import TransformerBlock
-        from lib.blocks.validator import ValidatorBlock
+        from lib.blocks.builtin.transformer import TransformerBlock
+        from lib.blocks.builtin.validator import ValidatorBlock
         
         transformer = TransformerBlock(operation="lowercase")
         validator = ValidatorBlock(min_length=1)
@@ -313,7 +313,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_large_input_handling(self):
         """Test handling of very large inputs"""
-        from lib.blocks.transformer import TransformerBlock
+        from lib.blocks.builtin.transformer import TransformerBlock
         
         # create a very large input
         large_text = "A" * 100000  # 100KB
@@ -327,7 +327,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_unicode_handling(self):
         """Test handling of unicode characters"""
-        from lib.blocks.transformer import TransformerBlock
+        from lib.blocks.builtin.transformer import TransformerBlock
         
         # test various unicode characters
         unicode_text = "Hello 世界 🌍 café naïve résumé"

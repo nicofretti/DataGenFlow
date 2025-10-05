@@ -25,18 +25,55 @@ class Pipeline:
     def load_from_dict(cls, data: dict[str, Any]) -> "Pipeline":
         return cls(name=data["name"], blocks=data["blocks"])
 
-    async def execute(self, initial_data: dict[str, Any]) -> dict[str, Any]:
-        data = initial_data.copy()
+    def _validate_output(self, block: Any, result: dict[str, Any]) -> None:
+        # validate block returns only declared outputs
+        declared = set(block.outputs)
+        actual = set(result.keys())
+        if not actual.issubset(declared):
+            extra = actual - declared
+            raise ValueError(
+                f"{block.__class__.__name__} returned undeclared fields: {extra}. "
+                f"Declared outputs: {declared}, Actual: {actual}"
+            )
+
+    async def execute(self, initial_data: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        accumulated_data = initial_data.copy()
+        trace = []
 
         for i, block in enumerate(self._block_instances):
             try:
-                result = await block.execute(data)
-                # merge result into data for next block
-                data.update(result)
+                block_input = accumulated_data.copy()
+                result = await block.execute(accumulated_data)
+
+                # validate output matches declared schema
+                self._validate_output(block, result)
+
+                # merge result into accumulated data
+                accumulated_data.update(result)
+
+                # set pipeline_output if not already set and this is the last block
+                is_last_block = i == len(self._block_instances) - 1
+                if is_last_block and "pipeline_output" not in accumulated_data:
+                    if "assistant" in accumulated_data:
+                        accumulated_data["pipeline_output"] = accumulated_data["assistant"]
+                    elif block.outputs:
+                        # use this block's first output
+                        first_output = block.outputs[0]
+                        accumulated_data["pipeline_output"] = accumulated_data.get(first_output, "")
+                    else:
+                        accumulated_data["pipeline_output"] = ""
+
+                # capture trace with accumulated state (after pipeline_output is set)
+                trace.append({
+                    "block_type": block.__class__.__name__,
+                    "input": block_input,
+                    "output": result,
+                    "accumulated_state": accumulated_data.copy(),
+                })
             except Exception as e:
                 raise RuntimeError(f"block {i} ({block.__class__.__name__}) failed: {e}")
 
-        return data
+        return accumulated_data, trace
 
     def to_dict(self) -> dict[str, Any]:
         return {"name": self.name, "blocks": self.blocks}

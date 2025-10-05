@@ -1,6 +1,6 @@
 import pytest
 
-from lib.blocks.validator import ValidatorBlock
+from lib.blocks.builtin.validator import ValidatorBlock
 
 
 @pytest.mark.asyncio

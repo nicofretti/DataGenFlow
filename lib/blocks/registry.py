@@ -12,8 +12,14 @@ class BlockRegistry:
         self._discover_blocks()
 
     def _discover_blocks(self) -> None:
-        # scan lib/blocks/ and user_blocks/ for block classes
-        for blocks_dir in ["lib/blocks", "user_blocks"]:
+        # scan lib/blocks/builtin/, lib/blocks/custom/, and user_blocks/ for block classes
+        scan_dirs = [
+            "lib/blocks/builtin",
+            "lib/blocks/custom",
+            "user_blocks",
+        ]
+
+        for blocks_dir in scan_dirs:
             blocks_path = Path(blocks_dir)
             if not blocks_path.exists():
                 continue

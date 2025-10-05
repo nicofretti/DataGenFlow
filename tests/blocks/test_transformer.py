@@ -1,6 +1,6 @@
 import pytest
 
-from lib.blocks.transformer import TransformerBlock
+from lib.blocks.builtin.transformer import TransformerBlock
 
 
 @pytest.mark.asyncio

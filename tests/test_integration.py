@@ -2,6 +2,7 @@
 Integration tests for the QA Data Generation pipeline
 """
 import pytest
+import pytest_asyncio
 import tempfile
 import json
 import os
@@ -13,16 +14,16 @@ from lib.pipeline import Pipeline as LegacyPipeline
 from models import Record, RecordStatus, SeedInput, GenerationConfig
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def storage():
     """Create a temporary database for testing"""
     with tempfile.NamedTemporaryFile(delete=False, suffix='.db') as f:
         db_path = f.name
-    
-    storage = Storage(db_path)
-    await storage.init_db()
-    yield storage
-    
+
+    s = Storage(db_path)
+    await s.init_db()
+    yield s
+
     # cleanup
     try:
         os.unlink(db_path)
@@ -46,12 +47,13 @@ class TestWorkflowIntegration:
         }
         
         pipeline = Pipeline.load_from_dict(pipeline_def)
-        
+
         input_data = {"text": "  HELLO WORLD  "}
-        result = await pipeline.execute(input_data)
-        
+        result, trace = await pipeline.execute(input_data)
+
         assert result["text"] == "hello world"
         assert result["valid"] is True
+        assert len(trace) == 3
     
     @pytest.mark.asyncio
     async def test_validation_failure_pipeline(self):
@@ -65,10 +67,10 @@ class TestWorkflowIntegration:
         }
         
         pipeline = Pipeline.load_from_dict(pipeline_def)
-        
+
         input_data = {"text": "short"}
-        result = await pipeline.execute(input_data)
-        
+        result, trace = await pipeline.execute(input_data)
+
         assert result["text"] == "short"
         assert result["valid"] is False
     
@@ -82,31 +84,25 @@ class TestWorkflowIntegration:
                 {"type": "ValidatorBlock", "config": {"min_length": 5}}
             ]
         }
-        
+
         pipeline = Pipeline.load_from_dict(pipeline_def)
-        
-        # find the LLM block and mock its generator
-        llm_block = None
-        for block in pipeline.blocks:
-            if hasattr(block, 'generator'):
-                llm_block = block
-                break
-        
-        assert llm_block is not None
-        
-        with patch.object(llm_block.generator, 'generate', new_callable=AsyncMock) as mock_generate:
-            mock_generate.return_value = "This is a test response from LLM"
-            
+
+        # mock generator class
+        with patch('lib.blocks.builtin.llm.Generator') as MockGenerator:
+            mock_instance = MockGenerator.return_value
+            mock_instance.generate = AsyncMock(return_value="This is a test response from LLM")
+
             input_data = {
                 "system": "You are helpful",
                 "user": "Say hello"
             }
-            
-            result = await pipeline.execute(input_data)
-            
+
+            result, trace = await pipeline.execute(input_data)
+
             assert result["assistant"] == "This is a test response from LLM"
             assert result["valid"] is True
-            mock_generate.assert_called_once()
+            assert len(trace) == 2
+            mock_instance.generate.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_pipeline_data_flow(self):
@@ -126,11 +122,11 @@ class TestWorkflowIntegration:
             "metadata": {"test": "preserved"}
         }
         
-        result = await pipeline.execute(input_data)
-        
+        result, trace = await pipeline.execute(input_data)
+
         # text should be uppercase and trimmed
         assert result["text"] == "HELLO WORLD"
-        # metadata should be preserved
+        # metadata should be preserved in accumulated state
         assert result["metadata"] == {"test": "preserved"}
 
 
@@ -159,8 +155,8 @@ class TestStoragePipelineIntegration:
         pipeline = Pipeline.load_from_dict(stored_pipeline_data["definition"])
         
         input_data = {"text": "HELLO"}
-        result = await pipeline.execute(input_data)
-        
+        result, trace = await pipeline.execute(input_data)
+
         assert result["text"] == "hello"
         assert result["valid"] is True
     
@@ -334,12 +330,12 @@ class TestEndToEndWorkflow:
                 "user": filled_user
             }
             
-            result = await pipeline.execute(input_data)
-            
+            result, trace = await pipeline.execute(input_data)
+
             # 4. Create and save record with results
             record = Record(
-                system=result["system"],
-                user=result["user"],
+                system=input_data["system"],
+                user=input_data["user"],
                 assistant=result["assistant"],
                 metadata=seed.metadata,
                 status=RecordStatus.ACCEPTED if result.get("valid", True) else RecordStatus.REJECTED
@@ -385,7 +381,7 @@ class TestEndToEndWorkflow:
         
         results = []
         for input_data in inputs:
-            result = await pipeline.execute(input_data)
+            result, trace = await pipeline.execute(input_data)
             results.append(result)
         
         # verify all were processed
