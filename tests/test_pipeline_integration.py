@@ -1,0 +1,96 @@
+import pytest
+
+from lib.storage import Storage
+from lib.workflow import Pipeline as WorkflowPipeline
+from models import Record
+
+
+@pytest.mark.asyncio
+async def test_pipeline_execution_with_trace():
+    # create a simple pipeline with just llm block
+    pipeline_def = {
+        "name": "Test Pipeline",
+        "blocks": [
+            {"type": "LLMBlock", "config": {"temperature": 0.7}},
+        ],
+    }
+
+    pipeline = WorkflowPipeline.load_from_dict(pipeline_def)
+
+    # execute with test data
+    input_data = {"system": "You are a helpful assistant", "user": "Say hello"}
+
+    # mock the llm call to avoid actual api requests
+    from unittest.mock import AsyncMock, patch
+
+    with patch("lib.generator.Generator.generate", new_callable=AsyncMock) as mock_gen:
+        mock_gen.return_value = "Hello! How can I help you today?"
+
+        result, trace = await pipeline.execute(input_data)
+
+        # verify result has pipeline_output set
+        assert "assistant" in result
+        assert result["assistant"] == "Hello! How can I help you today?"
+        assert "pipeline_output" in result
+        assert result["pipeline_output"] == "Hello! How can I help you today?"
+
+        # verify trace structure
+        assert len(trace) == 1
+        assert trace[0]["block_type"] == "LLMBlock"
+
+        # verify trace has accumulated_state
+        assert "accumulated_state" in trace[0]
+        assert trace[0]["accumulated_state"]["pipeline_output"] == "Hello! How can I help you today?"
+
+
+@pytest.mark.asyncio
+async def test_storage_saves_trace():
+    # test that trace is saved with record
+    storage = Storage(":memory:")
+    await storage.init_db()
+
+    # create pipeline first for foreign key
+    pipeline_def = {"name": "Test", "blocks": []}
+    pipeline_id = await storage.save_pipeline("Test", pipeline_def)
+
+    trace = [
+        {
+            "block_type": "LLMBlock",
+            "input": {"system": "test", "user": "test"},
+            "output": {"assistant": "response"},
+        }
+    ]
+
+    record = Record(
+        system="test system",
+        user="test user",
+        assistant="test assistant",
+        trace=trace,
+    )
+
+    record_id = await storage.save_record(record, pipeline_id=pipeline_id)
+
+    # retrieve and verify
+    saved_record = await storage.get_by_id(record_id)
+    assert saved_record is not None
+    assert saved_record.trace is not None
+    assert len(saved_record.trace) == 1
+    assert saved_record.trace[0]["block_type"] == "LLMBlock"
+
+
+@pytest.mark.asyncio
+async def test_storage_handles_none_trace():
+    # test that records without trace work fine
+    storage = Storage(":memory:")
+    await storage.init_db()
+
+    record = Record(
+        system="test system", user="test user", assistant="test assistant", trace=None
+    )
+
+    record_id = await storage.save_record(record)
+
+    # retrieve and verify
+    saved_record = await storage.get_by_id(record_id)
+    assert saved_record is not None
+    assert saved_record.trace is None

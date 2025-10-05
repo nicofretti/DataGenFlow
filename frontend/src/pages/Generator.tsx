@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Box,
   Heading,
@@ -6,21 +6,43 @@ import {
   Button,
   Flash,
   Text,
-  TextInput,
   Select,
   Spinner,
   ProgressBar,
 } from '@primer/react'
 import { UploadIcon, PlayIcon, XIcon } from '@primer/octicons-react'
 
+interface Pipeline {
+  id: number
+  name: string
+  definition: {
+    name: string
+    blocks: any[]
+  }
+}
+
 export default function Generator() {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [dragActive, setDragActive] = useState(false)
-  const [temperature, setTemperature] = useState('0.7')
-  const [maxTokens, setMaxTokens] = useState('2048')
+  const [pipelines, setPipelines] = useState<Pipeline[]>([])
+  const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    fetchPipelines()
+  }, [])
+
+  const fetchPipelines = async () => {
+    try {
+      const res = await fetch('/api/pipelines')
+      const data = await res.json()
+      setPipelines(data)
+    } catch (error) {
+      console.error('Failed to fetch pipelines:', error)
+    }
+  }
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
@@ -55,13 +77,14 @@ export default function Generator() {
   }
 
   const handleGenerate = async () => {
-    if (!file) return
+    if (!file || !selectedPipeline) return
 
     setLoading(true)
     setMessage(null)
 
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('pipeline_id', selectedPipeline.toString())
 
     try {
       const res = await fetch('/api/generate', {
@@ -69,9 +92,10 @@ export default function Generator() {
         body: formData,
       })
       const result = await res.json()
+      const pipelineName = pipelines.find((p) => p.id === selectedPipeline)?.name
       setMessage({
         type: 'success',
-        text: `Generated ${result.success} of ${result.total} records (${result.failed} failed)`,
+        text: `Generated ${result.success} of ${result.total} records using ${pipelineName} (${result.failed} failed)`,
       })
     } catch (error) {
       setMessage({ type: 'error', text: `Error: ${error}` })
@@ -180,27 +204,20 @@ export default function Generator() {
             Configuration
           </Heading>
 
-          <FormControl sx={{ mb: 3 }}>
-            <FormControl.Label>Temperature</FormControl.Label>
-            <TextInput
-              type="number"
-              step="0.1"
-              min="0"
-              max="2"
-              value={temperature}
-              onChange={(e) => setTemperature(e.target.value)}
-            />
-            <FormControl.Caption>Controls randomness (0.0 - 2.0)</FormControl.Caption>
-          </FormControl>
-
-          <FormControl sx={{ mb: 4 }}>
-            <FormControl.Label>Max Tokens</FormControl.Label>
-            <TextInput
-              type="number"
-              value={maxTokens}
-              onChange={(e) => setMaxTokens(e.target.value)}
-            />
-            <FormControl.Caption>Maximum response length</FormControl.Caption>
+          <FormControl sx={{ mb: 4 }} required>
+            <FormControl.Label>Pipeline</FormControl.Label>
+            <Select
+              value={selectedPipeline?.toString() || ''}
+              onChange={(e) => setSelectedPipeline(Number(e.target.value) || null)}
+            >
+              <Select.Option value="">Select a pipeline...</Select.Option>
+              {pipelines.map((pipeline) => (
+                <Select.Option key={pipeline.id} value={pipeline.id.toString()}>
+                  {pipeline.name} ({pipeline.definition.blocks.length} blocks)
+                </Select.Option>
+              ))}
+            </Select>
+            <FormControl.Caption>Select pipeline to execute for each seed row</FormControl.Caption>
           </FormControl>
 
           <Button
@@ -209,7 +226,7 @@ export default function Generator() {
             block
             leadingVisual={PlayIcon}
             onClick={handleGenerate}
-            disabled={!file || loading}
+            disabled={!file || !selectedPipeline || loading}
           >
             {loading ? 'Generating...' : 'Generate Records'}
           </Button>

@@ -1,18 +1,21 @@
+import asyncio
+import json
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from loguru import logger
 
 from config import settings
 from lib.blocks.registry import registry
-from lib.pipeline import Pipeline
+from lib.generator import Generator
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
-from models import GenerationConfig, RecordStatus, RecordUpdate
+from models import Record, RecordStatus, RecordUpdate, SeedInput
 
 storage = Storage()
 
@@ -31,22 +34,66 @@ api = FastAPI()
 
 @api.post("/generate")
 async def generate(
-    file: UploadFile = File(...), config: GenerationConfig | None = None
+    file: UploadFile = File(...), pipeline_id: int = Form(...)
 ) -> dict[str, Any]:
     if not file.filename or not file.filename.endswith(".json"):
         raise HTTPException(status_code=400, detail="only JSON files accepted")
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = tmp.name
+    # load pipeline
+    pipeline_data = await storage.get_pipeline(pipeline_id)
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="pipeline not found")
 
-    try:
-        pipeline = Pipeline(storage)
-        result = await pipeline.process_seed_file(tmp_path, config)
-        return result
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
+    pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
+
+    # parse seed file
+    content = await file.read()
+    data = json.loads(content)
+    seeds = [SeedInput(**item) for item in (data if isinstance(data, list) else [data])]
+
+    logger.info(f"processing {len(seeds)} seeds with pipeline {pipeline_id}")
+
+    total = 0
+    success = 0
+    failed = 0
+
+    # process each seed
+    for seed in seeds:
+        num_samples = seed.metadata.get("num_samples", 1)
+        if not isinstance(num_samples, int):
+            num_samples = 1
+
+        # render templates if needed
+        generator = Generator()
+        system = generator.render_template(seed.system, seed.metadata)
+        user = generator.render_template(seed.user, seed.metadata)
+
+        # execute pipeline num_samples times
+        for _ in range(num_samples):
+            total += 1
+            try:
+                # prepare input data for pipeline
+                input_data = {"system": system, "user": user, **seed.metadata}
+
+                # execute pipeline with trace
+                result, trace = await pipeline.execute(input_data)
+
+                # create record from seed + pipeline output
+                record = Record(
+                    system=system,
+                    user=user,
+                    assistant=result.get("assistant", ""),
+                    metadata=seed.metadata,
+                    trace=trace,
+                )
+
+                await storage.save_record(record, pipeline_id=pipeline_id)
+                success += 1
+            except Exception as e:
+                failed += 1
+                logger.error(f"pipeline execution failed: {e}")
+
+    return {"total": total, "success": success, "failed": failed}
 
 
 @api.get("/records")
@@ -72,6 +119,12 @@ async def update_record(record_id: int, update: RecordUpdate) -> dict[str, bool]
     if not success:
         raise HTTPException(status_code=404, detail="record not found")
     return {"success": True}
+
+
+@api.delete("/records")
+async def delete_all_records() -> dict[str, Any]:
+    count = await storage.delete_all_records()
+    return {"deleted": count}
 
 
 @api.get("/export")
@@ -131,8 +184,8 @@ async def execute_pipeline(
         raise HTTPException(status_code=404, detail="pipeline not found")
 
     pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
-    result = await pipeline.execute(data)
-    return result
+    result, trace = await pipeline.execute(data)
+    return {"result": result, "trace": trace}
 
 
 @api.delete("/pipelines/{pipeline_id}")

@@ -25,6 +25,7 @@ class Record(BaseModel):
     assistant: str
     metadata: dict[str, Any] = Field(default_factory=dict)
     status: RecordStatus = RecordStatus.PENDING
+    trace: list[dict[str, Any]] | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

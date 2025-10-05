@@ -8,8 +8,9 @@ import {
   Textarea,
   SegmentedControl,
   CounterLabel,
+  Flash,
 } from '@primer/react'
-import { CheckIcon, XIcon, PencilIcon, ChevronLeftIcon, ChevronRightIcon, CommentIcon, PersonIcon, GearIcon, ClockIcon, CheckCircleIcon, XCircleIcon } from '@primer/octicons-react'
+import { CheckIcon, XIcon, PencilIcon, ChevronLeftIcon, ChevronRightIcon, CommentIcon, PersonIcon, GearIcon, ClockIcon, CheckCircleIcon, XCircleIcon, TrashIcon, DownloadIcon } from '@primer/octicons-react'
 
 interface Record {
   id: number
@@ -18,6 +19,11 @@ interface Record {
   assistant: string
   status: string
   metadata: any
+  trace?: Array<{
+    block_type: string
+    input: any
+    output: any
+  }>
 }
 
 export default function Review() {
@@ -28,6 +34,7 @@ export default function Review() {
   const [isExpanded, setIsExpanded] = useState(false)
   const [filterStatus, setFilterStatus] = useState<'pending' | 'accepted' | 'rejected'>('pending')
   const [stats, setStats] = useState({ pending: 0, accepted: 0, rejected: 0 })
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const currentRecord = records[currentIndex] || null
 
@@ -101,10 +108,26 @@ export default function Review() {
     loadStats()
   }
 
+  // get final output from pipeline accumulated state or fallback to assistant
+  const getFinalOutput = (record: Record): string => {
+    if (record.trace && record.trace.length > 0) {
+      const finalState = record.trace[record.trace.length - 1].accumulated_state
+      if (finalState?.pipeline_output !== undefined) {
+        // if pipeline_output is object, stringify it
+        return typeof finalState.pipeline_output === 'string'
+          ? finalState.pipeline_output
+          : JSON.stringify(finalState.pipeline_output, null, 2)
+      }
+      // fallback to accumulated state
+      return finalState ? JSON.stringify(finalState, null, 2) : record.assistant
+    }
+    return record.assistant || ''
+  }
+
   const startEditing = () => {
     if (!currentRecord) return
     setIsEditing(true)
-    setEditValue(currentRecord.assistant)
+    setEditValue(getFinalOutput(currentRecord))
     setIsExpanded(true) // expand when editing
   }
 
@@ -136,6 +159,23 @@ export default function Review() {
     }
   }
 
+  const deleteAllRecords = async () => {
+    if (!confirm('Delete ALL records? This cannot be undone.')) return
+
+    try {
+      await fetch('/api/records', { method: 'DELETE' })
+      setMessage({ type: 'success', text: 'All records deleted' })
+      loadRecords()
+      loadStats()
+    } catch (error) {
+      setMessage({ type: 'error', text: `Error: ${error}` })
+    }
+  }
+
+  const exportAccepted = () => {
+    window.location.href = '/api/export/download?status=accepted'
+  }
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case 'pending': return 'attention'
@@ -148,7 +188,7 @@ export default function Review() {
 
   return (
     <Box>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
           <Heading sx={{ mb: 2, color: 'fg.default' }}>Review Records</Heading>
           <Text sx={{ color: 'fg.default' }}>
@@ -156,6 +196,32 @@ export default function Review() {
           </Text>
         </Box>
 
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="primary"
+            leadingVisual={DownloadIcon}
+            onClick={exportAccepted}
+            disabled={stats.accepted === 0}
+          >
+            Export Accepted
+          </Button>
+          <Button
+            variant="danger"
+            leadingVisual={TrashIcon}
+            onClick={deleteAllRecords}
+          >
+            Delete All
+          </Button>
+        </Box>
+      </Box>
+
+      {message && (
+        <Flash variant={message.type === 'error' ? 'danger' : 'success'} sx={{ mb: 3 }}>
+          {message.text}
+        </Flash>
+      )}
+
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
         <SegmentedControl
           aria-label="Filter by status"
           onChange={(index) => {
@@ -327,14 +393,14 @@ export default function Review() {
               </Box>
             </Box>
 
-            {/* assistant response - main focus */}
+            {/* final output - main focus */}
             <Box sx={{ mb: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <Box sx={{ color: 'fg.default' }}>
                   <CommentIcon size={16} />
                 </Box>
                 <Text as="div" sx={{ fontSize: 2, fontWeight: 'bold', color: 'fg.default' }}>
-                  Assistant Response
+                  {currentRecord.trace && currentRecord.trace.length > 0 ? 'Pipeline Output' : 'Assistant Response'}
                 </Text>
               </Box>
               {isEditing ? (
@@ -378,32 +444,44 @@ export default function Review() {
                       position: 'relative',
                     }}
                   >
-                    <Text as="div" sx={{ fontSize: 2, whiteSpace: 'pre-wrap', lineHeight: 1.6, color: 'fg.default' }}>
-                      {currentRecord.assistant}
-                    </Text>
-                    {!isExpanded && currentRecord.assistant.length > 500 && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          height: '60px',
-                          background: 'linear-gradient(transparent, var(--bgColor-default))',
-                        }}
-                      />
-                    )}
+                    {(() => {
+                      const output = getFinalOutput(currentRecord)
+                      const outputStr = typeof output === 'string' ? output : JSON.stringify(output)
+                      return (
+                        <>
+                          <Text as="div" sx={{ fontSize: 2, whiteSpace: 'pre-wrap', lineHeight: 1.6, color: 'fg.default' }}>
+                            {outputStr}
+                          </Text>
+                          {!isExpanded && outputStr.length > 500 && (
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                height: '60px',
+                                background: 'linear-gradient(transparent, var(--bgColor-default))',
+                              }}
+                            />
+                          )}
+                        </>
+                      )
+                    })()}
                   </Box>
-                  {currentRecord.assistant.length > 500 && (
-                    <Button
-                      size="small"
-                      variant="invisible"
-                      onClick={() => setIsExpanded(!isExpanded)}
-                      sx={{ mt: 2 }}
-                    >
-                      {isExpanded ? 'Show less' : 'Show more'}
-                    </Button>
-                  )}
+                  {(() => {
+                    const output = getFinalOutput(currentRecord)
+                    const outputStr = typeof output === 'string' ? output : JSON.stringify(output)
+                    return outputStr.length > 500 && (
+                      <Button
+                        size="small"
+                        variant="invisible"
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        sx={{ mt: 2 }}
+                      >
+                        {isExpanded ? 'Show less' : 'Show more'}
+                      </Button>
+                    )
+                  })()}
                 </Box>
               )}
             </Box>
@@ -416,6 +494,7 @@ export default function Review() {
                 borderRadius: 2,
                 p: 3,
                 bg: 'canvas.inset',
+                mb: 3,
               }}
             >
               <details>
@@ -455,6 +534,63 @@ export default function Review() {
                 </Box>
               </details>
             </Box>
+
+            {/* execution trace - collapsible */}
+            {currentRecord.trace && currentRecord.trace.length > 0 && (
+              <Box
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'border.muted',
+                  borderRadius: 2,
+                  p: 3,
+                  bg: 'canvas.inset',
+                }}
+              >
+                <details>
+                  <summary style={{ cursor: 'pointer', fontWeight: 600, marginBottom: '12px', color: 'inherit' }}>
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: 'fg.default' }}>
+                      <Text sx={{ fontSize: 1, fontWeight: 'semibold', color: 'fg.default' }}>
+                        Execution Trace ({currentRecord.trace.length} blocks)
+                      </Text>
+                    </Box>
+                  </summary>
+
+                  <Box sx={{ mt: 2 }}>
+                    {currentRecord.trace.map((step, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          mb: 3,
+                          pb: 3,
+                          borderBottom: index < currentRecord.trace!.length - 1 ? '1px solid' : 'none',
+                          borderColor: 'border.muted',
+                        }}
+                      >
+                        <Text as="div" sx={{ fontSize: 1, fontWeight: 'semibold', mb: 2, color: 'fg.default' }}>
+                          {index + 1}. {step.block_type}
+                        </Text>
+                        <Box
+                          sx={{
+                            fontFamily: 'mono',
+                            fontSize: 0,
+                            p: 2,
+                            bg: 'canvas.default',
+                            borderRadius: 1,
+                            overflow: 'auto',
+                            maxHeight: '200px',
+                            color: 'fg.default',
+                          }}
+                        >
+                          <pre style={{ margin: 0 }}>
+                            {JSON.stringify({ input: step.input, output: step.output }, null, 2)}
+                          </pre>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </details>
+              </Box>
+            )}
 
             {filterStatus === 'pending' && !isEditing && (
               <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
