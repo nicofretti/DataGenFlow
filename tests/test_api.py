@@ -243,10 +243,10 @@ class TestAPIRecords:
         assert len(result) <= 5
     
     def test_export_records(self, client):
-        """Test GET /api/records/export"""
-        response = client.get("/api/records/export")
+        """Test GET /api/export"""
+        response = client.get("/api/export")
         assert response.status_code == 200
-        assert response.headers["content-type"] == "text/plain; charset=utf-8"
+        assert response.headers["content-type"] == "application/x-ndjson"
 
 
 class TestAPIStaticFiles:
@@ -278,9 +278,24 @@ class TestAPIErrors:
             "name": "Invalid Pipeline",
             "blocks": [{"type": "NonExistentBlock", "config": {}}]
         }
-        
+
+        # pipeline creation accepts any JSON (validation happens on execution)
         response = client.post("/api/pipelines", json=invalid_data)
-        assert response.status_code in [400, 422]
+        assert response.status_code == 200
+
+        pipeline_id = response.json()["id"]
+
+        # execution should fail with error
+        try:
+            exec_response = client.post(
+                f"/api/pipelines/{pipeline_id}/execute",
+                json={"text": "test"}
+            )
+            # if we get a response, it should be an error code
+            assert exec_response.status_code in [400, 500]
+        except Exception as e:
+            # or it might raise an exception directly in test mode
+            assert "unknown block type" in str(e) or "NonExistentBlock" in str(e)
     
     def test_execute_nonexistent_pipeline(self, client):
         """Test executing non-existent pipeline"""

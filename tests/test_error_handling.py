@@ -28,22 +28,19 @@ class TestUserBlocksDiscovery:
         
         test_block_code = '''
 from lib.blocks.base import BaseBlock
+from typing import Any
 
 class TestUserBlock(BaseBlock):
+    name = "test user block"
+    description = "test block for discovery"
+    inputs = ["text"]
+    outputs = ["test_output"]
+
     def __init__(self, test_param: str = "default"):
         self.test_param = test_param
-    
-    def get_schema(self):
-        return {
-            "type": "object",
-            "properties": {
-                "text": {"type": "string"}
-            },
-            "required": ["text"]
-        }
-    
-    async def execute(self, data):
-        return {**data, "test_output": f"processed: {data.get('text', '')}-{self.test_param}"}
+
+    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        return {"test_output": f"processed: {data.get('text', '')}-{self.test_param}"}
 '''
         
         test_block_file = user_blocks_dir / "test_user_block.py"
@@ -174,8 +171,8 @@ class TestErrorHandling:
         # input that should trigger validation failure
         input_data = {"text": "This is a test message"}
         
-        result = await pipeline.execute(input_data)
-        
+        result, trace = await pipeline.execute(input_data)
+
         # pipeline should complete but validation should fail
         assert result["text"] == "this is a test message"  # transformation applied
         assert result["valid"] is False  # validation failed
@@ -219,13 +216,22 @@ class TestErrorHandling:
     async def test_generator_error_handling(self):
         """Test LLM generator error handling"""
         from lib.generator import Generator
-        
+        from models import GenerationConfig
+        from config import settings
+
         # test with invalid endpoint
-        gen = Generator(endpoint="http://invalid:99999", api_key="test")
-        
-        # should handle connection errors
-        with pytest.raises(Exception):
-            await gen.generate("system", "user")
+        original_endpoint = settings.LLM_ENDPOINT
+        settings.LLM_ENDPOINT = "http://invalid:99999"
+
+        try:
+            config = GenerationConfig(model="test-model")
+            gen = Generator(config)
+
+            # should handle connection errors
+            with pytest.raises(Exception):
+                await gen.generate("system", "user")
+        finally:
+            settings.LLM_ENDPOINT = original_endpoint
     
     def test_model_validation_errors(self):
         """Test pydantic model validation"""

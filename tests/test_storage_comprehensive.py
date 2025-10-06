@@ -2,6 +2,7 @@
 Comprehensive tests for storage.py CRUD operations
 """
 import pytest
+import pytest_asyncio
 import tempfile
 import os
 from datetime import datetime
@@ -10,16 +11,16 @@ from lib.storage import Storage
 from models import Record, RecordStatus, RecordUpdate
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def storage():
     """Create a temporary database for testing"""
     with tempfile.NamedTemporaryFile(delete=False, suffix='.db') as f:
         db_path = f.name
-    
-    storage = Storage(db_path)
-    await storage.init_db()
-    yield storage
-    
+
+    s = Storage(db_path)
+    await s.init_db()
+    yield s
+
     # cleanup
     try:
         os.unlink(db_path)

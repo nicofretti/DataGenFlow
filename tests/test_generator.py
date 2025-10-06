@@ -1,26 +1,13 @@
-import asyncio
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
+import pytest
 from lib.generator import Generator
+from models import GenerationConfig
 
 
+@pytest.mark.asyncio
 async def test_generation():
-    gen = Generator()
-    print(f"endpoint: {gen.endpoint}")
-    print(f"model: {gen.model}")
+    """Test generator with config"""
+    config = GenerationConfig(model="test-model")
+    gen = Generator(config)
 
-    try:
-        response = await gen.generate("You are a teacher", "Explain gravity")
-        print(f"success! response: {response[:100]}...")
-    except Exception as e:
-        print(f"error: {e}")
-        import traceback
-
-        traceback.print_exc()
-
-
-if __name__ == "__main__":
-    asyncio.run(test_generation())
+    assert gen.config.model == "test-model"
+    # actual generation test would require mocking or live endpoint

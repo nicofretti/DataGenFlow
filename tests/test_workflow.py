@@ -11,9 +11,10 @@ async def test_pipeline_single_block():
     }
 
     pipeline = Pipeline.load_from_dict(pipeline_def)
-    result = await pipeline.execute({"text": "HELLO WORLD"})
+    result, trace = await pipeline.execute({"text": "HELLO WORLD"})
 
     assert result["text"] == "hello world"
+    assert len(trace) == 1
 
 
 @pytest.mark.asyncio
@@ -27,10 +28,11 @@ async def test_pipeline_multiple_blocks():
     }
 
     pipeline = Pipeline.load_from_dict(pipeline_def)
-    result = await pipeline.execute({"text": "  hello world  "})
+    result, trace = await pipeline.execute({"text": "  hello world  "})
 
     assert result["text"] == "hello world"
     assert result["valid"] is True
+    assert len(trace) == 2
 
 
 @pytest.mark.asyncio
