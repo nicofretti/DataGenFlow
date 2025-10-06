@@ -4,7 +4,7 @@ from datetime import datetime
 import aiosqlite
 
 from config import settings
-from models import Record, RecordStatus
+from models import Record, RecordStatus, RecordUpdate
 
 
 class Storage:
@@ -151,12 +151,22 @@ class Storage:
 
         return await self._execute_with_connection(_get)
 
-    async def update_record(self, record_id: int, **updates: str | RecordStatus) -> bool:
-        if not updates:
+    async def update_record(
+        self, record_id: int, updates: RecordUpdate | None = None, **kwargs
+    ) -> bool:
+        # handle both RecordUpdate object and kwargs
+        if updates:
+            update_dict = {
+                k: v for k, v in updates.model_dump().items() if v is not None
+            }
+        else:
+            update_dict = kwargs
+
+        if not update_dict:
             return False
 
         valid_fields = {"system", "user", "assistant", "status", "metadata"}
-        update_fields = {k: v for k, v in updates.items() if k in valid_fields}
+        update_fields = {k: v for k, v in update_dict.items() if k in valid_fields}
 
         if not update_fields:
             return False
@@ -181,6 +191,14 @@ class Storage:
 
         return await self._execute_with_connection(_update)
 
+    async def delete_record(self, record_id: int) -> bool:
+        async def _delete(db):
+            cursor = await db.execute("DELETE FROM records WHERE id = ?", (record_id,))
+            await db.commit()
+            return cursor.rowcount > 0
+
+        return await self._execute_with_connection(_delete)
+
     async def delete_all_records(self) -> int:
         async def _delete(db):
             cursor = await db.execute("DELETE FROM records")
@@ -188,6 +206,19 @@ class Storage:
             return cursor.rowcount
 
         return await self._execute_with_connection(_delete)
+
+    async def count_records(self, status: RecordStatus | None = None) -> int:
+        async def _count(db):
+            if status:
+                cursor = await db.execute(
+                    "SELECT COUNT(*) FROM records WHERE status = ?", (status.value,)
+                )
+            else:
+                cursor = await db.execute("SELECT COUNT(*) FROM records")
+            result = await cursor.fetchone()
+            return result[0] if result else 0
+
+        return await self._execute_with_connection(_count)
 
     async def export_jsonl(self, status: RecordStatus | None = None) -> str:
         records = await self.get_all(status=status, limit=999999)

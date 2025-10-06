@@ -20,8 +20,8 @@ class ValidatorBlock(BaseBlock):
         self.forbidden_words = forbidden_words or []
 
     async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        # validate either text or assistant field
-        text = data.get("text", data.get("assistant", ""))
+        # validate either text or assistant field (prefer non-empty)
+        text = data.get("text") or data.get("assistant", "")
 
         # check length
         if len(text) < self.min_length or len(text) > self.max_length:
