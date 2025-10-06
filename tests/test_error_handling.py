@@ -170,8 +170,8 @@ class TestErrorHandling:
         
         # input that should trigger validation failure
         input_data = {"text": "This is a test message"}
-        
-        result, trace = await pipeline.execute(input_data)
+
+        result, trace, trace_id = await pipeline.execute(input_data)
 
         # pipeline should complete but validation should fail
         assert result["text"] == "this is a test message"  # transformation applied

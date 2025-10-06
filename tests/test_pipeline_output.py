@@ -1,6 +1,7 @@
 import pytest
 
 from lib.workflow import Pipeline as WorkflowPipeline
+from lib.errors import ValidationError
 
 
 @pytest.mark.asyncio
@@ -20,7 +21,7 @@ async def test_pipeline_output_validation():
     pipeline = WorkflowPipeline("Test", [])
     pipeline._block_instances = [BadBlock()]
 
-    with pytest.raises(RuntimeError, match="returned undeclared fields"):
+    with pytest.raises(ValidationError, match="returned undeclared fields"):
         await pipeline.execute({})
 
 
@@ -45,7 +46,7 @@ async def test_pipeline_output_with_formatter():
     with patch("lib.generator.Generator.generate", new_callable=AsyncMock) as mock_gen:
         mock_gen.return_value = "Hello"
 
-        result, trace = await pipeline.execute({"system": "test", "user": "test"})
+        result, trace, trace_id = await pipeline.execute({"system": "test", "user": "test"})
 
         # pipeline_output should be from formatter (last one wins)
         assert result["pipeline_output"] == "Response: Hello"
@@ -69,7 +70,7 @@ async def test_pipeline_output_default_to_assistant():
     with patch("lib.generator.Generator.generate", new_callable=AsyncMock) as mock_gen:
         mock_gen.return_value = "Default output"
 
-        result, trace = await pipeline.execute({"system": "test", "user": "test"})
+        result, trace, trace_id = await pipeline.execute({"system": "test", "user": "test"})
 
         # pipeline_output should default to assistant
         assert result["pipeline_output"] == "Default output"

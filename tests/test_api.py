@@ -25,10 +25,7 @@ def temp_db():
         pass
 
 
-@pytest.fixture
-def client():
-    """Create test client for FastAPI app"""
-    return TestClient(app)
+# client fixture now provided by conftest.py
 
 
 @pytest.fixture

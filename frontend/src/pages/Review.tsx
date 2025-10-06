@@ -23,7 +23,10 @@ interface Record {
     block_type: string
     input: any
     output: any
+    accumulated_state?: any
+    error?: string
   }>
+  error?: string
 }
 
 export default function Review() {
@@ -563,12 +566,24 @@ export default function Review() {
                           mb: 3,
                           pb: 3,
                           borderBottom: index < currentRecord.trace!.length - 1 ? '1px solid' : 'none',
-                          borderColor: 'border.muted',
+                          borderColor: step.error ? 'danger.emphasis' : 'border.muted',
                         }}
                       >
-                        <Text as="div" sx={{ fontSize: 1, fontWeight: 'semibold', mb: 2, color: 'fg.default' }}>
-                          {index + 1}. {step.block_type}
-                        </Text>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                          <Text as="div" sx={{ fontSize: 1, fontWeight: 'semibold', color: step.error ? 'danger.fg' : 'fg.default' }}>
+                            {index + 1}. {step.block_type}
+                          </Text>
+                          {step.error && (
+                            <Label variant="danger" sx={{ fontSize: 0 }}>
+                              Failed
+                            </Label>
+                          )}
+                        </Box>
+                        {step.error && (
+                          <Flash variant="danger" sx={{ mb: 2, fontSize: 0 }}>
+                            {step.error}
+                          </Flash>
+                        )}
                         <Box
                           sx={{
                             fontFamily: 'mono',

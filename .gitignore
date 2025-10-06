@@ -34,5 +34,5 @@ frontend/build/
 frontend/.svelte-kit/
 frontend/package-lock.json
 
-# project notes
+# project notes (not for commits)
 point.md

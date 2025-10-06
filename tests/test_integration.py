@@ -49,7 +49,7 @@ class TestWorkflowIntegration:
         pipeline = Pipeline.load_from_dict(pipeline_def)
 
         input_data = {"text": "  HELLO WORLD  "}
-        result, trace = await pipeline.execute(input_data)
+        result, trace, trace_id = await pipeline.execute(input_data)
 
         assert result["text"] == "hello world"
         assert result["valid"] is True
@@ -69,7 +69,7 @@ class TestWorkflowIntegration:
         pipeline = Pipeline.load_from_dict(pipeline_def)
 
         input_data = {"text": "short"}
-        result, trace = await pipeline.execute(input_data)
+        result, trace, trace_id = await pipeline.execute(input_data)
 
         assert result["text"] == "short"
         assert result["valid"] is False
@@ -97,7 +97,7 @@ class TestWorkflowIntegration:
                 "user": "Say hello"
             }
 
-            result, trace = await pipeline.execute(input_data)
+            result, trace, trace_id = await pipeline.execute(input_data)
 
             assert result["assistant"] == "This is a test response from LLM"
             assert result["valid"] is True
@@ -122,7 +122,7 @@ class TestWorkflowIntegration:
             "metadata": {"test": "preserved"}
         }
         
-        result, trace = await pipeline.execute(input_data)
+        result, trace, trace_id = await pipeline.execute(input_data)
 
         # text should be uppercase and trimmed
         assert result["text"] == "HELLO WORLD"
@@ -155,7 +155,7 @@ class TestStoragePipelineIntegration:
         pipeline = Pipeline.load_from_dict(stored_pipeline_data["definition"])
         
         input_data = {"text": "HELLO"}
-        result, trace = await pipeline.execute(input_data)
+        result, trace, trace_id = await pipeline.execute(input_data)
 
         assert result["text"] == "hello"
         assert result["valid"] is True
@@ -330,7 +330,7 @@ class TestEndToEndWorkflow:
                 "user": filled_user
             }
 
-            result, trace = await pipeline.execute(input_data)
+            result, trace, trace_id = await pipeline.execute(input_data)
 
             # 4. Create and save record with results
             record = Record(
@@ -382,7 +382,7 @@ class TestEndToEndWorkflow:
         
         results = []
         for input_data in inputs:
-            result, trace = await pipeline.execute(input_data)
+            result, trace, trace_id = await pipeline.execute(input_data)
             results.append(result)
         
         # verify all were processed

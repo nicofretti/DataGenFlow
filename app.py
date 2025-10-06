@@ -6,14 +6,16 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from config import settings
 from lib.blocks.registry import registry
+from lib.errors import BlockNotFoundError, BlockExecutionError, ValidationError
 from lib.generator import Generator
 from lib.storage import Storage
+from lib.templates import template_registry
 from lib.workflow import Pipeline as WorkflowPipeline
 from models import Record, RecordStatus, RecordUpdate, SeedInput
 
@@ -76,7 +78,7 @@ async def generate(
                 input_data = {"system": system, "user": user, **seed.metadata}
 
                 # execute pipeline with trace
-                result, trace = await pipeline.execute(input_data)
+                result, trace, trace_id = await pipeline.execute(input_data)
 
                 # create record from seed + pipeline output
                 record = Record(
@@ -179,13 +181,35 @@ async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
 async def execute_pipeline(
     pipeline_id: int, data: dict[str, Any]
 ) -> dict[str, Any]:
-    pipeline_data = await storage.get_pipeline(pipeline_id)
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="pipeline not found")
+    try:
+        pipeline_data = await storage.get_pipeline(pipeline_id)
+        if not pipeline_data:
+            raise HTTPException(status_code=404, detail="pipeline not found")
 
-    pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
-    result, trace = await pipeline.execute(data)
-    return {"result": result, "trace": trace}
+        pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
+        result, trace, trace_id = await pipeline.execute(data)
+        return {"result": result, "trace": trace, "trace_id": trace_id}
+    except HTTPException:
+        # Let HTTPException propagate to FastAPI
+        raise
+    except BlockNotFoundError as e:
+        logger.error(f"BlockNotFoundError in pipeline {pipeline_id}: {e.message}")
+        return JSONResponse(
+            status_code=400,
+            content={"error": e.message, "detail": e.detail}
+        )
+    except (BlockExecutionError, ValidationError) as e:
+        logger.error(f"{e.__class__.__name__} in pipeline {pipeline_id}: {e.message}")
+        return JSONResponse(
+            status_code=400,
+            content={"error": e.message, "detail": e.detail}
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error executing pipeline {pipeline_id}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Unexpected error: {str(e)}"}
+        )
 
 
 @api.delete("/pipelines/{pipeline_id}")
@@ -194,6 +218,27 @@ async def delete_pipeline(pipeline_id: int) -> dict[str, bool]:
     if not success:
         raise HTTPException(status_code=404, detail="pipeline not found")
     return {"success": True}
+
+
+@api.get("/templates")
+async def list_templates() -> list[dict[str, Any]]:
+    """List all available pipeline templates"""
+    return template_registry.list_templates()
+
+
+@api.post("/pipelines/from_template/{template_id}")
+async def create_pipeline_from_template(template_id: str) -> dict[str, Any]:
+    """Create a new pipeline from a template"""
+    template = template_registry.get_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="template not found")
+
+    # Create pipeline with template name
+    pipeline_name = template["name"]
+    pipeline_data = {"name": pipeline_name, "blocks": template["blocks"]}
+
+    pipeline_id = await storage.save_pipeline(pipeline_name, pipeline_data)
+    return {"id": pipeline_id, "name": pipeline_name, "template_id": template_id}
 
 
 # mount api routes

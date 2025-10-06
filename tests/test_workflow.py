@@ -1,6 +1,7 @@
 import pytest
 
 from lib.workflow import Pipeline
+from lib.errors import BlockNotFoundError
 
 
 @pytest.mark.asyncio
@@ -11,7 +12,7 @@ async def test_pipeline_single_block():
     }
 
     pipeline = Pipeline.load_from_dict(pipeline_def)
-    result, trace = await pipeline.execute({"text": "HELLO WORLD"})
+    result, trace, trace_id = await pipeline.execute({"text": "HELLO WORLD"})
 
     assert result["text"] == "hello world"
     assert len(trace) == 1
@@ -28,7 +29,7 @@ async def test_pipeline_multiple_blocks():
     }
 
     pipeline = Pipeline.load_from_dict(pipeline_def)
-    result, trace = await pipeline.execute({"text": "  hello world  "})
+    result, trace, trace_id = await pipeline.execute({"text": "  hello world  "})
 
     assert result["text"] == "hello world"
     assert result["valid"] is True
@@ -42,7 +43,7 @@ async def test_pipeline_invalid_block():
         "blocks": [{"type": "NonExistentBlock", "config": {}}],
     }
 
-    with pytest.raises(ValueError, match="unknown block type"):
+    with pytest.raises(BlockNotFoundError, match="not found"):
         Pipeline.load_from_dict(pipeline_def)
 
 

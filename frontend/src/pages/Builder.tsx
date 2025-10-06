@@ -86,14 +86,17 @@ export default function Builder() {
         }),
       })
 
-      if (!res.ok) throw new Error('Failed to save pipeline')
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to save pipeline')
+      }
 
       setMessage({ type: 'success', text: 'Pipeline saved successfully' })
       setPipelineName('')
       setPipelineBlocks([])
       setSelectedIndex(null)
-    } catch (error) {
-      setMessage({ type: 'error', text: `Error: ${error}` })
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Unknown error' })
     }
   }
 

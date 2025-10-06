@@ -26,7 +26,7 @@ async def test_pipeline_execution_with_trace():
     with patch("lib.generator.Generator.generate", new_callable=AsyncMock) as mock_gen:
         mock_gen.return_value = "Hello! How can I help you today?"
 
-        result, trace = await pipeline.execute(input_data)
+        result, trace, trace_id = await pipeline.execute(input_data)
 
         # verify result has pipeline_output set
         assert "assistant" in result

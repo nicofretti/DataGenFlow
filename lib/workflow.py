@@ -1,6 +1,12 @@
+import logging
+import time
+import uuid
 from typing import Any
 
 from lib.blocks.registry import registry
+from lib.errors import BlockNotFoundError, BlockExecutionError, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 class Pipeline:
@@ -17,7 +23,11 @@ class Pipeline:
 
             block_class = registry.get_block_class(block_type)
             if not block_class:
-                raise ValueError(f"unknown block type: {block_type}")
+                available = list(registry._blocks.keys())
+                raise BlockNotFoundError(
+                    f"Block '{block_type}' not found",
+                    detail={"block_type": block_type, "available_blocks": available}
+                )
 
             self._block_instances.append(block_class(**block_config))
 
@@ -31,19 +41,34 @@ class Pipeline:
         actual = set(result.keys())
         if not actual.issubset(declared):
             extra = actual - declared
-            raise ValueError(
-                f"{block.__class__.__name__} returned undeclared fields: {extra}. "
-                f"Declared outputs: {declared}, Actual: {actual}"
+            raise ValidationError(
+                f"Block '{block.__class__.__name__}' returned undeclared fields: {extra}",
+                detail={
+                    "block_type": block.__class__.__name__,
+                    "declared_outputs": list(declared),
+                    "actual_outputs": list(actual),
+                    "extra_fields": list(extra)
+                }
             )
 
-    async def execute(self, initial_data: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    async def execute(self, initial_data: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+        trace_id = str(uuid.uuid4())
         accumulated_data = initial_data.copy()
         trace = []
 
+        logger.info(f"[{trace_id}] Starting pipeline '{self.name}' with {len(self._block_instances)} blocks")
+
         for i, block in enumerate(self._block_instances):
+            block_name = block.__class__.__name__
+            logger.debug(f"[{trace_id}] Executing block {i + 1}/{len(self._block_instances)}: {block_name}")
+
+            start_time = time.time()
             try:
                 block_input = accumulated_data.copy()
                 result = await block.execute(accumulated_data)
+                execution_time = time.time() - start_time
+
+                logger.debug(f"[{trace_id}] {block_name} completed in {execution_time:.3f}s")
 
                 # validate output matches declared schema
                 self._validate_output(block, result)
@@ -65,15 +90,31 @@ class Pipeline:
 
                 # capture trace with accumulated state (after pipeline_output is set)
                 trace.append({
-                    "block_type": block.__class__.__name__,
+                    "block_type": block_name,
                     "input": block_input,
                     "output": result,
                     "accumulated_state": accumulated_data.copy(),
+                    "execution_time": execution_time,
                 })
+            except ValidationError:
+                # re-raise validation errors as-is
+                logger.error(f"[{trace_id}] {block_name} validation error at step {i + 1}")
+                raise
             except Exception as e:
-                raise RuntimeError(f"block {i} ({block.__class__.__name__}) failed: {e}")
+                # wrap execution errors with context
+                logger.error(f"[{trace_id}] {block_name} failed at step {i + 1}: {str(e)}")
+                raise BlockExecutionError(
+                    f"Block '{block_name}' failed at step {i + 1}: {str(e)}",
+                    detail={
+                        "block_type": block_name,
+                        "step": i + 1,
+                        "error": str(e),
+                        "input": block_input
+                    }
+                )
 
-        return accumulated_data, trace
+        logger.info(f"[{trace_id}] Pipeline '{self.name}' completed successfully")
+        return accumulated_data, trace, trace_id
 
     def to_dict(self) -> dict[str, Any]:
         return {"name": self.name, "blocks": self.blocks}

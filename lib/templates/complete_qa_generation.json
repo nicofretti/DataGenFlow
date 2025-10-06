@@ -1,0 +1,26 @@
+{
+  "name": "Complete QA Generation",
+  "description": "Full pipeline with LLM generation, validation, and formatting",
+  "blocks": [
+    {
+      "type": "LLMBlock",
+      "config": {
+        "temperature": 0.7,
+        "max_tokens": 2048
+      }
+    },
+    {
+      "type": "ValidatorBlock",
+      "config": {
+        "min_length": 20,
+        "max_length": 5000
+      }
+    },
+    {
+      "type": "FormatterBlock",
+      "config": {
+        "format_template": "Q&A Generated:\n\nUser: {user}\nAssistant: {assistant}"
+      }
+    }
+  ]
+}
