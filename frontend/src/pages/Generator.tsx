@@ -216,7 +216,8 @@ export default function Generator() {
           </Box>
 
           <ProgressBar
-            progress={currentJob.status === 'running' ? currentJob.progress : undefined}
+            barSize='large'
+            progress={currentJob.status === 'running' ? currentJob.progress * 100 : 100}
             sx={{ mb: 3 }}
           />
 
