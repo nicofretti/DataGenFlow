@@ -2,33 +2,19 @@
 
 Q&A dataset generation tool with block-based pipeline system.
 
-## Features
+<div align="center">
+  <img src="images/pipelines.png" alt="Pipeline Builder" width="600"/>
+  <br/>
+  <em>Visual pipeline builder with drag-and-drop interface</em>
 
-### Core System
-- **Block-based pipelines**: Compose workflows from reusable blocks
-- **Visual pipeline builder**: Drag-and-drop UI for creating pipelines
-- **Execution tracing**: Full state history with timing for debugging
-- **Pipeline templates**: Pre-configured pipelines for quick start
-- **Custom blocks**: Easy extension with auto-discovery
+  <img src="images/generator.png" alt="Generator phase" width="600"/>
+  <br/>
+  <em>Generate records from seed data using configured pipelines</em>
 
-### Built-in Blocks
-- **LLMBlock**: Generate text using LLM (OpenAI-compatible)
-- **TransformerBlock**: Text transformations (lowercase, uppercase, strip, trim)
-- **ValidatorBlock**: Validate output against rules (length, forbidden words)
-- **FormatterBlock**: Format pipeline output for display
-
-### Developer Experience
-- **Debug logging**: Toggle detailed execution logs with `DEBUG=true`
-- **Trace IDs**: Track pipeline executions across logs and API responses
-- **Execution timing**: Per-block timing in trace output
-- **Error handling**: Structured error responses with context
-- **Test isolation**: Separate test database, auto-cleanup
-
-### Web UI
-- **Builder**: Visual pipeline creation with drag-and-drop
-- **Pipelines**: Manage and execute pipelines
-- **Generator**: Generate Q&A datasets from seeds
-- **Review**: Review, edit, accept/reject generated records with trace visualization
+  <img src="images/review.png" alt="Review phase" width="600"/>
+  <br/>
+  <em>Review, edit, accept/reject generated records with trace visualization</em>
+</div>
 
 ## Quick Start
 
@@ -65,29 +51,6 @@ PORT=8000
 DEBUG=false  # set to true for detailed logging
 ```
 
-## Using Pipeline Templates
-
-Quick start with pre-configured pipelines:
-
-```bash
-# list available templates
-curl http://localhost:8000/api/templates
-
-# create pipeline from template
-curl -X POST http://localhost:8000/api/pipelines/from_template/text_generation
-
-# execute the pipeline
-curl -X POST http://localhost:8000/api/pipelines/1/execute \
-  -H "Content-Type: application/json" \
-  -d '{"system": "You are helpful", "user": "Hello"}'
-```
-
-Available templates:
-- `text_generation` - Simple LLM generation
-- `validated_generation` - LLM + validation
-- `text_transformation` - Text transformation chain
-- `complete_qa_generation` - Full QA pipeline with validation and formatting
-
 ## Creating Custom Blocks
 
 Create a file in `lib/blocks/custom/` or `user_blocks/`:
@@ -109,6 +72,57 @@ class MyBlock(BaseBlock):
 ```
 
 The block is auto-discovered on startup and immediately available in the UI.
+
+## Features
+
+### Core System
+- **Block-based pipelines**: Compose workflows from reusable blocks
+- **Visual pipeline builder**: Drag-and-drop UI for creating pipelines
+- **Execution tracing**: Full state history with timing for debugging
+- **Pipeline templates**: Pre-configured pipelines for quick start
+- **Custom blocks**: Easy extension with auto-discovery
+
+### Built-in Blocks
+- **LLMBlock**: Generate text using LLM (OpenAI-compatible)
+- **TransformerBlock**: Text transformations (lowercase, uppercase, strip, trim)
+- **ValidatorBlock**: Validate output against rules (length, forbidden words)
+- **FormatterBlock**: Format pipeline output for display
+
+### Developer Experience
+- **Debug logging**: Toggle detailed execution logs with `DEBUG=true`
+- **Trace IDs**: Track pipeline executions across logs and API responses
+- **Execution timing**: Per-block timing in trace output
+- **Error handling**: Structured error responses with context
+- **Test isolation**: Separate test database, auto-cleanup
+
+### Web UI
+- **Builder**: Visual pipeline creation with drag-and-drop
+- **Pipelines**: Manage and execute pipelines
+- **Generator**: Generate Q&A datasets from seeds
+- **Review**: Review, edit, accept/reject generated records with trace visualization
+
+## [CLI] Using Pipeline Templates
+
+Quick start with pre-configured pipelines:
+
+```bash
+# list available templates
+curl http://localhost:8000/api/templates
+
+# create pipeline from template
+curl -X POST http://localhost:8000/api/pipelines/from_template/text_generation
+
+# execute the pipeline
+curl -X POST http://localhost:8000/api/pipelines/1/execute \
+  -H "Content-Type: application/json" \
+  -d '{"system": "You are helpful", "user": "Hello"}'
+```
+
+Available templates:
+- `text_generation` - Simple LLM generation
+- `validated_generation` - LLM + validation
+- `text_transformation` - Text transformation chain
+- `complete_qa_generation` - Full QA pipeline with validation and formatting
 
 ## API Endpoints
 
