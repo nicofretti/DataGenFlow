@@ -9,6 +9,8 @@ import {
   SegmentedControl,
   CounterLabel,
   Flash,
+  FormControl,
+  Select,
 } from '@primer/react'
 import { CheckIcon, XIcon, PencilIcon, ChevronLeftIcon, ChevronRightIcon, CommentIcon, PersonIcon, GearIcon, ClockIcon, CheckCircleIcon, XCircleIcon, TrashIcon, DownloadIcon } from '@primer/octicons-react'
 
@@ -29,6 +31,24 @@ interface Record {
   error?: string
 }
 
+interface Pipeline {
+  id: number
+  name: string
+  definition: {
+    name: string
+    blocks: any[]
+  }
+}
+
+interface Job {
+  id: number
+  pipeline_id: number
+  status: string
+  records_generated: number
+  records_failed: number
+  started_at: string
+}
+
 export default function Review() {
   const [records, setRecords] = useState<Record[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -38,13 +58,30 @@ export default function Review() {
   const [filterStatus, setFilterStatus] = useState<'pending' | 'accepted' | 'rejected'>('pending')
   const [stats, setStats] = useState({ pending: 0, accepted: 0, rejected: 0 })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [pipelines, setPipelines] = useState<Pipeline[]>([])
+  const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null)
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [selectedJob, setSelectedJob] = useState<number | null>(null)
 
   const currentRecord = records[currentIndex] || null
 
   useEffect(() => {
+    loadPipelines()
+  }, [])
+
+  useEffect(() => {
     loadRecords()
     loadStats()
-  }, [filterStatus])
+  }, [filterStatus, selectedJob])
+
+  useEffect(() => {
+    if (selectedPipeline) {
+      loadJobs(selectedPipeline)
+    } else {
+      setJobs([])
+      setSelectedJob(null)
+    }
+  }, [selectedPipeline])
 
   // reset index when changing filter
   useEffect(() => {
@@ -77,8 +114,33 @@ export default function Review() {
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [currentRecord, currentIndex, records.length, isEditing])
 
+  const loadPipelines = async () => {
+    try {
+      const res = await fetch('/api/pipelines')
+      const data = await res.json()
+      setPipelines(data)
+    } catch (error) {
+      console.error('Failed to load pipelines:', error)
+    }
+  }
+
+  const loadJobs = async (pipelineId: number) => {
+    try {
+      const res = await fetch(`/api/jobs?pipeline_id=${pipelineId}`)
+      const data = await res.json()
+      setJobs(data)
+    } catch (error) {
+      console.error('Failed to load jobs:', error)
+      setJobs([])
+    }
+  }
+
   const loadRecords = async () => {
-    const res = await fetch(`/api/records?status=${filterStatus}&limit=20`)
+    let url = `/api/records?status=${filterStatus}&limit=100`
+    if (selectedJob) {
+      url += `&job_id=${selectedJob}`
+    }
+    const res = await fetch(url)
     const data = await res.json()
     setRecords(data)
   }
@@ -223,6 +285,51 @@ export default function Review() {
           {message.text}
         </Flash>
       )}
+
+      {/* Filter by Pipeline and Job */}
+      <Box sx={{ mb: 3, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+        <FormControl>
+          <FormControl.Label>Filter by Pipeline</FormControl.Label>
+          <Select
+            value={selectedPipeline?.toString() || ''}
+            onChange={(e) => {
+              const value = e.target.value
+              setSelectedPipeline(value ? Number(value) : null)
+              setSelectedJob(null)
+            }}
+          >
+            <Select.Option value="">All Pipelines</Select.Option>
+            {pipelines.map((pipeline) => (
+              <Select.Option key={pipeline.id} value={pipeline.id.toString()}>
+                {pipeline.definition.name}
+              </Select.Option>
+            ))}
+          </Select>
+          <FormControl.Caption>Filter records by pipeline</FormControl.Caption>
+        </FormControl>
+
+        <FormControl>
+          <FormControl.Label>Filter by Job</FormControl.Label>
+          <Select
+            value={selectedJob?.toString() || ''}
+            onChange={(e) => {
+              const value = e.target.value
+              setSelectedJob(value ? Number(value) : null)
+            }}
+            disabled={!selectedPipeline || jobs.length === 0}
+          >
+            <Select.Option value="">All Jobs</Select.Option>
+            {jobs.map((job) => (
+              <Select.Option key={job.id} value={job.id.toString()}>
+                Job #{job.id} - {job.status} - {job.records_generated} records ({new Date(job.started_at).toLocaleString()})
+              </Select.Option>
+            ))}
+          </Select>
+          <FormControl.Caption>
+            {selectedPipeline ? 'Filter records by generation job' : 'Select a pipeline first'}
+          </FormControl.Caption>
+        </FormControl>
+      </Box>
 
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
         <SegmentedControl

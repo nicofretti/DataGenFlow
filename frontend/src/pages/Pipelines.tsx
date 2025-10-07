@@ -7,7 +7,7 @@ import {
   Flash,
   Label,
 } from '@primer/react'
-import { PencilIcon, TrashIcon, PlusIcon } from '@primer/octicons-react'
+import { PencilIcon, TrashIcon, PlusIcon, BeakerIcon } from '@primer/octicons-react'
 import PipelineEditor from '../components/pipeline-editor/PipelineEditor'
 
 interface Pipeline {
@@ -20,19 +20,52 @@ interface Pipeline {
   created_at: string
 }
 
+interface Template {
+  id: string
+  name: string
+  description: string
+}
+
 export default function Pipelines() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
+  const [templates, setTemplates] = useState<Template[]>([])
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [editing, setEditing] = useState<{ mode: 'new' | 'edit'; pipeline?: Pipeline } | null>(null)
 
   useEffect(() => {
     loadPipelines()
+    loadTemplates()
   }, [])
 
   const loadPipelines = async () => {
     const res = await fetch('/api/pipelines')
     const data = await res.json()
     setPipelines(data)
+  }
+
+  const loadTemplates = async () => {
+    try {
+      const res = await fetch('/api/templates')
+      const data = await res.json()
+      setTemplates(data)
+    } catch (error) {
+      console.error('Failed to load templates:', error)
+    }
+  }
+
+  const createFromTemplate = async (templateId: string) => {
+    try {
+      const res = await fetch(`/api/pipelines/from_template/${templateId}`, {
+        method: 'POST',
+      })
+
+      if (!res.ok) throw new Error('Failed to create pipeline from template')
+
+      setMessage({ type: 'success', text: 'Pipeline created from template' })
+      loadPipelines()
+    } catch (error) {
+      setMessage({ type: 'error', text: `Error: ${error}` })
+    }
   }
 
   const savePipeline = async (pipeline: any) => {
@@ -145,6 +178,51 @@ export default function Pipelines() {
           {message.text}
         </Flash>
       )}
+
+      {/* Templates Section */}
+      {templates.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Heading sx={{ fontSize: 2, mb: 2, color: 'fg.default' }}>Templates</Heading>
+          <Text sx={{ fontSize: 1, mb: 3, color: 'fg.muted' }}>
+            Quick-start templates to create pipelines with common configurations
+          </Text>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 3 }}>
+            {templates.map((template) => (
+              <Box
+                key={template.id}
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'border.default',
+                  borderRadius: 2,
+                  p: 3,
+                  bg: 'canvas.subtle',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s',
+                  '&:hover': {
+                    borderColor: 'accent.emphasis',
+                  },
+                }}
+                onClick={() => createFromTemplate(template.id)}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Box sx={{ color: 'accent.fg' }}>
+                    <BeakerIcon size={20} />
+                  </Box>
+                  <Heading as="h4" sx={{ fontSize: 1, color: 'fg.default', m: 0 }}>
+                    {template.name}
+                  </Heading>
+                </Box>
+                <Text sx={{ fontSize: 1, color: 'fg.muted', lineHeight: 1.5 }}>
+                  {template.description}
+                </Text>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+
+      {/* Pipelines Section */}
+      <Heading sx={{ fontSize: 2, mb: 3, color: 'fg.default' }}>My Pipelines</Heading>
 
       {pipelines.length === 0 ? (
         <Box
