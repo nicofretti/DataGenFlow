@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import ReactFlow, {
   Background,
   Controls,
@@ -12,7 +12,7 @@ import ReactFlow, {
   NodeTypes,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { Box, Button, Flash, TextInput } from '@primer/react'
+import { Box, Button, Flash, TextInput, theme, useTheme, themeGet } from '@primer/react'
 import { XIcon } from '@primer/octicons-react'
 
 import BlockPalette from './BlockPalette'
@@ -24,6 +24,19 @@ import {
   convertToPipelineFormat,
   convertFromPipelineFormat,
 } from './utils'
+
+// define node types outside component to prevent recreation
+const nodeTypes: NodeTypes = {
+  blockNode: (props) => {
+    const isStartOrEnd = props.data.block.type === 'StartBlock' || props.data.block.type === 'EndBlock'
+
+    if (isStartOrEnd) {
+      return <StartEndNode {...props} />
+    }
+
+    return <BlockNode {...props} />
+  },
+}
 
 interface Block {
   type: string
@@ -57,6 +70,7 @@ export default function PipelineEditor({
   const [pipelineName, setPipelineName] = useState(initialPipelineName)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const { colorMode } = useTheme()
 
   // check if node is configured
   const isNodeConfigured = useCallback((node: Node) => {
@@ -104,43 +118,6 @@ export default function PipelineEditor({
       setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId))
     },
     [setNodes, setEdges]
-  )
-
-  // define node types
-  const nodeTypes: NodeTypes = useMemo(
-    () => ({
-      blockNode: (props) => {
-        const isStartOrEnd = props.data.block.type === 'StartBlock' || props.data.block.type === 'EndBlock'
-
-        // use special component for Start/End blocks
-        if (isStartOrEnd) {
-          return (
-            <StartEndNode
-              {...props}
-              data={{
-                ...props.data,
-                isConnected: isNodeConnected(props.id),
-              }}
-            />
-          )
-        }
-
-        // regular block node
-        return (
-          <BlockNode
-            {...props}
-            data={{
-              ...props.data,
-              isConfigured: isNodeConfigured(props),
-              isConnected: isNodeConnected(props.id),
-              onConfigClick: () => setSelectedNode(props),
-              onDelete: () => handleDeleteNode(props.id),
-            }}
-          />
-        )
-      },
-    }),
-    [handleDeleteNode, isNodeConfigured, isNodeConnected]
   )
 
   // fetch blocks on mount and initialize Start/End nodes
@@ -211,21 +188,41 @@ export default function PipelineEditor({
     fetchBlocks()
   }, [initialPipeline, setNodes, setEdges])
 
-  // recalculate accumulated state when nodes or edges change
+  // update nodes with computed properties
   useEffect(() => {
-    if (nodes.length > 0) {
-      const updatedNodes = calculateAccumulatedState(nodes, edges)
-      // only update if state actually changed
-      const stateChanged = updatedNodes.some((node, i) => {
-        const currentState = nodes[i]?.data?.accumulatedState || []
-        const newState = node.data.accumulatedState || []
-        return JSON.stringify(currentState) !== JSON.stringify(newState)
-      })
-      if (stateChanged) {
-        setNodes(updatedNodes)
-      }
+    if (nodes.length === 0) return
+
+    // calculate accumulated state
+    const nodesWithState = calculateAccumulatedState(nodes, edges)
+
+    // check if accumulated state changed
+    const stateChanged = nodesWithState.some((node, i) => {
+      const currentState = nodes[i]?.data?.accumulatedState || []
+      const newState = node.data.accumulatedState || []
+      return JSON.stringify(currentState) !== JSON.stringify(newState)
+    })
+
+    // add computed properties
+    const updatedNodes = nodesWithState.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        isConfigured: isNodeConfigured(node),
+        isConnected: isNodeConnected(node.id),
+        onConfigClick: () => setSelectedNode(node),
+        onDelete: () => handleDeleteNode(node.id),
+      },
+    }))
+
+    // check if callbacks are missing on any node
+    const callbacksChanged = updatedNodes.some((node, i) => {
+      return !nodes[i]?.data?.onConfigClick || !nodes[i]?.data?.onDelete
+    })
+
+    if (stateChanged || callbacksChanged) {
+      setNodes(updatedNodes)
     }
-  }, [nodes.length, edges, setNodes])
+  }, [nodes.length, edges.length])
 
   // handle new edge connection
   const onConnect = useCallback(
@@ -417,7 +414,6 @@ export default function PipelineEditor({
             onDragOver={onDragOver}
             nodeTypes={nodeTypes}
             edgesFocusable={true}
-            edgesReconnectable={true}
             nodesDraggable={true}
             nodesConnectable={true}
             nodesFocusable={true}

@@ -128,7 +128,9 @@ export default function Review() {
     try {
       const res = await fetch(`/api/jobs?pipeline_id=${pipelineId}`)
       const data = await res.json()
-      setJobs(data)
+      // only show jobs that have generated records
+      const jobsWithRecords = data.filter((job: Job) => job.records_generated > 0)
+      setJobs(jobsWithRecords)
     } catch (error) {
       console.error('Failed to load jobs:', error)
       setJobs([])
@@ -146,11 +148,12 @@ export default function Review() {
   }
 
   const loadStats = async () => {
-    // fetch all records to get accurate counts
+    // fetch records to get accurate counts, filtered by job if selected
+    const jobParam = selectedJob ? `&job_id=${selectedJob}` : ''
     const [pending, accepted, rejected] = await Promise.all([
-      fetch('/api/records?status=pending').then(r => r.json()),
-      fetch('/api/records?status=accepted').then(r => r.json()),
-      fetch('/api/records?status=rejected').then(r => r.json()),
+      fetch(`/api/records?status=pending${jobParam}`).then(r => r.json()),
+      fetch(`/api/records?status=accepted${jobParam}`).then(r => r.json()),
+      fetch(`/api/records?status=rejected${jobParam}`).then(r => r.json()),
     ])
     setStats({
       pending: pending.length,
@@ -165,9 +168,11 @@ export default function Review() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     })
-    // move to next record after action
+    // move to next record after action, or previous if on last record
     if (currentIndex < records.length - 1) {
       setCurrentIndex(currentIndex + 1)
+    } else if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1)
     }
     loadRecords()
     loadStats()
@@ -225,11 +230,13 @@ export default function Review() {
   }
 
   const deleteAllRecords = async () => {
-    if (!confirm('Delete ALL records? This cannot be undone.')) return
+    if (!selectedJob) return
+
+    if (!confirm(`Delete all records for this job? This cannot be undone.`)) return
 
     try {
-      await fetch('/api/records', { method: 'DELETE' })
-      setMessage({ type: 'success', text: 'All records deleted' })
+      await fetch(`/api/records?job_id=${selectedJob}`, { method: 'DELETE' })
+      setMessage({ type: 'success', text: 'Job records deleted' })
       loadRecords()
       loadStats()
     } catch (error) {
@@ -238,7 +245,8 @@ export default function Review() {
   }
 
   const exportAccepted = () => {
-    window.location.href = '/api/export/download?status=accepted'
+    if (!selectedJob) return
+    window.location.href = `/api/export/download?status=accepted&job_id=${selectedJob}`
   }
 
   const getStatusVariant = (status: string) => {
@@ -266,7 +274,7 @@ export default function Review() {
             variant="primary"
             leadingVisual={DownloadIcon}
             onClick={exportAccepted}
-            disabled={stats.accepted === 0}
+            disabled={!selectedJob || stats.accepted === 0}
           >
             Export Accepted
           </Button>
@@ -274,6 +282,7 @@ export default function Review() {
             variant="danger"
             leadingVisual={TrashIcon}
             onClick={deleteAllRecords}
+            disabled={!selectedJob}
           >
             Delete All
           </Button>
@@ -308,8 +317,8 @@ export default function Review() {
           <FormControl.Caption>Filter records by pipeline</FormControl.Caption>
         </FormControl>
 
-        <FormControl>
-          <FormControl.Label>Filter by Job</FormControl.Label>
+        <FormControl required>
+          <FormControl.Label>Select Job</FormControl.Label>
           <Select
             value={selectedJob?.toString() || ''}
             onChange={(e) => {
@@ -318,7 +327,7 @@ export default function Review() {
             }}
             disabled={!selectedPipeline || jobs.length === 0}
           >
-            <Select.Option value="">All Jobs</Select.Option>
+            <Select.Option value="">Select a job...</Select.Option>
             {jobs.map((job) => (
               <Select.Option key={job.id} value={job.id.toString()}>
                 Job #{job.id} - {job.status} - {job.records_generated} records ({new Date(job.started_at).toLocaleString()})
@@ -326,7 +335,7 @@ export default function Review() {
             ))}
           </Select>
           <FormControl.Caption>
-            {selectedPipeline ? 'Filter records by generation job' : 'Select a pipeline first'}
+            {selectedPipeline ? 'Select a job to view records' : 'Select a pipeline first'}
           </FormControl.Caption>
         </FormControl>
       </Box>

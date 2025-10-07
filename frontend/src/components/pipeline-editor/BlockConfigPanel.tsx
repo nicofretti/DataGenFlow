@@ -139,7 +139,6 @@ export default function BlockConfigPanel({
         ))}
       </Box>
 
-      {/* Actions */}
       <Box sx={{ display: 'flex', gap: 2 }}>
         <Button onClick={handleSave} variant="primary" sx={{ flex: 1 }}>
           Save

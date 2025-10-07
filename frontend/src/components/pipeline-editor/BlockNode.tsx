@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
 import { Box, Text, IconButton, Label } from '@primer/react'
-import { XIcon } from '@primer/octicons-react'
+import { XIcon, GearIcon } from '@primer/octicons-react'
 
 interface BlockData {
   block: {
@@ -56,7 +56,6 @@ function BlockNode({ data }: NodeProps<BlockData>) {
 
       {/* Header */}
       <Box
-        onClick={onConfigClick}
         sx={{
           p: 2,
           borderBottom: '1px solid',
@@ -65,7 +64,6 @@ function BlockNode({ data }: NodeProps<BlockData>) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          cursor: 'pointer',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
@@ -76,32 +74,49 @@ function BlockNode({ data }: NodeProps<BlockData>) {
             </Label>
           )}
         </Box>
-        {onDelete && (
-          <IconButton
-            icon={XIcon}
-            aria-label="Delete block"
-            size="small"
-            variant="invisible"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            sx={{
-              color: 'danger.fg',
-              '&:hover': {
-                bg: 'danger.subtle',
-              },
-            }}
-          />
-        )}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {onConfigClick && (
+            <IconButton
+              icon={GearIcon}
+              aria-label="Configure block"
+              size="small"
+              variant="invisible"
+              onClick={(e) => {
+                e.stopPropagation()
+                onConfigClick()
+              }}
+              sx={{
+                color: 'accent.fg',
+                '&:hover': {
+                  bg: 'accent.subtle',
+                },
+              }}
+            />
+          )}
+          {onDelete && (
+            <IconButton
+              icon={XIcon}
+              aria-label="Delete block"
+              size="small"
+              variant="invisible"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              sx={{
+                color: 'danger.fg',
+                '&:hover': {
+                  bg: 'danger.subtle',
+                },
+              }}
+            />
+          )}
+        </Box>
       </Box>
 
       {/* Description */}
       {block.description && (
-        <Box
-          onClick={onConfigClick}
-          sx={{ p: 2, borderBottom: '1px solid', borderColor: 'border.default', cursor: 'pointer' }}
-        >
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'border.default' }}>
           <Text sx={{ fontSize: 0, color: 'fg.muted', fontStyle: 'italic' }}>
             {block.description}
           </Text>
@@ -109,10 +124,7 @@ function BlockNode({ data }: NodeProps<BlockData>) {
       )}
 
       {/* Inputs/Outputs */}
-      <Box
-        onClick={onConfigClick}
-        sx={{ p: 2, borderBottom: '1px solid', borderColor: 'border.default', cursor: 'pointer' }}
-      >
+      <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'border.default' }}>
         <Text sx={{ fontSize: 0, color: 'fg.muted', display: 'block', mb: 1 }}>
           <strong>IN:</strong> {block.inputs.length > 0 ? block.inputs.join(', ') : 'none'}
         </Text>
@@ -123,10 +135,7 @@ function BlockNode({ data }: NodeProps<BlockData>) {
 
       {/* Config */}
       {Object.keys(config).length > 0 && (
-        <Box
-          onClick={onConfigClick}
-          sx={{ p: 2, borderBottom: '1px solid', borderColor: 'border.default', cursor: 'pointer' }}
-        >
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'border.default' }}>
           {Object.entries(config).slice(0, 3).map(([key, value]) => (
             <Text
               key={key}
@@ -144,7 +153,7 @@ function BlockNode({ data }: NodeProps<BlockData>) {
       )}
 
       {/* Accumulated State - THE KEY FEATURE! */}
-      <Box onClick={onConfigClick} sx={{ p: 2, bg: 'accent.subtle', cursor: 'pointer' }}>
+      <Box sx={{ p: 2, bg: 'accent.subtle' }}>
         <Text sx={{ fontSize: 0, fontWeight: 'bold', display: 'block', mb: 1, color: 'fg.default' }}>
           Available:
         </Text>

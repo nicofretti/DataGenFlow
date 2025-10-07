@@ -124,6 +124,7 @@ export function convertToPipelineFormat(nodes: Node<NodeData>[], edges: Edge[]) 
 
 /**
  * Convert pipeline format to ReactFlow nodes/edges
+ * Automatically adds Start/End blocks for editing
  */
 export function convertFromPipelineFormat(
   pipeline: { blocks: Array<{ type: string; config: Record<string, any> }> },
@@ -132,6 +133,38 @@ export function convertFromPipelineFormat(
   const nodes: Node<NodeData>[] = []
   const edges: Edge[] = []
 
+  // define Start and End blocks
+  const startBlock = {
+    type: 'StartBlock',
+    name: 'Start',
+    description: 'Pipeline entry point',
+    inputs: [],
+    outputs: ['*'],
+    config_schema: {},
+  }
+
+  const endBlock = {
+    type: 'EndBlock',
+    name: 'End',
+    description: 'Pipeline exit point',
+    inputs: ['*'],
+    outputs: [],
+    config_schema: {},
+  }
+
+  // add Start node
+  nodes.push({
+    id: 'start',
+    type: 'blockNode',
+    position: { x: 250, y: 50 },
+    data: {
+      block: startBlock,
+      config: {},
+      accumulatedState: [],
+    },
+  })
+
+  // add pipeline blocks
   pipeline.blocks.forEach((blockDef, index) => {
     const block = allBlocks.find((b) => b.type === blockDef.type)
     if (!block) return
@@ -141,7 +174,7 @@ export function convertFromPipelineFormat(
     nodes.push({
       id: nodeId,
       type: 'blockNode',
-      position: { x: 250, y: index * 180 + 50 },
+      position: { x: 250, y: (index + 1) * 180 + 50 },
       data: {
         block,
         config: blockDef.config || {},
@@ -149,8 +182,16 @@ export function convertFromPipelineFormat(
       },
     })
 
-    // create edge to previous node
-    if (index > 0) {
+    // create edge from previous node (or Start)
+    if (index === 0) {
+      // connect first block to Start
+      edges.push({
+        id: `e-start-1`,
+        source: 'start',
+        target: '1',
+        type: 'smoothstep',
+      })
+    } else {
       edges.push({
         id: `e${index}-${index + 1}`,
         source: `${index}`,
@@ -159,6 +200,37 @@ export function convertFromPipelineFormat(
       })
     }
   })
+
+  // add End node
+  const endY = (pipeline.blocks.length + 1) * 180 + 50
+  nodes.push({
+    id: 'end',
+    type: 'blockNode',
+    position: { x: 250, y: endY },
+    data: {
+      block: endBlock,
+      config: {},
+      accumulatedState: [],
+    },
+  })
+
+  // connect last block to End
+  if (pipeline.blocks.length > 0) {
+    edges.push({
+      id: `e${pipeline.blocks.length}-end`,
+      source: `${pipeline.blocks.length}`,
+      target: 'end',
+      type: 'smoothstep',
+    })
+  } else {
+    // if no blocks, connect Start directly to End
+    edges.push({
+      id: 'e-start-end',
+      source: 'start',
+      target: 'end',
+      type: 'smoothstep',
+    })
+  }
 
   return { nodes, edges }
 }

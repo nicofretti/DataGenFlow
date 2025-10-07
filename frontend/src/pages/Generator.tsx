@@ -13,6 +13,7 @@ import {
   Label,
 } from '@primer/react'
 import { PlayIcon, XIcon, UploadIcon } from '@primer/octicons-react'
+import { useJob } from '../contexts/JobContext'
 
 interface Pipeline {
   id: number
@@ -23,61 +24,29 @@ interface Pipeline {
   }
 }
 
-interface Job {
-  id: number
-  pipeline_id: number
-  status: string
-  progress: number
-  current_seed: number
-  total_seeds: number
-  current_block: string | null
-  current_step: string | null
-  records_generated: number
-  records_failed: number
-  error: string | null
-  started_at: string
-  completed_at: string | null
-}
-
 export default function Generator() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { currentJob, setCurrentJob } = useJob()
   const [file, setFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null)
-  const [currentJob, setCurrentJob] = useState<Job | null>(null)
 
   useEffect(() => {
     fetchPipelines()
   }, [])
 
-  // poll current job
+  // update generating state based on job status
   useEffect(() => {
-    if (!currentJob) return
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/jobs/${currentJob.id}`)
-        if (res.ok) {
-          const job = await res.json()
-          setCurrentJob(job)
-
-          // stop polling if job completed/failed/cancelled
-          if (job.status !== 'running') {
-            clearInterval(interval)
-            setGenerating(false)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch job status:', error)
-      }
-    }, 2000)
-
-    return () => clearInterval(interval)
-  }, [currentJob?.id])
+    if (currentJob) {
+      setGenerating(currentJob.status === 'running')
+    } else {
+      setGenerating(false)
+    }
+  }, [currentJob?.status])
 
   const fetchPipelines = async () => {
     try {
@@ -294,19 +263,20 @@ export default function Generator() {
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => !generating && fileInputRef.current?.click()}
             sx={{
               border: '2px dashed',
               borderColor: dragActive ? 'accent.emphasis' : 'border.default',
               borderRadius: 2,
               p: 6,
               textAlign: 'center',
-              cursor: 'pointer',
+              cursor: generating ? 'not-allowed' : 'pointer',
               bg: dragActive ? 'accent.subtle' : 'canvas.subtle',
               transition: 'all 0.2s',
+              opacity: generating ? 0.5 : 1,
               '&:hover': {
-                borderColor: 'accent.fg',
-                bg: 'accent.subtle',
+                borderColor: generating ? 'border.default' : 'accent.fg',
+                bg: generating ? 'canvas.subtle' : 'accent.subtle',
               },
             }}
           >
@@ -316,7 +286,6 @@ export default function Generator() {
               accept=".json"
               onChange={handleFileChange}
               style={{ display: 'none' }}
-              disabled={generating}
             />
 
             <Box sx={{ color: 'fg.muted' }}>

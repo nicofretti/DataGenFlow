@@ -6,6 +6,7 @@ import Generator from './pages/Generator'
 import Review from './pages/Review'
 import Pipelines from './pages/Pipelines'
 import GlobalJobIndicator from './components/GlobalJobIndicator'
+import { JobProvider } from './contexts/JobContext'
 
 function Navigation() {
   const location = useLocation()
@@ -120,7 +121,9 @@ export default function App() {
   return (
     <ThemeProvider colorMode={colorMode}>
       <BrowserRouter>
-        <Navigation />
+        <JobProvider>
+          <Navigation />
+        </JobProvider>
       </BrowserRouter>
     </ThemeProvider>
   )
