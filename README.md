@@ -1,19 +1,21 @@
 # QADataGen
-
-Q&A dataset generation tool with block-based pipeline system.
+Effortlessly create and refine a datasets powered by LLMs in few steps:
 
 <div align="center">
+  <p><strong>1. Build smarter workflows visually</strong><br>
+  Drag, drop, and connect blocks in an intuitive pipeline builder.</p>
   <img src="images/pipelines.png" alt="Pipeline Builder" width="600"/>
   <br/>
-  <em>Visual pipeline builder with drag-and-drop interface</em>
 
+  <p><strong>2. Generate Q&A records in seconds</strong><br>
+  Feed your seed data and let custom pipelines do the heavy lifting.</p>
   <img src="images/generator.png" alt="Generator phase" width="600"/>
   <br/>
-  <em>Generate records from seed data using configured pipelines</em>
 
+  <p><strong>3. Review and perfect your results</strong><br>
+  Instantly edit, accept, or reject generated records with full trace visibility.</p>
   <img src="images/review.png" alt="Review phase" width="600"/>
   <br/>
-  <em>Review, edit, accept/reject generated records with trace visualization</em>
 </div>
 
 ## Quick Start
