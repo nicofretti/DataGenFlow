@@ -226,20 +226,20 @@ async def update_record(record_id: int, update: RecordUpdate) -> dict[str, bool]
 
 
 @api.delete("/records")
-async def delete_all_records() -> dict[str, Any]:
-    count = await storage.delete_all_records()
+async def delete_all_records(job_id: int | None = None) -> dict[str, Any]:
+    count = await storage.delete_all_records(job_id=job_id)
     return {"deleted": count}
 
 
 @api.get("/export")
-async def export_records(status: RecordStatus | None = None) -> PlainTextResponse:
-    jsonl = await storage.export_jsonl(status=status)
+async def export_records(status: RecordStatus | None = None, job_id: int | None = None) -> PlainTextResponse:
+    jsonl = await storage.export_jsonl(status=status, job_id=job_id)
     return PlainTextResponse(content=jsonl, media_type="application/x-ndjson")
 
 
 @api.get("/export/download")
-async def download_export(status: RecordStatus | None = None) -> FileResponse:
-    jsonl = await storage.export_jsonl(status=status)
+async def download_export(status: RecordStatus | None = None, job_id: int | None = None) -> FileResponse:
+    jsonl = await storage.export_jsonl(status=status, job_id=job_id)
     tmp_file = Path(tempfile.gettempdir()) / "qa_export.jsonl"
     tmp_file.write_text(jsonl, encoding="utf-8")
     return FileResponse(
