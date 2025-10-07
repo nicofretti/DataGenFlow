@@ -1,8 +1,10 @@
 """
 Tests for LLMBlock in lib/blocks/builtin/llm.py
 """
-import pytest
+
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from lib.blocks.builtin.llm import LLMBlock
 
@@ -43,14 +45,11 @@ class TestLLMBlock:
         block = LLMBlock(model="test-model")
 
         # mock generator.generate
-        with patch('lib.blocks.builtin.llm.Generator') as MockGenerator:
+        with patch("lib.blocks.builtin.llm.Generator") as MockGenerator:
             mock_instance = MockGenerator.return_value
             mock_instance.generate = AsyncMock(return_value="This is a test response")
 
-            input_data = {
-                "system": "You are a helpful assistant",
-                "user": "Say hello"
-            }
+            input_data = {"system": "You are a helpful assistant", "user": "Say hello"}
 
             result = await block.execute(input_data)
 
@@ -60,8 +59,7 @@ class TestLLMBlock:
 
             # check generator was called
             mock_instance.generate.assert_called_once_with(
-                "You are a helpful assistant",
-                "Say hello"
+                "You are a helpful assistant", "Say hello"
             )
 
     @pytest.mark.asyncio
@@ -70,14 +68,11 @@ class TestLLMBlock:
         block = LLMBlock(model="test-model")
 
         # mock generator to raise exception
-        with patch('lib.blocks.builtin.llm.Generator') as MockGenerator:
+        with patch("lib.blocks.builtin.llm.Generator") as MockGenerator:
             mock_instance = MockGenerator.return_value
             mock_instance.generate = AsyncMock(side_effect=Exception("LLM API error"))
 
-            input_data = {
-                "system": "You are a helpful assistant",
-                "user": "Say hello"
-            }
+            input_data = {"system": "You are a helpful assistant", "user": "Say hello"}
 
             with pytest.raises(Exception):
                 await block.execute(input_data)
@@ -88,7 +83,7 @@ class TestLLMBlock:
         block = LLMBlock()
 
         # missing fields default to empty strings
-        with patch('lib.blocks.builtin.llm.Generator') as MockGenerator:
+        with patch("lib.blocks.builtin.llm.Generator") as MockGenerator:
             mock_instance = MockGenerator.return_value
             mock_instance.generate = AsyncMock(return_value="response")
 
@@ -114,7 +109,7 @@ class TestLLMBlock:
         """Test LLMBlock returns only assistant field"""
         block = LLMBlock(model="test-model")
 
-        with patch('lib.blocks.builtin.llm.Generator') as MockGenerator:
+        with patch("lib.blocks.builtin.llm.Generator") as MockGenerator:
             mock_instance = MockGenerator.return_value
             mock_instance.generate = AsyncMock(return_value="Test response")
 
@@ -122,7 +117,7 @@ class TestLLMBlock:
                 "system": "You are helpful",
                 "user": "Say hello",
                 "metadata": {"test": "value"},
-                "extra_field": "should not be in output"
+                "extra_field": "should not be in output",
             }
 
             result = await block.execute(input_data)
