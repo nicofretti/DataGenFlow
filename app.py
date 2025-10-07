@@ -14,12 +14,15 @@ from config import settings
 from lib.blocks.registry import registry
 from lib.errors import BlockNotFoundError, BlockExecutionError, ValidationError
 from lib.generator import Generator
+from lib.job_processor import process_job_in_thread
+from lib.job_queue import JobQueue
 from lib.storage import Storage
 from lib.templates import template_registry
 from lib.workflow import Pipeline as WorkflowPipeline
 from models import Record, RecordStatus, RecordUpdate, SeedInput
 
 storage = Storage()
+job_queue = JobQueue()
 
 
 @asynccontextmanager
@@ -34,8 +37,8 @@ app = FastAPI(title="QADataGen", version="0.1.0", lifespan=lifespan)
 api = FastAPI()
 
 
-@api.post("/generate")
-async def generate(
+@api.post("/generate_from_file")
+async def generate_from_file(
     file: UploadFile = File(...), pipeline_id: int = Form(...)
 ) -> dict[str, Any]:
     if not file.filename or not file.filename.endswith(".json"):
@@ -98,11 +101,110 @@ async def generate(
     return {"total": total, "success": success, "failed": failed}
 
 
+@api.post("/generate")
+async def generate(
+    file: UploadFile = File(...), pipeline_id: int = Form(...)
+) -> dict[str, Any]:
+    """start a new background job for pipeline execution from seed file"""
+    if not file.filename or not file.filename.endswith(".json"):
+        raise HTTPException(status_code=400, detail="only JSON files accepted")
+
+    # check if there's already an active job
+    active_job = job_queue.get_active_job()
+    if active_job:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job {active_job['id']} is already running. Cancel it first or wait for completion.",
+        )
+
+    # parse seed file to calculate total samples
+    content = await file.read()
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON file")
+
+    seeds = data if isinstance(data, list) else [data]
+
+    # calculate total executions from all seeds
+    total_samples = sum(
+        seed.get("repetitions", 1)
+        if isinstance(seed.get("repetitions"), int)
+        else 1
+        for seed in seeds
+    )
+
+    # save file temporarily
+    tmp_file = Path(tempfile.gettempdir()) / f"seed_{pipeline_id}_{tempfile.mktemp().split('/')[-1]}.json"
+    tmp_file.write_text(content.decode('utf-8'), encoding='utf-8')
+
+    # create job in database
+    job_id = await storage.create_job(pipeline_id, total_samples, status="running")
+
+    # register job in memory queue
+    job_queue.create_job(job_id, pipeline_id, total_samples, status="running")
+
+    # start background processing with file path
+    process_job_in_thread(job_id, pipeline_id, str(tmp_file), job_queue, storage)
+
+    return {"job_id": job_id}
+
+
+@api.get("/jobs/active")
+async def get_active_job() -> dict[str, Any] | None:
+    """get currently running job"""
+    active_job = job_queue.get_active_job()
+    if not active_job:
+        raise HTTPException(status_code=404, detail="no active job")
+    return active_job
+
+
+@api.get("/jobs/{job_id}")
+async def get_job(job_id: int) -> dict[str, Any]:
+    """get job status by id"""
+    # try memory first
+    job = job_queue.get_job(job_id)
+    if job:
+        return job
+
+    # fallback to database
+    job = await storage.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    return job
+
+
+@api.delete("/jobs/{job_id}")
+async def cancel_job(job_id: int) -> dict[str, str]:
+    """cancel a running job"""
+    success = job_queue.cancel_job(job_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="job not found")
+
+    # update database
+    await storage.update_job(job_id, status="cancelled")
+
+    return {"message": "Job cancelled"}
+
+
+@api.get("/jobs")
+async def list_jobs(pipeline_id: int | None = None) -> list[dict[str, Any]]:
+    """list jobs, optionally filtered by pipeline_id"""
+    # try memory first for recent jobs
+    if pipeline_id:
+        jobs = job_queue.get_pipeline_history(pipeline_id)
+        if jobs:
+            return jobs
+
+    # fallback to database
+    return await storage.list_jobs(pipeline_id=pipeline_id, limit=10)
+
+
 @api.get("/records")
 async def get_records(
-    status: RecordStatus | None = None, limit: int = 100, offset: int = 0
+    status: RecordStatus | None = None, limit: int = 100, offset: int = 0, job_id: int | None = None
 ) -> list[dict[str, Any]]:
-    records = await storage.get_all(status=status, limit=limit, offset=offset)
+    records = await storage.get_all(status=status, limit=limit, offset=offset, job_id=job_id)
     return [record.model_dump() for record in records]
 
 

@@ -33,6 +33,8 @@ if settings.DEBUG:
         level=logging.DEBUG,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
+    # disable verbose aiosqlite logs
+    logging.getLogger("aiosqlite").setLevel(logging.WARNING)
 else:
     logging.basicConfig(
         level=logging.INFO,

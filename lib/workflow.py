@@ -51,7 +51,13 @@ class Pipeline:
                 }
             )
 
-    async def execute(self, initial_data: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+    async def execute(
+        self,
+        initial_data: dict[str, Any],
+        job_id: int | None = None,
+        job_queue: Any = None,
+        storage: Any = None,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
         trace_id = str(uuid.uuid4())
         accumulated_data = initial_data.copy()
         trace = []
@@ -61,6 +67,20 @@ class Pipeline:
         for i, block in enumerate(self._block_instances):
             block_name = block.__class__.__name__
             logger.debug(f"[{trace_id}] Executing block {i + 1}/{len(self._block_instances)}: {block_name}")
+
+            # update job status with current block
+            if job_id and job_queue:
+                job_queue.update_job(
+                    job_id,
+                    current_block=block_name,
+                    current_step=f"Block {i + 1}/{len(self._block_instances)}",
+                )
+                if storage:
+                    await storage.update_job(
+                        job_id,
+                        current_block=block_name,
+                        current_step=f"Block {i + 1}/{len(self._block_instances)}",
+                    )
 
             start_time = time.time()
             try:

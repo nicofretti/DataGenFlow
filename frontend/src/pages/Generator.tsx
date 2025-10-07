@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Heading,
@@ -9,8 +10,9 @@ import {
   Select,
   Spinner,
   ProgressBar,
+  Label,
 } from '@primer/react'
-import { UploadIcon, PlayIcon, XIcon } from '@primer/octicons-react'
+import { PlayIcon, XIcon, UploadIcon } from '@primer/octicons-react'
 
 interface Pipeline {
   id: number
@@ -21,18 +23,61 @@ interface Pipeline {
   }
 }
 
+interface Job {
+  id: number
+  pipeline_id: number
+  status: string
+  progress: number
+  current_seed: number
+  total_seeds: number
+  current_block: string | null
+  current_step: string | null
+  records_generated: number
+  records_failed: number
+  error: string | null
+  started_at: string
+  completed_at: string | null
+}
+
 export default function Generator() {
+  const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [dragActive, setDragActive] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [currentJob, setCurrentJob] = useState<Job | null>(null)
 
   useEffect(() => {
     fetchPipelines()
   }, [])
+
+  // poll current job
+  useEffect(() => {
+    if (!currentJob) return
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/jobs/${currentJob.id}`)
+        if (res.ok) {
+          const job = await res.json()
+          setCurrentJob(job)
+
+          // stop polling if job completed/failed/cancelled
+          if (job.status !== 'running') {
+            clearInterval(interval)
+            setGenerating(false)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch job status:', error)
+      }
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [currentJob?.id])
 
   const fetchPipelines = async () => {
     try {
@@ -79,7 +124,15 @@ export default function Generator() {
   const handleGenerate = async () => {
     if (!file || !selectedPipeline) return
 
-    setLoading(true)
+    if (generating) {
+      setMessage({
+        type: 'error',
+        text: 'A job is already running. Cancel it first or wait for completion.',
+      })
+      return
+    }
+
+    setGenerating(true)
     setMessage(null)
 
     const formData = new FormData()
@@ -91,17 +144,43 @@ export default function Generator() {
         method: 'POST',
         body: formData,
       })
-      const result = await res.json()
-      const pipelineName = pipelines.find((p) => p.id === selectedPipeline)?.name
-      setMessage({
-        type: 'success',
-        text: `Generated ${result.success} of ${result.total} records using ${pipelineName} (${result.failed} failed)`,
-      })
+
+      if (res.status === 409) {
+        const error = await res.json()
+        setMessage({ type: 'error', text: error.detail })
+        setGenerating(false)
+        return
+      }
+
+      const { job_id } = await res.json()
+
+      // fetch initial job status
+      const jobRes = await fetch(`/api/jobs/${job_id}`)
+      const job = await jobRes.json()
+      setCurrentJob(job)
     } catch (error) {
       setMessage({ type: 'error', text: `Error: ${error}` })
-    } finally {
-      setLoading(false)
+      setGenerating(false)
     }
+  }
+
+  const handleCancel = async () => {
+    if (!currentJob) return
+
+    try {
+      await fetch(`/api/jobs/${currentJob.id}`, { method: 'DELETE' })
+      setCurrentJob(null)
+      setGenerating(false)
+      setMessage({ type: 'success', text: 'Job cancelled' })
+    } catch (error) {
+      setMessage({ type: 'error', text: `Failed to cancel: ${error}` })
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    if (status === 'completed') return 'success'
+    if (status === 'failed' || status === 'cancelled') return 'danger'
+    return 'accent'
   }
 
   return (
@@ -109,7 +188,7 @@ export default function Generator() {
       <Box sx={{ mb: 4 }}>
         <Heading sx={{ mb: 2, color: 'fg.default' }}>Generate Records</Heading>
         <Text sx={{ color: 'fg.default' }}>
-          Upload a JSON seed file to generate Q&A records using your LLM
+          Upload a JSON seed file with input data. Each seed will be executed through your pipeline multiple times based on repetitions.
         </Text>
       </Box>
 
@@ -117,6 +196,93 @@ export default function Generator() {
         <Flash variant={message.type === 'error' ? 'danger' : 'success'} sx={{ mb: 3 }}>
           {message.text}
         </Flash>
+      )}
+
+      {/* Job Progress Section */}
+      {currentJob && (
+        <Box
+          sx={{
+            p: 3,
+            borderRadius: 2,
+            bg: 'canvas.subtle',
+            border: '1px solid',
+            borderColor: 'border.default',
+            mb: 4,
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Heading sx={{ fontSize: 2, color: 'fg.default' }}>Job Progress</Heading>
+            <Label variant={getStatusColor(currentJob.status)}>{currentJob.status}</Label>
+          </Box>
+
+          <ProgressBar
+            progress={currentJob.status === 'running' ? currentJob.progress : undefined}
+            sx={{ mb: 3 }}
+          />
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+            <Box>
+              <Text sx={{ fontSize: 1, color: 'fg.muted', display: 'block' }}>Executions</Text>
+              <Text sx={{ fontSize: 2, fontWeight: 'bold', color: 'fg.default' }}>
+                {currentJob.current_seed} / {currentJob.total_seeds}
+              </Text>
+            </Box>
+            <Box>
+              <Text sx={{ fontSize: 1, color: 'fg.muted', display: 'block' }}>Progress</Text>
+              <Text sx={{ fontSize: 2, fontWeight: 'bold', color: 'fg.default' }}>
+                {Math.round(currentJob.progress * 100)}%
+              </Text>
+            </Box>
+            <Box>
+              <Text sx={{ fontSize: 1, color: 'fg.muted', display: 'block' }}>Generated</Text>
+              <Text sx={{ fontSize: 2, fontWeight: 'bold', color: 'success.fg' }}>
+                {currentJob.records_generated}
+              </Text>
+            </Box>
+            <Box>
+              <Text sx={{ fontSize: 1, color: 'fg.muted', display: 'block' }}>Failed</Text>
+              <Text sx={{ fontSize: 2, fontWeight: 'bold', color: 'danger.fg' }}>
+                {currentJob.records_failed}
+              </Text>
+            </Box>
+          </Box>
+
+          {currentJob.current_block && (
+            <Box sx={{ mb: 2 }}>
+              <Text sx={{ fontSize: 1, color: 'fg.muted' }}>Current Block: </Text>
+              <Text sx={{ fontSize: 1, color: 'fg.default', fontWeight: 'bold' }}>
+                {currentJob.current_block}
+              </Text>
+            </Box>
+          )}
+
+          {currentJob.current_step && (
+            <Box sx={{ mb: 2 }}>
+              <Text sx={{ fontSize: 1, color: 'fg.muted' }}>Step: </Text>
+              <Text sx={{ fontSize: 1, color: 'fg.default' }}>{currentJob.current_step}</Text>
+            </Box>
+          )}
+
+          {currentJob.error && (
+            <Flash variant="danger" sx={{ mb: 2 }}>
+              {currentJob.error}
+            </Flash>
+          )}
+
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {currentJob.status === 'running' && (
+              <Button variant="danger" onClick={handleCancel} leadingVisual={XIcon}>
+                Cancel Job
+              </Button>
+            )}
+
+            {currentJob.status === 'completed' && (
+              <Button variant="primary" onClick={() => navigate('/review')}>
+                View Results
+              </Button>
+            )}
+          </Box>
+        </Box>
       )}
 
       <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 4 }}>
@@ -149,18 +315,19 @@ export default function Generator() {
               accept=".json"
               onChange={handleFileChange}
               style={{ display: 'none' }}
+              disabled={generating}
             />
 
             <Box sx={{ color: 'fg.muted' }}>
               <UploadIcon size={48} />
             </Box>
             <Heading as="h3" sx={{ fontSize: 2, mt: 3, mb: 2, color: 'fg.default' }}>
-              {file ? file.name : 'Drop JSON file here or click to browse'}
+              {file ? file.name : 'Drop JSON seed file here or click to browse'}
             </Heading>
             <Text sx={{ color: 'fg.default', fontSize: 1 }}>
               {file
                 ? `Size: ${(file.size / 1024).toFixed(2)} KB`
-                : 'Supported format: .json'}
+                : 'Format: {"repetitions": N, "metadata": {...}}'}
             </Text>
 
             {file && (
@@ -172,22 +339,12 @@ export default function Generator() {
                   setFile(null)
                 }}
                 sx={{ mt: 2 }}
+                disabled={generating}
               >
                 Remove file
               </Button>
             )}
           </Box>
-
-          {loading && (
-            <Box sx={{ mt: 3 }}>
-              <Text sx={{ mb: 2, fontSize: 1, color: 'fg.muted' }}>Generating records...</Text>
-              <ProgressBar progress={null} sx={{ mb: 2 }} />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Spinner size="small" />
-                <Text sx={{ fontSize: 1, color: 'fg.muted' }}>This may take a few moments</Text>
-              </Box>
-            </Box>
-          )}
         </Box>
 
         {/* Configuration Panel */}
@@ -209,6 +366,7 @@ export default function Generator() {
             <Select
               value={selectedPipeline?.toString() || ''}
               onChange={(e) => setSelectedPipeline(Number(e.target.value) || null)}
+              disabled={generating}
             >
               <Select.Option value="">Select a pipeline...</Select.Option>
               {pipelines.map((pipeline) => (
@@ -217,18 +375,25 @@ export default function Generator() {
                 </Select.Option>
               ))}
             </Select>
-            <FormControl.Caption>Select pipeline to execute for each seed row</FormControl.Caption>
+            <FormControl.Caption>Select pipeline to execute for each seed</FormControl.Caption>
           </FormControl>
 
           <Button
             variant="primary"
             size="large"
             block
-            leadingVisual={PlayIcon}
+            leadingVisual={generating ? undefined : PlayIcon}
             onClick={handleGenerate}
-            disabled={!file || !selectedPipeline || loading}
+            disabled={!file || !selectedPipeline || generating}
           >
-            {loading ? 'Generating...' : 'Generate Records'}
+            {generating ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Spinner size="small" />
+                <span>Generating...</span>
+              </Box>
+            ) : (
+              'Generate Records'
+            )}
           </Button>
         </Box>
       </Box>

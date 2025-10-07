@@ -1,0 +1,166 @@
+import { memo } from 'react'
+import { Handle, Position, NodeProps } from 'reactflow'
+import { Box, Text, IconButton, Label } from '@primer/react'
+import { XIcon } from '@primer/octicons-react'
+
+interface BlockData {
+  block: {
+    type: string
+    name: string
+    description?: string
+    inputs: string[]
+    outputs: string[]
+    config_schema?: Record<string, any>
+  }
+  config: Record<string, any>
+  accumulatedState: string[]
+  isConfigured?: boolean
+  isConnected?: boolean
+  onConfigClick?: () => void
+  onDelete?: () => void
+}
+
+function BlockNode({ data }: NodeProps<BlockData>) {
+  const { block, config, accumulatedState, isConfigured = true, isConnected = true, onConfigClick, onDelete } = data
+
+  // get status label and variant
+  const getStatus = () => {
+    if (!isConfigured) return { label: 'Not Configured', variant: 'danger' as const }
+    if (!isConnected) return { label: 'Not Connected', variant: 'attention' as const }
+    return null
+  }
+
+  const status = getStatus()
+
+  return (
+    <Box
+      sx={{
+        minWidth: '220px',
+        border: '2px solid',
+        borderColor: 'border.default',
+        borderRadius: 2,
+        bg: 'canvas.default',
+        position: 'relative',
+        '&:hover': {
+          borderColor: 'accent.emphasis',
+          boxShadow: '0 3px 6px rgba(0, 0, 0, 0.1)',
+        },
+      }}
+    >
+      {/* Top handle */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{ background: '#555' }}
+      />
+
+      {/* Header */}
+      <Box
+        onClick={onConfigClick}
+        sx={{
+          p: 2,
+          borderBottom: '1px solid',
+          borderColor: 'border.default',
+          bg: 'canvas.subtle',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+          <Text sx={{ fontWeight: 'bold', fontSize: 1, color: 'fg.default' }}>{block.name}</Text>
+          {status && (
+            <Label variant={status.variant} size="small">
+              {status.label}
+            </Label>
+          )}
+        </Box>
+        {onDelete && (
+          <IconButton
+            icon={XIcon}
+            aria-label="Delete block"
+            size="small"
+            variant="invisible"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            sx={{
+              color: 'danger.fg',
+              '&:hover': {
+                bg: 'danger.subtle',
+              },
+            }}
+          />
+        )}
+      </Box>
+
+      {/* Description */}
+      {block.description && (
+        <Box
+          onClick={onConfigClick}
+          sx={{ p: 2, borderBottom: '1px solid', borderColor: 'border.default', cursor: 'pointer' }}
+        >
+          <Text sx={{ fontSize: 0, color: 'fg.muted', fontStyle: 'italic' }}>
+            {block.description}
+          </Text>
+        </Box>
+      )}
+
+      {/* Inputs/Outputs */}
+      <Box
+        onClick={onConfigClick}
+        sx={{ p: 2, borderBottom: '1px solid', borderColor: 'border.default', cursor: 'pointer' }}
+      >
+        <Text sx={{ fontSize: 0, color: 'fg.muted', display: 'block', mb: 1 }}>
+          <strong>IN:</strong> {block.inputs.length > 0 ? block.inputs.join(', ') : 'none'}
+        </Text>
+        <Text sx={{ fontSize: 0, color: 'fg.muted', display: 'block' }}>
+          <strong>OUT:</strong> {block.outputs.length > 0 ? block.outputs.join(', ') : 'none'}
+        </Text>
+      </Box>
+
+      {/* Config */}
+      {Object.keys(config).length > 0 && (
+        <Box
+          onClick={onConfigClick}
+          sx={{ p: 2, borderBottom: '1px solid', borderColor: 'border.default', cursor: 'pointer' }}
+        >
+          {Object.entries(config).slice(0, 3).map(([key, value]) => (
+            <Text
+              key={key}
+              sx={{ fontSize: 0, color: 'fg.muted', display: 'block' }}
+            >
+              {key}: {String(value)}
+            </Text>
+          ))}
+          {Object.keys(config).length > 3 && (
+            <Text sx={{ fontSize: 0, color: 'fg.muted', fontStyle: 'italic' }}>
+              +{Object.keys(config).length - 3} more...
+            </Text>
+          )}
+        </Box>
+      )}
+
+      {/* Accumulated State - THE KEY FEATURE! */}
+      <Box onClick={onConfigClick} sx={{ p: 2, bg: 'accent.subtle', cursor: 'pointer' }}>
+        <Text sx={{ fontSize: 0, fontWeight: 'bold', display: 'block', mb: 1, color: 'fg.default' }}>
+          Available:
+        </Text>
+        <Text sx={{ fontSize: 0, color: 'fg.default' }}>
+          {accumulatedState.length > 0 ? accumulatedState.join(', ') : 'none'}
+        </Text>
+      </Box>
+
+      {/* Bottom handle */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ background: '#555' }}
+      />
+    </Box>
+  )
+}
+
+export default memo(BlockNode)
