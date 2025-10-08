@@ -13,6 +13,11 @@ interface NodeData {
   accumulatedState: string[]
 }
 
+export const DEFAULT_HANDLE_STYLE = {
+  width: 10,
+  height: 10
+};
+
 /**
  * Calculate accumulated state for each node in the pipeline
  * This shows what data is available at each step

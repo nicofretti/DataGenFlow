@@ -419,7 +419,6 @@ export default function PipelineEditor({
             nodesFocusable={true}
             elementsSelectable={true}
             deleteKeyCode="Delete"
-            fitView
           >
             <Background />
             <Controls />

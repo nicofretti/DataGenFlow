@@ -230,13 +230,15 @@ export default function Review() {
   }
 
   const deleteAllRecords = async () => {
-    if (!selectedJob) return
+    if (!selectedJob || !selectedPipeline) return
 
     if (!confirm(`Delete all records for this job? This cannot be undone.`)) return
 
     try {
       await fetch(`/api/records?job_id=${selectedJob}`, { method: 'DELETE' })
-      setMessage({ type: 'success', text: 'Job records deleted' })
+      setMessage({ type: 'success', text: 'Job and records deleted' })
+      setSelectedJob(null)
+      await loadJobs(selectedPipeline)
       loadRecords()
       loadStats()
     } catch (error) {

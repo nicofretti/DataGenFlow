@@ -2,6 +2,9 @@ import { memo } from 'react'
 import { Handle, Position, NodeProps } from 'reactflow'
 import { Box, Text, IconButton, Label } from '@primer/react'
 import { XIcon, GearIcon } from '@primer/octicons-react'
+import {
+  DEFAULT_HANDLE_STYLE,
+} from './utils'
 
 interface BlockData {
   block: {
@@ -51,7 +54,7 @@ function BlockNode({ data }: NodeProps<BlockData>) {
       <Handle
         type="target"
         position={Position.Top}
-        style={{ background: '#555' }}
+        style={{ ...DEFAULT_HANDLE_STYLE, background: '#555' }}
       />
 
       {/* Header */}
@@ -166,7 +169,7 @@ function BlockNode({ data }: NodeProps<BlockData>) {
       <Handle
         type="source"
         position={Position.Bottom}
-        style={{ background: '#555' }}
+        style={{ ...DEFAULT_HANDLE_STYLE, background: '#555' }}
       />
     </Box>
   )
