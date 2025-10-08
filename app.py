@@ -228,6 +228,9 @@ async def update_record(record_id: int, update: RecordUpdate) -> dict[str, bool]
 @api.delete("/records")
 async def delete_all_records(job_id: int | None = None) -> dict[str, Any]:
     count = await storage.delete_all_records(job_id=job_id)
+    # also remove from in-memory job queue
+    if job_id:
+        job_queue.delete_job(job_id)
     return {"deleted": count}
 
 
