@@ -155,10 +155,10 @@ async def _process_job(
                     )
 
                     # create record from pipeline output
-                    # use metadata's system/user if present, otherwise use empty strings
+                    # system/user are now rendered by LLMBlock
                     record = Record(
-                        system=metadata.get("system", ""),
-                        user=metadata.get("user", ""),
+                        system=result.get("system", metadata.get("system", "")),
+                        user=result.get("user", metadata.get("user", "")),
                         assistant=result.get("assistant", result.get("pipeline_output", "")),
                         metadata=metadata,
                         trace=trace,

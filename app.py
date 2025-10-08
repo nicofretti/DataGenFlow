@@ -68,25 +68,25 @@ async def generate_from_file(
         if not isinstance(num_samples, int):
             num_samples = 1
 
-        # render templates if needed
-        generator = Generator()
-        system = generator.render_template(seed.system, seed.metadata)
-        user = generator.render_template(seed.user, seed.metadata)
-
         # execute pipeline num_samples times
         for _ in range(num_samples):
             total += 1
             try:
-                # prepare input data for pipeline
-                input_data = {"system": system, "user": user, **seed.metadata}
+                # prepare input data for pipeline with metadata
+                input_data = {
+                    "system": seed.system,
+                    "user": seed.user,
+                    **seed.metadata
+                }
 
                 # execute pipeline with trace
                 result, trace, trace_id = await pipeline.execute(input_data)
 
-                # create record from seed + pipeline output
+                # create record from pipeline output
+                # system/user are now rendered by LLMBlock
                 record = Record(
-                    system=system,
-                    user=user,
+                    system=result.get("system", seed.system),
+                    user=result.get("user", seed.user),
                     assistant=result.get("assistant", ""),
                     metadata=seed.metadata,
                     trace=trace,
@@ -134,9 +134,17 @@ async def generate(
         for seed in seeds
     )
 
-    # save file temporarily
-    tmp_file = Path(tempfile.gettempdir()) / f"seed_{pipeline_id}_{tempfile.mktemp().split('/')[-1]}.json"
-    tmp_file.write_text(content.decode('utf-8'), encoding='utf-8')
+    # save file temporarily (cross-platform)
+    fd, tmp_path = tempfile.mkstemp(suffix='.json', prefix=f'seed_{pipeline_id}_')
+    tmp_file = Path(tmp_path)
+    try:
+        # write content to file descriptor first, then close it
+        import os
+        os.write(fd, content)
+        os.close(fd)
+    except Exception:
+        os.close(fd)
+        raise
 
     # create job in database
     job_id = await storage.create_job(pipeline_id, total_samples, status="running")

@@ -81,6 +81,31 @@ class JobQueue:
 
             return True
 
+    def delete_job(self, job_id: int) -> bool:
+        """remove job from memory completely"""
+        with self._lock:
+            if job_id not in self._jobs:
+                return False
+
+            pipeline_id = self._jobs[job_id]["pipeline_id"]
+
+            # remove from jobs dict
+            del self._jobs[job_id]
+
+            # remove from history
+            if pipeline_id in self._job_history:
+                history = self._job_history[pipeline_id]
+                if job_id in history:
+                    # convert deque to list, remove item, convert back
+                    history_list = list(history)
+                    history_list.remove(job_id)
+                    self._job_history[pipeline_id] = deque(history_list, maxlen=10)
+
+            if self._active_job == job_id:
+                self._active_job = None
+
+            return True
+
     def get_active_job(self) -> Optional[dict]:
         """get currently running job"""
         with self._lock:

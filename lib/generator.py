@@ -1,6 +1,7 @@
 import httpx
 
 from config import settings
+from lib.template_renderer import render_template
 from models import GenerationConfig
 
 
@@ -12,10 +13,7 @@ class Generator:
         self.api_key = settings.LLM_API_KEY
 
     def render_template(self, template: str, metadata: dict[str, str | int | float]) -> str:
-        try:
-            return template.format(**metadata)
-        except KeyError as e:
-            raise ValueError(f"missing metadata key: {e}")
+        return render_template(template, metadata)
 
     async def generate(self, system: str, user: str) -> str:
         headers = {"Content-Type": "application/json"}

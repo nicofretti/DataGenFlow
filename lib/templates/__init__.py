@@ -1,7 +1,7 @@
 """
 Pipeline templates for quick onboarding and testing
 """
-import json
+import yaml
 from pathlib import Path
 from typing import Any
 
@@ -17,15 +17,14 @@ class TemplateRegistry:
         self._load_templates()
 
     def _load_templates(self) -> None:
-        """Load all template JSON files from templates directory"""
-        for template_file in self.templates_dir.glob("*.json"):
+        """load all template yaml files from templates directory"""
+        for template_file in self.templates_dir.glob("*.yaml"):
             try:
                 with open(template_file, "r") as f:
-                    template_data = json.load(f)
-                    template_id = template_file.stem  # filename without extension
+                    template_data = yaml.safe_load(f)
+                    template_id = template_file.stem
                     self._templates[template_id] = template_data
             except Exception:
-                # Skip invalid template files
                 pass
 
     def list_templates(self) -> list[dict[str, Any]]:

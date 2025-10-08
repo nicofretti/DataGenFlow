@@ -2,22 +2,20 @@
   {
     "repetitions": 3,
     "metadata": {
-      "system": "You are a {role} who specializes in {domain}.",
-      "user": "Explain {topic} in simple terms.",
+      "system": "You are a {{ role }} who specializes in {{ domain }}.",
+      "user": "Explain {{ topic }} in simple terms.",
       "role": "teacher",
       "domain": "physics",
-      "topic": "gravity",
-      "num_samples": 2
+      "topic": "gravity"
     }
   },
   {
     "repetitions": 2,
     "metadata": {
-      "system": "You are a helpful {role}.",
-      "user": "What is {concept}?",
+      "system": "You are a helpful {{ role }}.",
+      "user": "What is {{ concept }}?",
       "role": "assistant",
-      "concept": "machine learning",
-      "num_samples": 3
+      "concept": "machine learning"
     }
   }
 ]
