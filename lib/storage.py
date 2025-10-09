@@ -319,6 +319,14 @@ class Storage:
 
     async def delete_pipeline(self, pipeline_id: int) -> bool:
         async def _delete(db):
+            # cascade delete: records -> jobs -> pipeline
+            # delete all records for this pipeline
+            await db.execute("DELETE FROM records WHERE pipeline_id = ?", (pipeline_id,))
+
+            # delete all jobs for this pipeline
+            await db.execute("DELETE FROM jobs WHERE pipeline_id = ?", (pipeline_id,))
+
+            # delete the pipeline
             cursor = await db.execute(
                 "DELETE FROM pipelines WHERE id = ?", (pipeline_id,)
             )

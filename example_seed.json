@@ -15,7 +15,8 @@
       "system": "You are a helpful {{ role }}.",
       "user": "What is {{ concept }}?",
       "role": "assistant",
-      "concept": "machine learning"
+      "concept": "machine learning",
+      "topic": "machine learning"
     }
   }
 ]

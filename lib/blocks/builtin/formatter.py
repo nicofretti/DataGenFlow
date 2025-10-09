@@ -4,9 +4,9 @@ from lib.blocks.base import BaseBlock
 from lib.template_renderer import render_template
 
 
-class FormatterBlock(BaseBlock):
-    name = "Output Formatter"
-    description = "Format pipeline output using Jinja2 templates"
+class OutputBlock(BaseBlock):
+    name = "Pipeline Output"
+    description = "Define final pipeline output using Jinja2 templates for the review system"
     inputs = ["*"]
     outputs = ["pipeline_output"]
 

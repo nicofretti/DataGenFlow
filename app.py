@@ -121,10 +121,33 @@ async def generate(
     content = await file.read()
     try:
         data = json.loads(content)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON file")
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid JSON format: {str(e)}. Please check your input file is valid JSON."
+        )
+
+    # validate seed structure
+    if not isinstance(data, (list, dict)):
+        raise HTTPException(
+            status_code=400,
+            detail="JSON must be an object or array of objects"
+        )
 
     seeds = data if isinstance(data, list) else [data]
+
+    # validate each seed has required structure
+    for i, seed in enumerate(seeds):
+        if not isinstance(seed, dict):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Seed {i + 1} must be an object with 'repetitions' and 'metadata' fields"
+            )
+        if "metadata" not in seed:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Seed {i + 1} is missing required 'metadata' field"
+            )
 
     # calculate total executions from all seeds
     total_samples = sum(
@@ -327,9 +350,18 @@ async def execute_pipeline(
 
 @api.delete("/pipelines/{pipeline_id}")
 async def delete_pipeline(pipeline_id: int) -> dict[str, bool]:
+    # get all jobs for this pipeline to remove from memory
+    jobs = await storage.list_jobs(pipeline_id=pipeline_id, limit=1000)
+
+    # delete pipeline (cascade deletes jobs and records)
     success = await storage.delete_pipeline(pipeline_id)
     if not success:
         raise HTTPException(status_code=404, detail="pipeline not found")
+
+    # remove jobs from in-memory queue
+    for job in jobs:
+        job_queue.delete_job(job["id"])
+
     return {"success": True}
 
 

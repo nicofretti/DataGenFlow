@@ -88,7 +88,7 @@ The block is auto-discovered on startup and immediately available in the UI.
 - **LLMBlock**: Generate text using LLM (OpenAI-compatible)
 - **TransformerBlock**: Text transformations (lowercase, uppercase, strip, trim)
 - **ValidatorBlock**: Validate output against rules (length, forbidden words)
-- **FormatterBlock**: Format pipeline output for display
+- **OutputBlock**: Define final pipeline output using Jinja2 templates for the review system
 
 ### Developer Experience
 - **Debug logging**: Toggle detailed execution logs with `DEBUG=true`

@@ -4,10 +4,13 @@ stable, tested blocks included with qadatagen.
 
 ## available blocks
 
-- **llmblock**: generate text using llm
-- **transformerblock**: text transformations (uppercase, lowercase, trim, strip)
+- **llmblock**: generate text using llm with jinja2 template rendering
 - **validatorblock**: validate text content (length, forbidden words)
-- **formatterblock**: custom output formatting
+- **jsonvalidatorblock**: parse and validate JSON from any field in accumulated state
+  - config: `field_name` (which field to validate), `required_fields` (list), `strict` (bool)
+  - inputs: * (all accumulated state)
+  - outputs: valid (bool), parsed_json (object/null)
+- **outputblock**: define final pipeline output using jinja2 templates for the review system
 
 ## usage
 

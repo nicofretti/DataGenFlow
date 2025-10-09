@@ -11,13 +11,7 @@ blocks:
       min_length: 20
       max_length: 5000
 
-  - type: FormatterBlock
+  - type: OutputBlock
     config:
       format_template: |
-        Q&A Generated:
-
-        {% if system %}System: {{ system }}
-
-        {% endif %}{% if user %}User: {{ user }}
-
-        {% endif %}Assistant: {{ assistant }}
+        Assistant: {{ assistant }}

@@ -27,14 +27,14 @@ async def test_pipeline_output_validation():
 
 @pytest.mark.asyncio
 async def test_pipeline_output_with_formatter():
-    # test formatter block sets pipeline_output
+    # test output block sets pipeline_output
     pipeline_def = {
         "name": "Formatted Pipeline",
         "blocks": [
             {"type": "LLMBlock", "config": {}},
             {
-                "type": "FormatterBlock",
-                "config": {"format_template": "Response: {assistant}"},
+                "type": "OutputBlock",
+                "config": {"format_template": "Response: {{ assistant }}"},
             },
         ],
     }
@@ -48,7 +48,7 @@ async def test_pipeline_output_with_formatter():
 
         result, trace, trace_id = await pipeline.execute({"system": "test", "user": "test"})
 
-        # pipeline_output should be from formatter (last one wins)
+        # pipeline_output should be from output block (last one wins)
         assert result["pipeline_output"] == "Response: Hello"
         assert (
             trace[-1]["accumulated_state"]["pipeline_output"] == "Response: Hello"
