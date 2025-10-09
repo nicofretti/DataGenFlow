@@ -13,16 +13,13 @@ class RecordStatus(str, Enum):
 
 
 class SeedInput(BaseModel):
-    system: str = Field(..., description="System prompt template with {placeholders}")
-    user: str = Field(..., description="User prompt template with {placeholders}")
-    metadata: dict[str, Any] = Field(..., description="Data to fill templates + num_samples")
+    repetitions: int = Field(default=1, description="Number of times to execute pipeline")
+    metadata: dict[str, Any] = Field(..., description="Variables for pipeline execution")
 
 
 class Record(BaseModel):
     id: int | None = None
-    system: str
-    user: str
-    assistant: str
+    output: str
     metadata: dict[str, Any] = Field(default_factory=dict)
     status: RecordStatus = RecordStatus.PENDING
     trace: list[dict[str, Any]] | None = None
@@ -38,8 +35,6 @@ class GenerationConfig(BaseModel):
 
 
 class RecordUpdate(BaseModel):
-    system: str | None = None
-    user: str | None = None
-    assistant: str | None = None
+    output: str | None = None
     status: RecordStatus | None = None
     metadata: dict[str, Any] | None = None

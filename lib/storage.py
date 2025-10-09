@@ -55,9 +55,7 @@ class Storage:
                 """
                 CREATE TABLE IF NOT EXISTS records (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    system TEXT NOT NULL,
-                    user TEXT NOT NULL,
-                    assistant TEXT NOT NULL,
+                    output TEXT NOT NULL,
                     metadata TEXT NOT NULL,
                     status TEXT NOT NULL,
                     pipeline_id INTEGER,
@@ -122,13 +120,11 @@ class Storage:
         async def _save(db):
             cursor = await db.execute(
                 """
-                INSERT INTO records (system, user, assistant, metadata, status, pipeline_id, job_id, trace, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO records (output, metadata, status, pipeline_id, job_id, trace, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    record.system,
-                    record.user,
-                    record.assistant,
+                    record.output,
                     json.dumps(record.metadata),
                     record.status.value,
                     pipeline_id,
@@ -195,7 +191,7 @@ class Storage:
         if not updates:
             return False
 
-        valid_fields = {"system", "user", "assistant", "status", "metadata"}
+        valid_fields = {"output", "status", "metadata"}
         update_fields = {k: v for k, v in updates.items() if k in valid_fields}
 
         if not update_fields:
@@ -243,18 +239,9 @@ class Storage:
         records = await self.get_all(status=status, limit=999999, job_id=job_id)
         lines = []
         for record in records:
-            # get pipeline_output from accumulated state if trace exists
-            pipeline_output = None
-            if record.trace and len(record.trace) > 0:
-                final_state = record.trace[-1].get("accumulated_state", {})
-                pipeline_output = final_state.get("pipeline_output")
-
             obj = {
                 "id": record.id,
-                "system": record.system,
-                "user": record.user,
-                "assistant": record.assistant,
-                "pipeline_output": pipeline_output,
+                "output": record.output,
                 "metadata": record.metadata,
                 "status": record.status.value,
                 "created_at": (
@@ -424,9 +411,7 @@ class Storage:
     def _row_to_record(self, row: aiosqlite.Row) -> Record:
         return Record(
             id=row["id"],
-            system=row["system"],
-            user=row["user"],
-            assistant=row["assistant"],
+            output=row["output"],
             metadata=json.loads(row["metadata"]),
             status=RecordStatus(row["status"]),
             trace=json.loads(row["trace"]) if row["trace"] else None,

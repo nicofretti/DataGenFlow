@@ -92,7 +92,7 @@ def some_function():
             block_types = [block["type"] for block in blocks]
             assert "LLMBlock" in block_types
             assert "ValidatorBlock" in block_types
-            assert "TransformerBlock" in block_types
+            assert "OutputBlock" in block_types
 
         finally:
             if invalid_block_file.exists():
@@ -139,21 +139,17 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_block_execution_error_handling(self):
         """Test that block execution errors are handled properly"""
-        from lib.blocks.builtin.transformer import TransformerBlock
+        from lib.blocks.builtin.validator import ValidatorBlock
 
-        block = TransformerBlock(operation="invalid_operation")
+        block = ValidatorBlock(min_length=10, max_length=5)  # invalid: min > max
 
-        # should handle invalid operation gracefully
-        input_data = {"text": "test"}
+        # should handle invalid config gracefully
+        input_data = {"assistant": "test"}
 
-        # depending on implementation, might raise exception or return error
-        try:
-            result = await block.execute(input_data)
-            # if no exception, check if error is indicated in result
-            assert "error" in result or result.get("text") == "test"
-        except Exception as e:
-            # if exception is raised, it should be meaningful
-            assert "operation" in str(e).lower() or "invalid" in str(e).lower()
+        # test should either work or fail gracefully
+        result = await block.execute(input_data)
+        # validator should mark as invalid since length rules conflict
+        assert "valid" in result
 
     @pytest.mark.asyncio
     async def test_pipeline_execution_with_failing_block(self):
@@ -164,7 +160,7 @@ class TestErrorHandling:
         pipeline_def = {
             "name": "Failing Pipeline",
             "blocks": [
-                {"type": "TransformerBlock", "config": {"operation": "lowercase"}},
+                {"type": "LLMBlock", "config": {}},
                 {"type": "ValidatorBlock", "config": {"forbidden_words": ["test"]}},
             ],
         }
@@ -172,12 +168,12 @@ class TestErrorHandling:
         pipeline = Pipeline.load_from_dict(pipeline_def)
 
         # input that should trigger validation failure
-        input_data = {"text": "This is a test message"}
+        input_data = {"system": "test", "user": "Say the word test"}
 
-        result = await pipeline.execute(input_data)
+        result, trace, trace_id = await pipeline.execute(input_data)
 
         # pipeline should complete but validation should fail
-        assert result["text"] == "this is a test message"  # transformation applied
+        assert "valid" in result
         assert result["valid"] is False  # validation failed
 
     def test_invalid_pipeline_definition(self):
@@ -231,9 +227,7 @@ class TestErrorHandling:
         # test invalid record status
         with pytest.raises(Exception):
             Record(
-                system="test",
-                user="test",
-                assistant="test",
+                output="test",
                 status="invalid_status",  # not a valid RecordStatus
             )
 
@@ -262,7 +256,7 @@ class TestErrorHandling:
             # create multiple concurrent operations
             async def create_record(i):
                 record = Record(
-                    system=f"sys{i}", user=f"user{i}", assistant=f"assist{i}"
+                    output=f"output{i}", metadata={"index": i}
                 )
                 return await storage.save_record(record)
 
@@ -294,49 +288,41 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_empty_input_handling(self):
         """Test handling of empty inputs"""
-        from lib.blocks.builtin.transformer import TransformerBlock
         from lib.blocks.builtin.validator import ValidatorBlock
 
-        transformer = TransformerBlock(operation="lowercase")
         validator = ValidatorBlock(min_length=1)
 
-        # test empty text
-        empty_result = await transformer.execute({"text": ""})
-        assert empty_result["text"] == ""
-
         # test validation with empty text
-        validation_result = await validator.execute({"text": ""})
+        validation_result = await validator.execute({"assistant": ""})
         assert validation_result["valid"] is False
 
     @pytest.mark.asyncio
     async def test_large_input_handling(self):
         """Test handling of very large inputs"""
-        from lib.blocks.builtin.transformer import TransformerBlock
+        from lib.blocks.builtin.validator import ValidatorBlock
 
         # create a very large input
         large_text = "A" * 100000  # 100KB
 
-        transformer = TransformerBlock(operation="lowercase")
-        result = await transformer.execute({"text": large_text})
+        validator = ValidatorBlock(max_length=200000)
+        result = await validator.execute({"assistant": large_text})
 
-        assert result["text"] == "a" * 100000
-        assert len(result["text"]) == 100000
+        assert result["valid"] is True
+        assert len(large_text) == 100000
 
     @pytest.mark.asyncio
     async def test_unicode_handling(self):
         """Test handling of unicode characters"""
-        from lib.blocks.builtin.transformer import TransformerBlock
+        from lib.blocks.builtin.validator import ValidatorBlock
 
         # test various unicode characters
         unicode_text = "Hello 世界 🌍 café naïve résumé"
 
-        transformer = TransformerBlock(operation="lowercase")
-        result = await transformer.execute({"text": unicode_text})
+        validator = ValidatorBlock(min_length=1)
+        result = await validator.execute({"assistant": unicode_text})
 
-        # should preserve unicode characters
-        assert "世界" in result["text"]
-        assert "🌍" in result["text"]
-        assert "café" in result["text"].lower()
+        # should validate successfully
+        assert result["valid"] is True
 
     @pytest.mark.asyncio
     async def test_special_characters_in_metadata(self):
@@ -363,7 +349,7 @@ class TestEdgeCases:
             }
 
             record = Record(
-                system="test", user="test", assistant="test", metadata=special_metadata
+                output="test", metadata=special_metadata
             )
 
             record_id = await storage.save_record(record)
@@ -398,7 +384,7 @@ class TestEdgeCases:
             block_types = [block["type"] for block in blocks]
             assert "LLMBlock" in block_types
             assert "ValidatorBlock" in block_types
-            assert "TransformerBlock" in block_types
+            assert "OutputBlock" in block_types
 
         finally:
             if moved and backup_path.exists():

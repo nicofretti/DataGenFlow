@@ -154,12 +154,15 @@ async def _process_job(
                         metadata, job_id=job_id, job_queue=job_queue, storage=storage
                     )
 
+                    # extract pipeline_output from final accumulated state
+                    pipeline_output = ""
+                    if trace and len(trace) > 0:
+                        final_state = trace[-1].get("accumulated_state", {})
+                        pipeline_output = final_state.get("pipeline_output", "")
+
                     # create record from pipeline output
-                    # system/user are now rendered by LLMBlock
                     record = Record(
-                        system=result.get("system", metadata.get("system", "")),
-                        user=result.get("user", metadata.get("user", "")),
-                        assistant=result.get("assistant", result.get("pipeline_output", "")),
+                        output=pipeline_output,
                         metadata=metadata,
                         trace=trace,
                     )

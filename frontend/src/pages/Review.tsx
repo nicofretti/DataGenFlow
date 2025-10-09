@@ -16,9 +16,7 @@ import { CheckIcon, XIcon, PencilIcon, ChevronLeftIcon, ChevronRightIcon, Commen
 
 interface Record {
   id: number
-  system: string
-  user: string
-  assistant: string
+  output: string
   status: string
   metadata: any
   trace?: Array<{
@@ -178,20 +176,9 @@ export default function Review() {
     loadStats()
   }
 
-  // get final output from pipeline accumulated state or fallback to assistant
+  // get final output from record
   const getFinalOutput = (record: Record): string => {
-    if (record.trace && record.trace.length > 0) {
-      const finalState = record.trace[record.trace.length - 1].accumulated_state
-      if (finalState?.pipeline_output !== undefined) {
-        // if pipeline_output is object, stringify it
-        return typeof finalState.pipeline_output === 'string'
-          ? finalState.pipeline_output
-          : JSON.stringify(finalState.pipeline_output, null, 2)
-      }
-      // fallback to accumulated state
-      return finalState ? JSON.stringify(finalState, null, 2) : record.assistant
-    }
-    return record.assistant || ''
+    return record.output || ''
   }
 
   const startEditing = () => {
@@ -206,7 +193,7 @@ export default function Review() {
     await fetch(`/api/records/${currentRecord.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assistant: editValue, status: 'edited' }),
+      body: JSON.stringify({ output: editValue, status: 'edited' }),
     })
     setIsEditing(false)
     if (currentIndex < records.length - 1) {
@@ -521,7 +508,7 @@ export default function Review() {
                   <CommentIcon size={16} />
                 </Box>
                 <Text as="div" sx={{ fontSize: 2, fontWeight: 'bold', color: 'fg.default' }}>
-                  {currentRecord.trace && currentRecord.trace.length > 0 ? 'Pipeline Output' : 'Assistant Response'}
+                  Pipeline Output
                 </Text>
               </Box>
               {isEditing ? (

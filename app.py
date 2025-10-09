@@ -64,30 +64,22 @@ async def generate_from_file(
 
     # process each seed
     for seed in seeds:
-        num_samples = seed.metadata.get("num_samples", 1)
-        if not isinstance(num_samples, int):
-            num_samples = 1
-
-        # execute pipeline num_samples times
-        for _ in range(num_samples):
+        # execute pipeline seed.repetitions times
+        for _ in range(seed.repetitions):
             total += 1
             try:
-                # prepare input data for pipeline with metadata
-                input_data = {
-                    "system": seed.system,
-                    "user": seed.user,
-                    **seed.metadata
-                }
+                # execute pipeline with metadata as input
+                result, trace, trace_id = await pipeline.execute(seed.metadata)
 
-                # execute pipeline with trace
-                result, trace, trace_id = await pipeline.execute(input_data)
+                # extract pipeline_output from final accumulated state
+                pipeline_output = ""
+                if trace and len(trace) > 0:
+                    final_state = trace[-1].get("accumulated_state", {})
+                    pipeline_output = final_state.get("pipeline_output", "")
 
                 # create record from pipeline output
-                # system/user are now rendered by LLMBlock
                 record = Record(
-                    system=result.get("system", seed.system),
-                    user=result.get("user", seed.user),
-                    assistant=result.get("assistant", ""),
+                    output=pipeline_output,
                     metadata=seed.metadata,
                     trace=trace,
                 )

@@ -61,7 +61,7 @@ class TestAPIBlocks:
         block_types = [block["type"] for block in blocks]
         assert "LLMBlock" in block_types
         assert "ValidatorBlock" in block_types
-        assert "TransformerBlock" in block_types
+        assert "OutputBlock" in block_types
 
         # check block structure
         for block in blocks:
@@ -81,7 +81,7 @@ class TestAPIPipelines:
         pipeline_data = {
             "name": "Test Pipeline",
             "blocks": [
-                {"type": "TransformerBlock", "config": {"operation": "lowercase"}},
+                {"type": "ValidatorBlock", "config": {"min_length": 1}},
                 {"type": "ValidatorBlock", "config": {"min_length": 5}},
             ],
         }
@@ -175,7 +175,7 @@ class TestAPIPipelines:
         pipeline_data = {
             "name": "Transform Pipeline",
             "blocks": [
-                {"type": "TransformerBlock", "config": {"operation": "uppercase"}}
+                {"type": "ValidatorBlock", "config": {"min_length": 1}}
             ],
         }
         create_response = client.post("/api/pipelines", json=pipeline_data)

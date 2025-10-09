@@ -86,8 +86,8 @@ The block is auto-discovered on startup and immediately available in the UI.
 
 ### Built-in Blocks
 - **LLMBlock**: Generate text using LLM (OpenAI-compatible)
-- **TransformerBlock**: Text transformations (lowercase, uppercase, strip, trim)
 - **ValidatorBlock**: Validate output against rules (length, forbidden words)
+- **JSONValidatorBlock**: Parse and validate JSON from any field in accumulated state
 - **OutputBlock**: Define final pipeline output using Jinja2 templates for the review system
 
 ### Developer Experience

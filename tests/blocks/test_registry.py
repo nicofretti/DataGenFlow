@@ -6,11 +6,12 @@ def test_registry_discovers_blocks():
 
     blocks = registry.list_blocks()
 
-    # should discover at least the 3 core blocks
+    # should discover at least the core blocks
     block_types = [b["type"] for b in blocks]
     assert "LLMBlock" in block_types
     assert "ValidatorBlock" in block_types
-    assert "TransformerBlock" in block_types
+    assert "OutputBlock" in block_types
+    assert "JSONValidatorBlock" in block_types
 
 
 def test_get_block_class():
