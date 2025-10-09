@@ -1,6 +1,6 @@
 # builtin blocks
 
-stable, tested blocks included with qadatagen.
+stable, tested blocks included with datagenflow.
 
 ## available blocks
 

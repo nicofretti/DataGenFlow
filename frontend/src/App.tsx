@@ -43,7 +43,7 @@ function Navigation() {
       >
         {/* brand */}
         <Box sx={{ p: 4, borderBottom: '1px solid', borderColor: 'border.default' }}>
-          <Heading sx={{ fontSize: 3, mb: 1, color: 'fg.default' }}>QADataGen</Heading>
+          <Heading sx={{ fontSize: 3, mb: 1, color: 'fg.default' }}>DataGenFlow</Heading>
           <Text sx={{ fontSize: 1, color: 'fg.default', mb: 2 }}>Dataset Generation</Text>
           <GlobalJobIndicator />
         </Box>
