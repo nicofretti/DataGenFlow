@@ -352,21 +352,21 @@ export default function Review() {
         >
           <SegmentedControl.Button selected={filterStatus === 'pending'}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'fg.default' }}>
-              <ClockIcon size={16} style={{ color: '#bf8700' }} />
+              <ClockIcon size={16} />
               <Text>Pending</Text>
               <CounterLabel>{stats.pending}</CounterLabel>
             </Box>
           </SegmentedControl.Button>
           <SegmentedControl.Button selected={filterStatus === 'accepted'}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'fg.default' }}>
-              <CheckCircleIcon size={16} style={{ color: '#1a7f37' }} />
+              <CheckCircleIcon size={16} />
               <Text>Accepted</Text>
               <CounterLabel>{stats.accepted}</CounterLabel>
             </Box>
           </SegmentedControl.Button>
-          <SegmentedControl.Button selected={filterStatus === 'rejected'}>
+          <SegmentedControl.Button selected={filterStatus === 'rejected'} >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'fg.default' }}>
-              <XCircleIcon size={16} style={{ color: '#cf222e' }} />
+              <XCircleIcon size={16} fill="fg.danger"/>
               <Text>Rejected</Text>
               <CounterLabel>{stats.rejected}</CounterLabel>
             </Box>
@@ -607,54 +607,49 @@ export default function Review() {
               )}
             </Box>
 
-            {/* context section - collapsible */}
-            <Box
-              sx={{
-                border: '1px solid',
-                borderColor: 'border.muted',
-                borderRadius: 2,
-                p: 3,
-                bg: 'canvas.inset',
-                mb: 3,
-              }}
-            >
-              <details>
-                <summary style={{ cursor: 'pointer', fontWeight: 600, marginBottom: '12px', color: 'inherit' }}>
-                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: 'fg.default' }}>
-                    <Box sx={{ color: 'fg.default' }}>
-                      <GearIcon size={16} />
-                    </Box>
-                    <Text sx={{ fontSize: 1, fontWeight: 'semibold', color: 'fg.default' }}>System & User Context</Text>
-                  </Box>
-                </summary>
+            {/* final accumulated state - collapsible */}
+            {currentRecord.trace && currentRecord.trace.length > 0 && (() => {
+              const finalState = currentRecord.trace[currentRecord.trace.length - 1].accumulated_state
+              return finalState && (
+                <Box
+                  sx={{
+                    border: '1px solid',
+                    borderColor: 'border.muted',
+                    borderRadius: 2,
+                    p: 3,
+                    bg: 'canvas.inset',
+                    mb: 3,
+                  }}
+                >
+                  <details>
+                    <summary style={{ cursor: 'pointer', fontWeight: 600, marginBottom: '12px', color: 'inherit' }}>
+                      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: 'fg.default' }}>
+                        <Text sx={{ fontSize: 1, fontWeight: 'semibold', color: 'fg.default' }}>Final Accumulated State</Text>
+                      </Box>
+                    </summary>
 
-                <Box sx={{ mt: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <Box sx={{ color: 'fg.default' }}>
-                      <GearIcon size={14} />
+                    <Box sx={{ mt: 2 }}>
+                      <Box
+                        sx={{
+                          fontFamily: 'mono',
+                          fontSize: 0,
+                          p: 2,
+                          bg: 'canvas.default',
+                          borderRadius: 1,
+                          overflow: 'auto',
+                          maxHeight: '400px',
+                          color: 'fg.default',
+                        }}
+                      >
+                        <pre style={{ margin: 0 }}>
+                          {JSON.stringify(finalState, null, 2)}
+                        </pre>
+                      </Box>
                     </Box>
-                    <Text as="div" sx={{ fontSize: 1, fontWeight: 'semibold', color: 'fg.default' }}>
-                      System Prompt
-                    </Text>
-                  </Box>
-                  <Text as="div" sx={{ fontSize: 1, mb: 3, color: 'fg.default' }}>
-                    {currentRecord.system}
-                  </Text>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <Box sx={{ color: 'fg.default' }}>
-                      <PersonIcon size={14} />
-                    </Box>
-                    <Text as="div" sx={{ fontSize: 1, fontWeight: 'semibold', color: 'fg.default' }}>
-                      User Message
-                    </Text>
-                  </Box>
-                  <Text as="div" sx={{ fontSize: 1, color: 'fg.default' }}>
-                    {currentRecord.user}
-                  </Text>
+                  </details>
                 </Box>
-              </details>
-            </Box>
+              )
+            })()}
 
             {/* execution trace - collapsible */}
             {currentRecord.trace && currentRecord.trace.length > 0 && (

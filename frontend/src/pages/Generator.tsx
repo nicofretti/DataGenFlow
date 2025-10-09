@@ -114,9 +114,9 @@ export default function Generator() {
         body: formData,
       })
 
-      if (res.status === 409) {
+      if (!res.ok) {
         const error = await res.json()
-        setMessage({ type: 'error', text: error.detail })
+        setMessage({ type: 'error', text: error.detail || 'Failed to generate records' })
         setGenerating(false)
         return
       }
