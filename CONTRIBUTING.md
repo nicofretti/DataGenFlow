@@ -19,7 +19,7 @@ Thank you for your interest in contributing! This document provides guidelines f
    ```bash
    git checkout -b feature/your-feature-name
    ```
-Better to click "Create a new branch" on GitHub when making a PR.
+   Better to click "Create a new branch" on GitHub when making a PR do have a a good branch name.
 
 ## Development Workflow
 
@@ -176,3 +176,4 @@ def process_data(data):
 ## Questions?
 
 Feel free to open an issue or reach out to maintainers if you have questions about contributing.
+
