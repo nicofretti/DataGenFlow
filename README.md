@@ -1,9 +1,7 @@
 <div align="center">
-  <img src="images/logo/logo.png" alt="DataGenFlow Logo" width="200"/>
-  <h1>DataGenFlow</h1>
-  <p>Effortlessly create and refine datasets powered by LLMs in few steps</p>
+  <img src="images/logo/banner.png" alt="DataGenFlow Logo">
 </div>
-
+<hr/>
 <div align="center">
   <p><strong>1. Build smarter workflows visually</strong><br>
   Drag, drop, and connect blocks in an intuitive pipeline builder.</p>
