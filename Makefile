@@ -1,10 +1,33 @@
-.PHONY: install dev dev-ui build-ui run mock-llm generate list export clean lint format typecheck test setup
+.PHONY: check-deps install dev dev-ui build-ui run mock-llm generate list export clean lint format lint-frontend format-frontend format-all lint-all typecheck typecheck-frontend typecheck-all test setup
 
-install:
+# check if required dependencies are installed
+check-deps:
+	@echo "Checking dependencies..."
+	@command -v uv >/dev/null 2>&1 || { \
+		echo "❌ uv is not installed"; \
+		echo ""; \
+		echo "Please install uv:"; \
+		echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"; \
+		echo ""; \
+		echo "Or visit: https://github.com/astral-sh/uv"; \
+		exit 1; \
+	}
+	@command -v yarn >/dev/null 2>&1 || { \
+		echo "❌ yarn is not installed"; \
+		echo ""; \
+		echo "Please install yarn:"; \
+		echo "  npm install -g yarn"; \
+		echo ""; \
+		echo "Or visit: https://yarnpkg.com/getting-started/install"; \
+		exit 1; \
+	}
+	@echo "✅ All dependencies are installed"
+
+install: check-deps
 	uv pip install -e .
 	cd frontend && yarn install
 
-dev:
+dev: check-deps
 	uv pip install -e ".[dev]"
 	cd frontend && yarn install
 
@@ -42,8 +65,23 @@ lint:
 format:
 	ruff format .
 
+lint-frontend:
+	cd frontend && yarn lint
+
+format-frontend:
+	cd frontend && yarn format
+
+format-all: format format-frontend
+
+lint-all: lint lint-frontend
+
 typecheck:
 	mypy .
+
+typecheck-frontend:
+	cd frontend && yarn type-check
+
+typecheck-all: typecheck typecheck-frontend
 
 test:
 	pytest
