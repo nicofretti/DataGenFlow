@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="images/logo/banner.png" alt="DataGenFlow Logo">
+  <img src="images/logo/banner.png" alt="DataGenFlow Logo" width="400"/>
 </div>
 <hr/>
 <div align="center">
