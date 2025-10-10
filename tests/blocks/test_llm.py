@@ -37,7 +37,7 @@ class TestLLMBlock:
         assert "inputs" in schema
         assert schema["inputs"] == ["system", "user"]
         assert "outputs" in schema
-        assert schema["outputs"] == ["assistant"]
+        assert schema["outputs"] == ["assistant", "system", "user"]
 
     @pytest.mark.asyncio
     async def test_llm_block_execute_success(self):
@@ -45,8 +45,8 @@ class TestLLMBlock:
         block = LLMBlock(model="test-model")
 
         # mock generator.generate
-        with patch("lib.blocks.builtin.llm.Generator") as MockGenerator:
-            mock_instance = MockGenerator.return_value
+        with patch("lib.blocks.builtin.llm.Generator") as mock_generator:
+            mock_instance = mock_generator.return_value
             mock_instance.generate = AsyncMock(return_value="This is a test response")
 
             input_data = {"system": "You are a helpful assistant", "user": "Say hello"}
@@ -68,8 +68,8 @@ class TestLLMBlock:
         block = LLMBlock(model="test-model")
 
         # mock generator to raise exception
-        with patch("lib.blocks.builtin.llm.Generator") as MockGenerator:
-            mock_instance = MockGenerator.return_value
+        with patch("lib.blocks.builtin.llm.Generator") as mock_generator:
+            mock_instance = mock_generator.return_value
             mock_instance.generate = AsyncMock(side_effect=Exception("LLM API error"))
 
             input_data = {"system": "You are a helpful assistant", "user": "Say hello"}
@@ -83,8 +83,8 @@ class TestLLMBlock:
         block = LLMBlock()
 
         # missing fields default to empty strings
-        with patch("lib.blocks.builtin.llm.Generator") as MockGenerator:
-            mock_instance = MockGenerator.return_value
+        with patch("lib.blocks.builtin.llm.Generator") as mock_generator:
+            mock_instance = mock_generator.return_value
             mock_instance.generate = AsyncMock(return_value="response")
 
             # test with missing system
@@ -109,8 +109,8 @@ class TestLLMBlock:
         """Test LLMBlock returns only assistant field"""
         block = LLMBlock(model="test-model")
 
-        with patch("lib.blocks.builtin.llm.Generator") as MockGenerator:
-            mock_instance = MockGenerator.return_value
+        with patch("lib.blocks.builtin.llm.Generator") as mock_generator:
+            mock_instance = mock_generator.return_value
             mock_instance.generate = AsyncMock(return_value="Test response")
 
             input_data = {
@@ -122,12 +122,14 @@ class TestLLMBlock:
 
             result = await block.execute(input_data)
 
-            # only declared output
-            assert result == {"assistant": "Test response"}
+            # llm block returns assistant, system, and user (rendered templates)
+            assert result == {
+                "assistant": "Test response",
+                "system": "You are helpful",
+                "user": "Say hello",
+            }
             assert "metadata" not in result
             assert "extra_field" not in result
-            assert "system" not in result
-            assert "user" not in result
 
     def test_llm_block_config_schema(self):
         """Test LLMBlock config schema"""

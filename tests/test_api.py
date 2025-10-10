@@ -7,9 +7,6 @@ import os
 import tempfile
 
 import pytest
-from fastapi.testclient import TestClient
-
-from app import app
 
 
 # test configuration to ensure we don't interfere with real data
@@ -23,12 +20,6 @@ def temp_db():
         os.unlink(db_path)
     except Exception:
         pass
-
-
-@pytest.fixture
-def client():
-    """Create test client for FastAPI app"""
-    return TestClient(app)
 
 
 @pytest.fixture
@@ -98,9 +89,7 @@ class TestAPIPipelines:
         # first create a pipeline
         pipeline_data = {
             "name": "Test Pipeline",
-            "blocks": [
-                {"type": "TransformerBlock", "config": {"operation": "lowercase"}}
-            ],
+            "blocks": [{"type": "TransformerBlock", "config": {"operation": "lowercase"}}],
         }
         create_response = client.post("/api/pipelines", json=pipeline_data)
         assert create_response.status_code == 200
@@ -125,9 +114,7 @@ class TestAPIPipelines:
         # create a pipeline first
         pipeline_data = {
             "name": "Test Pipeline",
-            "blocks": [
-                {"type": "TransformerBlock", "config": {"operation": "lowercase"}}
-            ],
+            "blocks": [{"type": "TransformerBlock", "config": {"operation": "lowercase"}}],
         }
         create_response = client.post("/api/pipelines", json=pipeline_data)
         pipeline_id = create_response.json()["id"]
@@ -151,9 +138,7 @@ class TestAPIPipelines:
         # create a pipeline first
         pipeline_data = {
             "name": "Test Pipeline",
-            "blocks": [
-                {"type": "TransformerBlock", "config": {"operation": "lowercase"}}
-            ],
+            "blocks": [{"type": "TransformerBlock", "config": {"operation": "lowercase"}}],
         }
         create_response = client.post("/api/pipelines", json=pipeline_data)
         pipeline_id = create_response.json()["id"]
@@ -173,10 +158,8 @@ class TestAPIPipelines:
         """Test POST /api/pipelines/{id}/execute"""
         # create a simple pipeline
         pipeline_data = {
-            "name": "Transform Pipeline",
-            "blocks": [
-                {"type": "ValidatorBlock", "config": {"min_length": 1}}
-            ],
+            "name": "Validation Pipeline",
+            "blocks": [{"type": "ValidatorBlock", "config": {"min_length": 1}}],
         }
         create_response = client.post("/api/pipelines", json=pipeline_data)
         pipeline_id = create_response.json()["id"]
@@ -190,7 +173,8 @@ class TestAPIPipelines:
         # api returns {result, trace}
         assert "result" in result
         assert "trace" in result
-        assert result["result"]["text"] == "HELLO WORLD"
+        assert result["result"]["text"] == "hello world"
+        assert result["result"]["valid"] is True
 
 
 class TestAPIGeneration:
@@ -251,10 +235,10 @@ class TestAPIRecords:
         assert len(result) <= 5
 
     def test_export_records(self, client):
-        """Test GET /api/records/export"""
-        response = client.get("/api/records/export")
+        """Test GET /api/export"""
+        response = client.get("/api/export")
         assert response.status_code == 200
-        assert response.headers["content-type"] == "text/plain; charset=utf-8"
+        assert response.headers["content-type"] == "application/x-ndjson"
 
 
 class TestAPIStaticFiles:
@@ -278,14 +262,21 @@ class TestAPIErrors:
         assert response.status_code in [400, 422]
 
     def test_invalid_block_type(self, client):
-        """Test creating pipeline with invalid block type"""
+        """Test creating and executing pipeline with invalid block type"""
         invalid_data = {
             "name": "Invalid Pipeline",
             "blocks": [{"type": "NonExistentBlock", "config": {}}],
         }
 
+        # pipeline creation should succeed (validation deferred to execution)
         response = client.post("/api/pipelines", json=invalid_data)
-        assert response.status_code in [400, 422]
+        assert response.status_code == 200
+        pipeline_id = response.json()["id"]
+
+        # but execution should fail with block not found error
+        exec_response = client.post(f"/api/pipelines/{pipeline_id}/execute", json={"data": "test"})
+        assert exec_response.status_code in [400, 500]
+        assert "NonExistentBlock" in exec_response.json()["error"]
 
     def test_execute_nonexistent_pipeline(self, client):
         """Test executing non-existent pipeline"""

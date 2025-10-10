@@ -1,6 +1,5 @@
 import pytest
 
-from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
 from models import Record
 
@@ -40,15 +39,14 @@ async def test_pipeline_execution_with_trace():
 
         # verify trace has accumulated_state
         assert "accumulated_state" in trace[0]
-        assert trace[0]["accumulated_state"]["pipeline_output"] == "Hello! How can I help you today?"
+        assert (
+            trace[0]["accumulated_state"]["pipeline_output"] == "Hello! How can I help you today?"
+        )
 
 
 @pytest.mark.asyncio
-async def test_storage_saves_trace():
+async def test_storage_saves_trace(storage):
     # test that trace is saved with record
-    storage = Storage(":memory:")
-    await storage.init_db()
-
     # create pipeline first for foreign key
     pipeline_def = {"name": "Test", "blocks": []}
     pipeline_id = await storage.save_pipeline("Test", pipeline_def)
@@ -62,9 +60,8 @@ async def test_storage_saves_trace():
     ]
 
     record = Record(
-        system="test system",
-        user="test user",
-        assistant="test assistant",
+        output="test assistant",
+        metadata={"system": "test system", "user": "test user"},
         trace=trace,
     )
 
@@ -79,13 +76,10 @@ async def test_storage_saves_trace():
 
 
 @pytest.mark.asyncio
-async def test_storage_handles_none_trace():
+async def test_storage_handles_none_trace(storage):
     # test that records without trace work fine
-    storage = Storage(":memory:")
-    await storage.init_db()
-
     record = Record(
-        system="test system", user="test user", assistant="test assistant", trace=None
+        output="test assistant", metadata={"system": "test system", "user": "test user"}, trace=None
     )
 
     record_id = await storage.save_record(record)

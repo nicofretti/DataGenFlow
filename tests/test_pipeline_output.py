@@ -1,7 +1,7 @@
 import pytest
 
-from lib.workflow import Pipeline as WorkflowPipeline
 from lib.errors import ValidationError
+from lib.workflow import Pipeline as WorkflowPipeline
 
 
 @pytest.mark.asyncio
@@ -50,9 +50,7 @@ async def test_pipeline_output_with_formatter():
 
         # pipeline_output should be from output block (last one wins)
         assert result["pipeline_output"] == "Response: Hello"
-        assert (
-            trace[-1]["accumulated_state"]["pipeline_output"] == "Response: Hello"
-        )
+        assert trace[-1]["accumulated_state"]["pipeline_output"] == "Response: Hello"
 
 
 @pytest.mark.asyncio
