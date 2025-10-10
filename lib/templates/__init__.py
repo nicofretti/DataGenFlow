@@ -1,9 +1,11 @@
 """
 Pipeline templates for quick onboarding and testing
 """
-import yaml
+
 from pathlib import Path
 from typing import Any
+
+import yaml  # type: ignore[import-untyped]
 
 
 class TemplateRegistry:

@@ -25,11 +25,11 @@ class BaseBlock(ABC):
 
             param_type = "string"
             if param.annotation != inspect.Parameter.empty:
-                if param.annotation == int:
+                if param.annotation is int:
                     param_type = "number"
-                elif param.annotation == float:
+                elif param.annotation is float:
                     param_type = "number"
-                elif param.annotation == bool:
+                elif param.annotation is bool:
                     param_type = "boolean"
 
             config_schema[param_name] = {

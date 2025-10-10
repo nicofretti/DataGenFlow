@@ -6,21 +6,24 @@ from jinja2 import Environment, StrictUndefined, TemplateSyntaxError, UndefinedE
 class TemplateRenderer:
     """jinja2-based template renderer with custom filters and safe error handling"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.env = Environment(
             undefined=StrictUndefined,
             autoescape=False,
         )
         self._register_custom_filters()
 
-    def _register_custom_filters(self):
+    def _register_custom_filters(self) -> None:
         """register custom jinja2 filters"""
         # add json filter for pretty-printing dicts/lists
         import json
-        self.env.filters['tojson'] = lambda obj: json.dumps(obj, indent=2)
+
+        self.env.filters["tojson"] = lambda obj: json.dumps(obj, indent=2)
 
         # add truncate filter
-        self.env.filters['truncate'] = lambda s, length=100: s[:length] + '...' if len(s) > length else s
+        self.env.filters["truncate"] = (
+            lambda s, length=100: s[:length] + "..." if len(s) > length else s
+        )
 
     def render(self, template_str: str, context: dict[str, Any]) -> str:
         """

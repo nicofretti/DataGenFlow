@@ -2,13 +2,15 @@
 Custom exceptions for pipeline execution
 """
 
+from typing import Any
+
 
 class PipelineError(Exception):
     """Base exception for all pipeline-related errors"""
 
-    def __init__(self, message: str, detail: dict | None = None):
+    def __init__(self, message: str, detail: dict[str, Any] | None = None):
         self.message = message
-        self.detail = detail or {}
+        self.detail: dict[str, Any] = detail or {}
         super().__init__(self.message)
 
 

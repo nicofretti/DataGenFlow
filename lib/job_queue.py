@@ -1,16 +1,16 @@
 import threading
 from collections import defaultdict, deque
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any
 
 
 class JobQueue:
     """in-memory job queue manager with thread-safe operations"""
 
-    def __init__(self):
-        self._jobs: Dict[int, dict] = {}  # job_id -> job metadata
-        self._active_job: Optional[int] = None  # only one job can run at a time
-        self._job_history: Dict[int, deque] = defaultdict(
+    def __init__(self) -> None:
+        self._jobs: dict[int, dict[str, Any]] = {}  # job_id -> job metadata
+        self._active_job: int | None = None  # only one job can run at a time
+        self._job_history: dict[int, deque[int]] = defaultdict(
             lambda: deque(maxlen=10)
         )  # pipeline_id -> last 10 job_ids
         self._lock = threading.Lock()
@@ -21,9 +21,7 @@ class JobQueue:
         """register a new job in memory"""
         with self._lock:
             if self._active_job is not None:
-                raise RuntimeError(
-                    f"Job {self._active_job} is already running. Cancel it first."
-                )
+                raise RuntimeError(f"Job {self._active_job} is already running. Cancel it first.")
 
             self._jobs[job_id] = {
                 "id": job_id,
@@ -44,12 +42,12 @@ class JobQueue:
             self._active_job = job_id
             self._add_to_history(pipeline_id, job_id)
 
-    def get_job(self, job_id: int) -> Optional[dict]:
+    def get_job(self, job_id: int) -> dict[str, Any] | None:
         """get job metadata by id"""
         with self._lock:
             return self._jobs.get(job_id)
 
-    def update_job(self, job_id: int, **updates) -> bool:
+    def update_job(self, job_id: int, **updates: Any) -> bool:
         """update job metadata"""
         with self._lock:
             if job_id not in self._jobs:
@@ -106,14 +104,14 @@ class JobQueue:
 
             return True
 
-    def get_active_job(self) -> Optional[dict]:
+    def get_active_job(self) -> dict[str, Any] | None:
         """get currently running job"""
         with self._lock:
             if self._active_job is None:
                 return None
             return self._jobs.get(self._active_job)
 
-    def get_pipeline_history(self, pipeline_id: int) -> List[dict]:
+    def get_pipeline_history(self, pipeline_id: int) -> list[dict[str, Any]]:
         """get last 10 jobs for a pipeline"""
         with self._lock:
             job_ids = list(self._job_history.get(pipeline_id, []))
