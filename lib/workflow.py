@@ -4,7 +4,7 @@ import uuid
 from typing import Any
 
 from lib.blocks.registry import registry
-from lib.errors import BlockNotFoundError, BlockExecutionError, ValidationError
+from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class Pipeline:
                 available = list(registry._blocks.keys())
                 raise BlockNotFoundError(
                     f"Block '{block_type}' not found",
-                    detail={"block_type": block_type, "available_blocks": available}
+                    detail={"block_type": block_type, "available_blocks": available},
                 )
 
             self._block_instances.append(block_class(**block_config))
@@ -47,8 +47,8 @@ class Pipeline:
                     "block_type": block.__class__.__name__,
                     "declared_outputs": list(declared),
                     "actual_outputs": list(actual),
-                    "extra_fields": list(extra)
-                }
+                    "extra_fields": list(extra),
+                },
             )
 
     async def execute(
@@ -62,11 +62,15 @@ class Pipeline:
         accumulated_data = initial_data.copy()
         trace = []
 
-        logger.info(f"[{trace_id}] Starting pipeline '{self.name}' with {len(self._block_instances)} blocks")
+        logger.info(
+            f"[{trace_id}] Starting pipeline '{self.name}' with {len(self._block_instances)} blocks"
+        )
 
         for i, block in enumerate(self._block_instances):
             block_name = block.__class__.__name__
-            logger.debug(f"[{trace_id}] Executing block {i + 1}/{len(self._block_instances)}: {block_name}")
+            logger.debug(
+                f"[{trace_id}] Executing block {i + 1}/{len(self._block_instances)}: {block_name}"
+            )
 
             # update job status with current block
             if job_id and job_queue:
@@ -109,13 +113,15 @@ class Pipeline:
                         accumulated_data["pipeline_output"] = ""
 
                 # capture trace with accumulated state (after pipeline_output is set)
-                trace.append({
-                    "block_type": block_name,
-                    "input": block_input,
-                    "output": result,
-                    "accumulated_state": accumulated_data.copy(),
-                    "execution_time": execution_time,
-                })
+                trace.append(
+                    {
+                        "block_type": block_name,
+                        "input": block_input,
+                        "output": result,
+                        "accumulated_state": accumulated_data.copy(),
+                        "execution_time": execution_time,
+                    }
+                )
             except ValidationError:
                 # re-raise validation errors as-is
                 logger.error(f"[{trace_id}] {block_name} validation error at step {i + 1}")
@@ -129,8 +135,8 @@ class Pipeline:
                         "block_type": block_name,
                         "step": i + 1,
                         "error": str(e),
-                        "input": block_input
-                    }
+                        "input": block_input,
+                    },
                 )
 
         logger.info(f"[{trace_id}] Pipeline '{self.name}' completed successfully")

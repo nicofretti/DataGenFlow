@@ -1,4 +1,3 @@
-import asyncio
 import json
 import tempfile
 from contextlib import asynccontextmanager
@@ -12,8 +11,7 @@ from loguru import logger
 
 from config import settings
 from lib.blocks.registry import registry
-from lib.errors import BlockNotFoundError, BlockExecutionError, ValidationError
-from lib.generator import Generator
+from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 from lib.job_processor import process_job_in_thread
 from lib.job_queue import JobQueue
 from lib.storage import Storage
@@ -42,7 +40,9 @@ async def generate_from_file(
     file: UploadFile = File(...), pipeline_id: int = Form(...)
 ) -> dict[str, Any]:
     if not file.filename or not file.filename.endswith(".json"):
-        raise HTTPException(status_code=400, detail="only JSON files accepted")
+        raise HTTPException(
+            status_code=400, detail="Only JSON files are accepted. Please upload a .json file."
+        )
 
     # load pipeline
     pipeline_data = await storage.get_pipeline(pipeline_id)
@@ -94,20 +94,21 @@ async def generate_from_file(
 
 
 @api.post("/generate")
-async def generate(
-    file: UploadFile = File(...), pipeline_id: int = Form(...)
-) -> dict[str, Any]:
+async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -> dict[str, Any]:
     """start a new background job for pipeline execution from seed file"""
     if not file.filename or not file.filename.endswith(".json"):
-        raise HTTPException(status_code=400, detail="only JSON files accepted")
+        raise HTTPException(
+            status_code=400, detail="Only JSON files are accepted. Please upload a .json file."
+        )
 
     # check if there's already an active job
     active_job = job_queue.get_active_job()
     if active_job:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Job {active_job['id']} is already running. Cancel it first or wait for completion.",
+        detail_msg = (
+            f"Job {active_job['id']} is already running. "
+            "Cancel it first or wait for completion."
         )
+        raise HTTPException(status_code=409, detail=detail_msg)
 
     # parse seed file to calculate total samples
     content = await file.read()
@@ -116,14 +117,13 @@ async def generate(
     except json.JSONDecodeError as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid JSON format: {str(e)}. Please check your input file is valid JSON."
+            detail=f"The JSON file is invalid: {str(e)}. Please check your file syntax.",
         )
 
     # validate seed structure
     if not isinstance(data, (list, dict)):
         raise HTTPException(
-            status_code=400,
-            detail="JSON must be an object or array of objects"
+            status_code=400, detail="The JSON file must contain an object or an array of objects."
         )
 
     seeds = data if isinstance(data, list) else [data]
@@ -133,28 +133,26 @@ async def generate(
         if not isinstance(seed, dict):
             raise HTTPException(
                 status_code=400,
-                detail=f"Seed {i + 1} must be an object with 'repetitions' and 'metadata' fields"
+                detail=f"Seed {i + 1} must be an object. Please check your file structure.",
             )
         if "metadata" not in seed:
             raise HTTPException(
-                status_code=400,
-                detail=f"Seed {i + 1} is missing required 'metadata' field"
+                status_code=400, detail=f"Seed {i + 1} is missing the required 'metadata' field."
             )
 
     # calculate total executions from all seeds
     total_samples = sum(
-        seed.get("repetitions", 1)
-        if isinstance(seed.get("repetitions"), int)
-        else 1
+        seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1
         for seed in seeds
     )
 
     # save file temporarily (cross-platform)
-    fd, tmp_path = tempfile.mkstemp(suffix='.json', prefix=f'seed_{pipeline_id}_')
+    fd, tmp_path = tempfile.mkstemp(suffix=".json", prefix=f"seed_{pipeline_id}_")
     tmp_file = Path(tmp_path)
     try:
         # write content to file descriptor first, then close it
         import os
+
         os.write(fd, content)
         os.close(fd)
     except Exception:
@@ -258,13 +256,17 @@ async def delete_all_records(job_id: int | None = None) -> dict[str, Any]:
 
 
 @api.get("/export")
-async def export_records(status: RecordStatus | None = None, job_id: int | None = None) -> PlainTextResponse:
+async def export_records(
+    status: RecordStatus | None = None, job_id: int | None = None
+) -> PlainTextResponse:
     jsonl = await storage.export_jsonl(status=status, job_id=job_id)
     return PlainTextResponse(content=jsonl, media_type="application/x-ndjson")
 
 
 @api.get("/export/download")
-async def download_export(status: RecordStatus | None = None, job_id: int | None = None) -> FileResponse:
+async def download_export(
+    status: RecordStatus | None = None, job_id: int | None = None
+) -> FileResponse:
     jsonl = await storage.export_jsonl(status=status, job_id=job_id)
     tmp_file = Path(tempfile.gettempdir()) / "qa_export.jsonl"
     tmp_file.write_text(jsonl, encoding="utf-8")
@@ -306,9 +308,7 @@ async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
 
 
 @api.post("/pipelines/{pipeline_id}/execute")
-async def execute_pipeline(
-    pipeline_id: int, data: dict[str, Any]
-) -> dict[str, Any]:
+async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, Any]:
     try:
         pipeline_data = await storage.get_pipeline(pipeline_id)
         if not pipeline_data:
@@ -322,22 +322,13 @@ async def execute_pipeline(
         raise
     except BlockNotFoundError as e:
         logger.error(f"BlockNotFoundError in pipeline {pipeline_id}: {e.message}")
-        return JSONResponse(
-            status_code=400,
-            content={"error": e.message, "detail": e.detail}
-        )
+        return JSONResponse(status_code=400, content={"error": e.message, "detail": e.detail})
     except (BlockExecutionError, ValidationError) as e:
         logger.error(f"{e.__class__.__name__} in pipeline {pipeline_id}: {e.message}")
-        return JSONResponse(
-            status_code=400,
-            content={"error": e.message, "detail": e.detail}
-        )
+        return JSONResponse(status_code=400, content={"error": e.message, "detail": e.detail})
     except Exception as e:
         logger.exception(f"Unexpected error executing pipeline {pipeline_id}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Unexpected error: {str(e)}"}
-        )
+        return JSONResponse(status_code=500, content={"error": f"Unexpected error: {str(e)}"})
 
 
 @api.delete("/pipelines/{pipeline_id}")

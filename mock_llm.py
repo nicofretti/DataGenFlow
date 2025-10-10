@@ -4,7 +4,6 @@ run: python3 mock_llm.py
 then set LLM_ENDPOINT=http://localhost:11434/api/generate in .env
 """
 
-import json
 
 from fastapi import FastAPI
 from pydantic import BaseModel

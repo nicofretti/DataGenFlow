@@ -78,9 +78,7 @@ class Pipeline:
 
         assistant = await self.generator.generate(system, user)
 
-        record = Record(
-            system=system, user=user, assistant=assistant, metadata=seed.metadata
-        )
+        record = Record(system=system, user=user, assistant=assistant, metadata=seed.metadata)
 
         if self.validator.validate(record):
             return await self.storage.save_record(record)

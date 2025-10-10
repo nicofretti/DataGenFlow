@@ -1,8 +1,8 @@
 import json
+import re
 from typing import Any
 
 from lib.blocks.base import BaseBlock
-import re
 
 
 class JSONValidatorBlock(BaseBlock):
@@ -33,7 +33,9 @@ class JSONValidatorBlock(BaseBlock):
         field_output = data.get(self.field_name, "")
 
         # remove the ```json ... ``` if needed
-        field_output = re.sub(r'^```(?:json)?\s*\n?(.*?)\n?```\s*$', r'\1', field_output, flags=re.DOTALL).strip()
+        field_output = re.sub(
+            r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", r"\1", field_output, flags=re.DOTALL
+        ).strip()
 
         try:
             # try to parse JSON from specified field
@@ -41,9 +43,7 @@ class JSONValidatorBlock(BaseBlock):
 
             # check if required fields are present
             if self.required_fields:
-                missing_fields = [
-                    field for field in self.required_fields if field not in parsed
-                ]
+                missing_fields = [field for field in self.required_fields if field not in parsed]
                 if missing_fields:
                     return {
                         "valid": False,

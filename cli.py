@@ -28,9 +28,11 @@ async def generate(args: argparse.Namespace) -> None:
     pipeline = Pipeline(storage)
     result = await pipeline.process_seed_file(args.file, config)
 
-    logger.success(
-        f"generation complete: {result['success']} success, {result['failed']} failed, {result['total']} total"
+    success_msg = (
+        f"generation complete: {result['success']} success, "
+        f"{result['failed']} failed, {result['total']} total"
     )
+    logger.success(success_msg)
 
 
 async def list_records(args: argparse.Namespace) -> None:
@@ -105,9 +107,7 @@ def main() -> None:
     # export command
     export_parser = subparsers.add_parser("export", help="export records to jsonl")
     export_parser.add_argument("output", help="output file path")
-    export_parser.add_argument(
-        "--status", choices=["pending", "accepted", "rejected", "edited"]
-    )
+    export_parser.add_argument("--status", choices=["pending", "accepted", "rejected", "edited"])
     export_parser.set_defaults(func=export_records)
 
     args = parser.parse_args()

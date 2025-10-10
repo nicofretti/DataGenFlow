@@ -1,7 +1,6 @@
 import asyncio
 import threading
 from datetime import datetime
-from typing import Optional
 
 from loguru import logger
 
@@ -92,15 +91,15 @@ async def _process_job(
 
         # calculate total executions
         total_executions = sum(
-            seed.get("repetitions", 1)
-            if isinstance(seed.get("repetitions"), int)
-            else 1
+            seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1
             for seed in seeds_data
         )
 
-        logger.info(
-            f"[Job {job_id}] Starting pipeline {pipeline_id} with {len(seeds_data)} seeds ({total_executions} total executions)"
+        start_msg = (
+            f"[Job {job_id}] Starting pipeline {pipeline_id} with "
+            f"{len(seeds_data)} seeds ({total_executions} total executions)"
         )
+        logger.info(start_msg)
 
         records_generated = 0
         records_failed = 0
@@ -111,7 +110,9 @@ async def _process_job(
             # check for cancellation
             job_status = job_queue.get_job(job_id)
             if job_status and job_status.get("status") == "cancelled":
-                logger.info(f"[Job {job_id}] Cancelled at execution {execution_index}/{total_executions}")
+                logger.info(
+                    f"[Job {job_id}] Cancelled at execution {execution_index}/{total_executions}"
+                )
                 break
 
             # get repetitions and metadata
@@ -128,7 +129,11 @@ async def _process_job(
                 # check for cancellation
                 job_status = job_queue.get_job(job_id)
                 if job_status and job_status.get("status") == "cancelled":
-                    logger.info(f"[Job {job_id}] Cancelled at execution {execution_index}/{total_executions}")
+                    cancel_msg = (
+                        f"[Job {job_id}] Cancelled at "
+                        f"execution {execution_index}/{total_executions}"
+                    )
+                    logger.info(cancel_msg)
                     break
 
                 # update progress
