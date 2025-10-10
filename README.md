@@ -1,5 +1,8 @@
-# QADataGen
-Effortlessly create and refine a datasets powered by LLMs in few steps:
+<div align="center">
+  <img src="images/logo/logo.png" alt="DataGenFlow Logo" width="200"/>
+  <h1>DataGenFlow</h1>
+  <p>Effortlessly create and refine datasets powered by LLMs in few steps</p>
+</div>
 
 <div align="center">
   <p><strong>1. Build smarter workflows visually</strong><br>
@@ -32,6 +35,79 @@ make run
 # http://localhost:8000
 ```
 
+## Using the Application
+
+### 1. Creating Pipelines
+
+1. Open http://localhost:8000
+2. Navigate to "Builder" tab
+3. Click "Add Block" to add blocks to your pipeline
+4. Click on a block to configure it in the right panel
+5. Blocks automatically chain together (data flows top to bottom)
+6. Click "Save Pipeline" and give it a name
+
+**Example Pipeline**:
+- **LLMBlock**: Generate text using your LLM
+- **ValidatorBlock**: Ensure output meets quality standards
+- **OutputBlock**: Format the final result
+
+For a detailed guide, see [How to Use QADataGen](docs/how_to_use.md).
+
+### 2. Generating Records
+
+1. Navigate to "Generator" tab
+2. Upload your seed JSON file (see format below)
+3. Select a pipeline from the dropdown
+4. Click "Generate"
+5. Wait for completion (progress indicator shows status)
+
+### 3. Reviewing Results
+
+1. Navigate to "Review" tab
+2. Review each generated record
+3. **Accept** (✅), **Reject** (❌), or **Edit** the output
+4. Click "View Trace" to debug issues
+5. Export accepted records as JSONL
+
+## Seed File Format
+
+Seed files define the variables used in your pipeline templates.
+
+**Single seed**:
+```json
+{
+  "repetitions": 2,
+  "metadata": {
+    "topic": "Python programming",
+    "difficulty": "beginner"
+  }
+}
+```
+
+**Multiple seeds**:
+```json
+[
+  {
+    "repetitions": 1,
+    "metadata": {
+      "topic": "Python lists",
+      "difficulty": "beginner"
+    }
+  },
+  {
+    "repetitions": 1,
+    "metadata": {
+      "topic": "Python dictionaries",
+      "difficulty": "intermediate"
+    }
+  }
+]
+```
+
+**Fields**:
+- `repetitions`: How many times to run the pipeline with this seed
+- `metadata`: Variables accessible in templates via `{{ variable_name }}`
+
 ## Configuration
 
 Create `.env` file (or copy from `.env.example`):
@@ -52,28 +128,6 @@ PORT=8000
 # Debug mode (optional)
 DEBUG=false  # set to true for detailed logging
 ```
-
-## Creating Custom Blocks
-
-Create a file in `lib/blocks/custom/` or `user_blocks/`:
-
-```python
-from lib.blocks.base import BaseBlock
-from typing import Any
-
-class MyBlock(BaseBlock):
-    name = "My Block"
-    description = "Does something useful"
-    inputs = ["text"]
-    outputs = ["result"]
-
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        # Your logic here
-        result = data["text"].upper()
-        return {"result": result}
-```
-
-The block is auto-discovered on startup and immediately available in the UI.
 
 ## Features
 
@@ -103,55 +157,44 @@ The block is auto-discovered on startup and immediately available in the UI.
 - **Generator**: Generate Q&A datasets from seeds
 - **Review**: Review, edit, accept/reject generated records with trace visualization
 
-## [CLI] Using Pipeline Templates
+## Creating Custom Blocks
 
-Quick start with pre-configured pipelines:
+Create a file in `user_blocks/`:
 
-```bash
-# list available templates
-curl http://localhost:8000/api/templates
+```python
+from lib.blocks.base import BaseBlock
+from typing import Any
 
-# create pipeline from template
-curl -X POST http://localhost:8000/api/pipelines/from_template/text_generation
+class MyBlock(BaseBlock):
+    name = "My Block"
+    description = "Does something useful"
+    inputs = ["text"]
+    outputs = ["result"]
 
-# execute the pipeline
-curl -X POST http://localhost:8000/api/pipelines/1/execute \
-  -H "Content-Type: application/json" \
-  -d '{"system": "You are helpful", "user": "Hello"}'
+    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        # your logic here
+        result = data["text"].upper()
+        return {"result": result}
 ```
 
-Available templates:
-- `text_generation` - Simple LLM generation
-- `validated_generation` - LLM + validation
-- `text_transformation` - Text transformation chain
-- `complete_qa_generation` - Full QA pipeline with validation and formatting
+The block is auto-discovered on startup and immediately available in the UI.
 
-## API Endpoints
+For detailed instructions and examples, see [How to Create Custom Blocks](docs/how_to_create_blocks.md).
 
-### Blocks
-- `GET /api/blocks` - List all registered blocks with schemas
+## Development
 
-### Templates
-- `GET /api/templates` - List available pipeline templates
-- `POST /api/pipelines/from_template/{template_id}` - Create pipeline from template
+```bash
+# Backend server
+make run
 
-### Pipelines
-- `POST /api/pipelines` - Create pipeline
-- `GET /api/pipelines` - List all pipelines
-- `GET /api/pipelines/{id}` - Get pipeline by ID
-- `DELETE /api/pipelines/{id}` - Delete pipeline
-- `POST /api/pipelines/{id}/execute` - Execute pipeline, returns `{result, trace, trace_id}`
+# Frontend development
+cd frontend && yarn dev
 
-### Records
-- `GET /api/records` - List records (supports status, limit, offset)
-- `GET /api/records/{id}` - Get record by ID
-- `PUT /api/records/{id}` - Update record
-- `DELETE /api/records` - Delete all records
-- `GET /api/export` - Export records as JSONL
-- `GET /api/export/download` - Download export as file
-
-### Generation
-- `POST /api/generate` - Generate records from seed file using pipeline
+# Code quality
+make lint      # Run linting
+make typecheck # Run type checking
+make format    # Format code
+```
 
 ## Testing
 
@@ -169,27 +212,12 @@ uv run pytest --cov=lib --cov=app tests/
 
 Tests use a separate database (`data/test_qa_records.db`) that is automatically created and cleaned up. See `TEST_DATABASE.md` for details.
 
-## Development
-
-```bash
-# Backend server
-make run
-
-# Frontend development
-cd frontend && yarn dev
-
-# Code quality
-make lint      # Run linting
-make typecheck # Run type checking
-make format    # Format code
-```
-
 ## Architecture
 
 ```
 lib/
   blocks/
-    builtin/          # Stable blocks (llm, transformer, validator, formatter)
+    builtin/          # Stable blocks (llm, validator, formatter, json_validator)
     custom/           # Experimental blocks
     base.py           # BaseBlock interface
     registry.py       # Auto-discovery engine
@@ -213,17 +241,59 @@ tests/
   test_workflow.py    # Pipeline execution tests
 ```
 
-## Error Handling
+## Advanced Usage (Optional)
 
-The system includes comprehensive error handling:
+### Using Pipeline Templates via API
 
-- **BlockNotFoundError**: When a block type doesn't exist (shows available blocks)
-- **BlockExecutionError**: When a block fails (includes block name, step number, context)
-- **ValidationError**: When a block returns undeclared fields (shows expected vs actual)
+Quick start with pre-configured pipelines:
 
-All errors return structured JSON responses with error messages and context for debugging.
+```bash
+# list available templates
+curl http://localhost:8000/api/templates
 
-## Debug Mode
+# create pipeline from template
+curl -X POST http://localhost:8000/api/pipelines/from_template/text_generation
+
+# execute the pipeline
+curl -X POST http://localhost:8000/api/pipelines/1/execute \
+  -H "Content-Type: application/json" \
+  -d '{"system": "You are helpful", "user": "Hello"}'
+```
+
+Available templates:
+- `text_generation` - Simple LLM generation
+- `validated_generation` - LLM + validation
+- `text_transformation` - Text transformation chain
+- `complete_qa_generation` - Full QA pipeline with validation and formatting
+
+### API Endpoints
+
+**Blocks**
+- `GET /api/blocks` - List all registered blocks with schemas
+
+**Templates**
+- `GET /api/templates` - List available pipeline templates
+- `POST /api/pipelines/from_template/{template_id}` - Create pipeline from template
+
+**Pipelines**
+- `POST /api/pipelines` - Create pipeline
+- `GET /api/pipelines` - List all pipelines
+- `GET /api/pipelines/{id}` - Get pipeline by ID
+- `DELETE /api/pipelines/{id}` - Delete pipeline
+- `POST /api/pipelines/{id}/execute` - Execute pipeline, returns `{result, trace, trace_id}`
+
+**Records**
+- `GET /api/records` - List records (supports status, limit, offset)
+- `GET /api/records/{id}` - Get record by ID
+- `PUT /api/records/{id}` - Update record
+- `DELETE /api/records` - Delete all records
+- `GET /api/export` - Export records as JSONL
+- `GET /api/export/download` - Download export as file
+
+**Generation**
+- `POST /api/generate` - Generate records from seed file using pipeline
+
+### Debug Mode
 
 Enable debug logging to see detailed execution information:
 
@@ -245,18 +315,23 @@ Example log output:
 2025-10-06 10:15:35 [INFO] [a1b2c3d4-...] Pipeline 'Simple Text Generation' completed successfully
 ```
 
-## Status
+## Error Handling
 
-✅ **112 tests passing, 2 skipped**
+The system includes comprehensive error handling:
 
-- Block-based pipeline system with auto-discovery
-- Execution tracing with timing
-- Error handling with structured responses
-- Pipeline templates for quick start
-- Debug logging with trace IDs
-- Test database isolation
-- Full CRUD for pipelines and records
-- Web UI with visual builder and trace visualization
+- **BlockNotFoundError**: When a block type doesn't exist (shows available blocks)
+- **BlockExecutionError**: When a block fails (includes block name, step number, context)
+- **ValidationError**: When a block returns undeclared fields (shows expected vs actual)
+
+All errors return structured JSON responses with error messages and context for debugging.
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- PR title conventions with icons (🚀 Feat, 🧩 Fix, etc.)
+- PR description guidelines
+- Code style guidelines
+- Development workflow
 
 ## KISS Principles
 
