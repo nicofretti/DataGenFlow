@@ -25,11 +25,15 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 ### Running the application
 ```bash
-# Start backend only
-make run              # backend on :8000
+# development mode (both servers with hot reload)
+make run-dev          # starts backend (:8000) and frontend (:5173)
 
-# Or start frontend separately:
-cd frontend && yarn dev  # frontend on :5173
+# or run separately in different terminals
+make dev-backend      # backend on :8000 with auto-reload
+make dev-ui           # frontend on :5173 with hot reload
+
+# production mode
+make run              # builds frontend and runs backend
 ```
 
 ### Code quality
