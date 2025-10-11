@@ -133,6 +133,64 @@ class TestAPIPipelines:
         response = client.get("/api/pipelines/999999")
         assert response.status_code == 404
 
+    def test_update_pipeline(self, client):
+        """Test PUT /api/pipelines/{id}"""
+        # create a pipeline first
+        pipeline_data = {
+            "name": "Original Pipeline",
+            "blocks": [{"type": "TransformerBlock", "config": {"operation": "lowercase"}}],
+        }
+        create_response = client.post("/api/pipelines", json=pipeline_data)
+        pipeline_id = create_response.json()["id"]
+
+        # update the pipeline
+        updated_data = {
+            "name": "Updated Pipeline",
+            "blocks": [{"type": "ValidatorBlock", "config": {"min_length": 10}}],
+        }
+        response = client.put(f"/api/pipelines/{pipeline_id}", json=updated_data)
+        assert response.status_code == 200
+
+        result = response.json()
+        assert result["id"] == pipeline_id
+        assert result["name"] == "Updated Pipeline"
+
+        # verify changes persisted
+        get_response = client.get(f"/api/pipelines/{pipeline_id}")
+        assert get_response.status_code == 200
+        pipeline = get_response.json()
+        assert pipeline["name"] == "Updated Pipeline"
+        assert pipeline["definition"]["blocks"][0]["type"] == "ValidatorBlock"
+
+    def test_update_nonexistent_pipeline(self, client):
+        """Test PUT /api/pipelines/{id} with invalid ID"""
+        updated_data = {
+            "name": "Test",
+            "blocks": [{"type": "ValidatorBlock", "config": {}}],
+        }
+        response = client.put("/api/pipelines/999999", json=updated_data)
+        assert response.status_code == 404
+
+    def test_update_pipeline_with_invalid_data(self, client):
+        """Test PUT /api/pipelines/{id} with missing required fields"""
+        # create a pipeline first
+        pipeline_data = {
+            "name": "Test Pipeline",
+            "blocks": [{"type": "TransformerBlock", "config": {"operation": "lowercase"}}],
+        }
+        create_response = client.post("/api/pipelines", json=pipeline_data)
+        pipeline_id = create_response.json()["id"]
+
+        # try to update with missing name
+        invalid_data = {"blocks": []}
+        response = client.put(f"/api/pipelines/{pipeline_id}", json=invalid_data)
+        assert response.status_code == 400
+
+        # try to update with missing blocks
+        invalid_data = {"name": "Test"}
+        response = client.put(f"/api/pipelines/{pipeline_id}", json=invalid_data)
+        assert response.status_code == 400
+
     def test_delete_pipeline(self, client):
         """Test DELETE /api/pipelines/{id}"""
         # create a pipeline first

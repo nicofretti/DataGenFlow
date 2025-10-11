@@ -307,6 +307,21 @@ async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
     return pipeline
 
 
+@api.put("/pipelines/{pipeline_id}")
+async def update_pipeline(pipeline_id: int, pipeline_data: dict[str, Any]) -> dict[str, Any]:
+    name = pipeline_data.get("name")
+    blocks = pipeline_data.get("blocks")
+
+    if not name or not blocks:
+        raise HTTPException(status_code=400, detail="name and blocks required")
+
+    success = await storage.update_pipeline(pipeline_id, name, pipeline_data)
+    if not success:
+        raise HTTPException(status_code=404, detail="pipeline not found")
+
+    return {"id": pipeline_id, "name": name}
+
+
 @api.post("/pipelines/{pipeline_id}/execute")
 async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, Any]:
     try:

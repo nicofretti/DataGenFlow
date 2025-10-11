@@ -301,6 +301,17 @@ class Storage:
 
         return await self._execute_with_connection(_list)
 
+    async def update_pipeline(self, pipeline_id: int, name: str, definition: dict) -> bool:
+        async def _update(db):
+            cursor = await db.execute(
+                "UPDATE pipelines SET name = ?, definition = ? WHERE id = ?",
+                (name, json.dumps(definition), pipeline_id),
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+
+        return await self._execute_with_connection(_update)
+
     async def delete_pipeline(self, pipeline_id: int) -> bool:
         async def _delete(db):
             # cascade delete: records -> jobs -> pipeline
