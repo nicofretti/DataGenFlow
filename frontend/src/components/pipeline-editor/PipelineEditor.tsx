@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -12,7 +12,7 @@ import ReactFlow, {
   NodeTypes,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Box, Button, Flash, TextInput, theme, useTheme, themeGet } from "@primer/react";
+import { Box, Button, Flash, TextInput, useTheme } from "@primer/react";
 import { XIcon } from "@primer/octicons-react";
 
 import BlockPalette from "./BlockPalette";
@@ -24,7 +24,6 @@ import {
   convertToPipelineFormat,
   convertFromPipelineFormat,
 } from "./utils";
-import { ColorModeWithAuto } from "@primer/react/lib-esm/ThemeProvider";
 
 // define node types outside component to prevent recreation
 const nodeTypes: NodeTypes = {
@@ -72,41 +71,19 @@ export default function PipelineEditor({
   const [pipelineName, setPipelineName] = useState(initialPipelineName);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const { colorMode } = useTheme();
 
-  // minimap theme colors
-  function MinimapComp({ colorMode }: { colorMode: ColorModeWithAuto }) {
-    const minimapTheme = useMemo(() => {
-      const bgColor = colorMode === "dark"
-        ? "#1c1c1cff"
-        : "#ffffffff";
-
-      const nodeColor = colorMode === "dark"
-        ? "#434345ff"
-        : "#f5f5f5ff";
-
-      const strokeColor = colorMode === "dark"
-        ? "#6a6a6aff"
-        : "#c4c4c4ff";
-
-      const maskColor = colorMode === "dark"
-        ? "rgba(42, 42, 42, 0.5)"
-        : "rgba(246, 246, 246, 0.5)";
-
-      return (
-        <MiniMap
-          nodeColor={nodeColor}
-          style={{ backgroundColor: bgColor }}
-          nodeStrokeColor={strokeColor}
-          maskColor={maskColor}
-        />
-      );
-    }, [colorMode]);
+  // minimap adjusted for light/dark mode using primer theme colors
+  function MinimapWithTheme() {
+    const { theme } = useTheme();
+    const colors = theme?.colors;
 
     return (
-      <>
-        {minimapTheme}
-      </>
+      <MiniMap
+        nodeColor={colors?.neutral.muted || "#f5f5f5"}
+        style={{ backgroundColor: colors?.canvas.default || "#ffffff" }}
+        nodeStrokeColor={colors?.border.default || "#d0d7de"}
+        maskColor={colors?.canvas.subtle || "#f6f8fa"}
+      />
     );
   }
 
@@ -461,7 +438,7 @@ export default function PipelineEditor({
           >
             <Background />
             <Controls />
-            <MinimapComp colorMode={colorMode === "dark" ? "dark" : "light"} />
+            <MinimapWithTheme />
           </ReactFlow>
         </Box>
 
