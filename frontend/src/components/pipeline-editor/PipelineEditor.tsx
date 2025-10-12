@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -73,32 +73,40 @@ export default function PipelineEditor({
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const { colorMode } = useTheme();
 
-    // minimap theme colors
-  const minimapTheme = () => {
-    const bgColor = colorMode === "dark"
-      ? "#1c1c1cff"
-      : "#ffffffff";
+  // minimap theme colors
+  function MinimapComp({ colorMode }: { colorMode: "light" | "dark" }) {
+    const minimapTheme = useMemo(() => {
+      const bgColor = colorMode === "dark"
+        ? "#1c1c1cff"
+        : "#ffffffff";
 
-    const nodeColor = colorMode === "dark"
-      ? "#434345ff"
-      : "#f5f5f5ff";
+      const nodeColor = colorMode === "dark"
+        ? "#434345ff"
+        : "#f5f5f5ff";
 
-    const strokeColor = colorMode === "dark"
-      ? "#6a6a6aff"
-      : "#c4c4c4ff";
+      const strokeColor = colorMode === "dark"
+        ? "#6a6a6aff"
+        : "#c4c4c4ff";
 
-    const maskColor = colorMode === "dark"
-      ? "rgba(42, 42, 42, 0.5)"
-      : "rgba(246, 246, 246, 0.5)";
+      const maskColor = colorMode === "dark"
+        ? "rgba(42, 42, 42, 0.5)"
+        : "rgba(246, 246, 246, 0.5)";
+
+      return (
+        <MiniMap
+          nodeColor={nodeColor}
+          style={{ backgroundColor: bgColor }}
+          nodeStrokeColor={strokeColor}
+          maskColor={maskColor}
+        />
+      );
+    }, [colorMode]);
 
     return (
-      <MiniMap
-        nodeColor={nodeColor}
-        style={{ backgroundColor: bgColor }}
-        nodeStrokeColor={strokeColor}
-        maskColor={maskColor}
-      />
-    )
+      <div>
+        {minimapTheme}
+      </div>
+    );
   }
 
   // check if node is configured
@@ -452,7 +460,7 @@ export default function PipelineEditor({
           >
             <Background />
             <Controls />
-            {minimapTheme()}
+            <MinimapComp colorMode={colorMode === "dark" ? "dark" : "light"} />
           </ReactFlow>
         </Box>
 
