@@ -1,4 +1,4 @@
-.PHONY: check-deps install dev dev-ui build-ui run mock-llm generate list export clean lint format lint-frontend format-frontend format-all lint-all typecheck typecheck-frontend typecheck-all test setup
+.PHONY: check-deps install dev dev-ui dev-backend run-dev build-ui run mock-llm generate list export clean lint format lint-frontend format-frontend format-all lint-all typecheck typecheck-frontend typecheck-all test setup
 
 # check if required dependencies are installed
 check-deps:
@@ -34,23 +34,34 @@ dev: check-deps
 dev-ui:
 	cd frontend && yarn dev
 
+dev-backend:
+	uv run uvicorn app:app --reload --host 0.0.0.0 --port 8000
+
+run-dev:
+	@echo "Starting backend and frontend in development mode..."
+	@echo "Press Ctrl+C to stop both servers"
+	@trap 'kill 0' SIGINT; \
+	uv run uvicorn app:app --reload --host 0.0.0.0 --port 8000 & \
+	cd frontend && yarn dev & \
+	wait
+
 build-ui:
 	cd frontend && yarn build
 
 run: build-ui
-	python3 app.py
+	uv run python app.py
 
 mock-llm:
-	python3 mock_llm.py
+	uv run python mock_llm.py
 
 generate:
-	python3 cli.py generate $(FILE)
+	uv run python cli.py generate $(FILE)
 
 list:
-	python3 cli.py list
+	uv run python cli.py list
 
 export:
-	python3 cli.py export $(OUTPUT)
+	uv run python cli.py export $(OUTPUT)
 
 clean:
 	rm -rf __pycache__ */__pycache__ */*/__pycache__
@@ -60,10 +71,10 @@ clean:
 	rm -rf frontend/build frontend/.svelte-kit frontend/node_modules
 
 lint:
-	ruff check .
+	uv run ruff check .
 
 format:
-	ruff format .
+	uv run ruff format .
 
 lint-frontend:
 	cd frontend && yarn lint
@@ -76,7 +87,7 @@ format-all: format format-frontend
 lint-all: lint lint-frontend
 
 typecheck:
-	mypy .
+	uv run mypy .
 
 typecheck-frontend:
 	cd frontend && yarn type-check
@@ -84,7 +95,7 @@ typecheck-frontend:
 typecheck-all: typecheck typecheck-frontend
 
 test:
-	pytest
+	uv run pytest
 
 setup:
 	cp .env.example .env

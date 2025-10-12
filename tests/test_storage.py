@@ -136,6 +136,29 @@ class TestPipelineCRUD:
         assert "Pipeline 2" in names
 
     @pytest.mark.asyncio
+    async def test_update_pipeline(self, storage):
+        """updating pipeline modifies name and definition"""
+        pipeline_def = {"blocks": [{"type": "LLMBlock", "config": {"temperature": 0.7}}]}
+        pipeline_id = await storage.save_pipeline("Original Name", pipeline_def)
+
+        # update pipeline
+        new_def = {"blocks": [{"type": "ValidatorBlock", "config": {"min_length": 10}}]}
+        success = await storage.update_pipeline(pipeline_id, "Updated Name", new_def)
+        assert success is True
+
+        # verify changes
+        updated = await storage.get_pipeline(pipeline_id)
+        assert updated["name"] == "Updated Name"
+        assert updated["definition"] == new_def
+        assert updated["definition"]["blocks"][0]["type"] == "ValidatorBlock"
+
+    @pytest.mark.asyncio
+    async def test_update_nonexistent_pipeline(self, storage):
+        """updating non-existent pipeline returns false"""
+        success = await storage.update_pipeline(999999, "Test", {"blocks": []})
+        assert success is False
+
+    @pytest.mark.asyncio
     async def test_delete_pipeline_cascade(self, storage):
         """deleting pipeline cascades to associated records"""
         pipeline_id = await storage.save_pipeline("Test", {"blocks": []})

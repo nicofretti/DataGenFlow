@@ -1,9 +1,7 @@
 <div align="center">
-  <img src="images/logo/logo.png" alt="DataGenFlow Logo" width="200"/>
-  <h1>DataGenFlow</h1>
-  <p>Effortlessly create and refine datasets powered by LLMs in few steps</p>
+  <img src="images/logo/banner.png" alt="DataGenFlow Logo" width="400"/>
 </div>
-
+<hr/>
 <div align="center">
   <p><strong>1. Build smarter workflows visually</strong><br>
   Drag, drop, and connect blocks in an intuitive pipeline builder.</p>
@@ -24,15 +22,14 @@
 ## Quick Start
 
 ```bash
-# Install dependencies
+# install dependencies
 make setup
 make dev
 
-# Start server
-make run
+# start both backend and frontend (single command)
+make run-dev
 
-# Open browser
-# http://localhost:8000
+# open browser at http://localhost:8000
 ```
 
 ## Using the Application
@@ -184,16 +181,20 @@ For detailed instructions and examples, see [How to Create Custom Blocks](docs/h
 ## Development
 
 ```bash
-# Backend server
+# both backend and frontend (single command with hot reload)
+make run-dev
+
+# or run separately in different terminals
+make dev-backend  # backend only
+make dev-ui       # frontend only
+
+# production mode (builds frontend)
 make run
 
-# Frontend development
-cd frontend && yarn dev
-
-# Code quality
-make lint      # Run linting
-make typecheck # Run type checking
-make format    # Format code
+# code quality
+make lint      # run linting
+make typecheck # run type checking
+make format    # format code
 ```
 
 ## Testing
