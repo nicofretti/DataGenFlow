@@ -24,6 +24,7 @@ import {
   convertToPipelineFormat,
   convertFromPipelineFormat,
 } from "./utils";
+import { ColorModeWithAuto } from "@primer/react/lib-esm/ThemeProvider";
 
 // define node types outside component to prevent recreation
 const nodeTypes: NodeTypes = {
@@ -74,7 +75,7 @@ export default function PipelineEditor({
   const { colorMode } = useTheme();
 
   // minimap theme colors
-  function MinimapComp({ colorMode }: { colorMode: "light" | "dark" }) {
+  function MinimapComp({ colorMode }: { colorMode: ColorModeWithAuto }) {
     const minimapTheme = useMemo(() => {
       const bgColor = colorMode === "dark"
         ? "#1c1c1cff"
@@ -103,9 +104,9 @@ export default function PipelineEditor({
     }, [colorMode]);
 
     return (
-      <div>
+      <>
         {minimapTheme}
-      </div>
+      </>
     );
   }
 
