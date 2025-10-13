@@ -1,7 +1,10 @@
 <div align="center">
-  <img src="images/logo/banner.png" alt="DataGenFlow Logo" width="400"/>
+  <img src="images/logo/banner.png" alt="DataGenFlow Logo"/>
 </div>
-<hr/>
+
+[![License](https://img.shields.io/github/license/nicofretti/DataGenFlow)](LICENSE)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/release/python-390/)
+
 <div align="center">
   <p><strong>1. Build smarter workflows visually</strong><br>
   Drag, drop, and connect blocks in an intuitive pipeline builder.</p>
