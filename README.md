@@ -2,16 +2,13 @@
   <img src="images/logo/banner.png" alt="DataGenFlow Logo"/>
 </div>
 
-[![License](https://img.shields.io/github/license/nicofretti/DataGenFlow)](LICENSE)
-[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/release/python-390/)
-
 <div align="center">
   <p><strong>1. Build smarter workflows visually</strong><br>
   Drag, drop, and connect blocks in an intuitive pipeline builder.</p>
   <img src="images/pipelines.png" alt="Pipeline Builder" width="600"/>
   <br/>
 
-  <p><strong>2. Generate Q&A records in seconds</strong><br>
+  <p><strong>2. Generate data records in seconds</strong><br>
   Feed your seed data and let custom pipelines do the heavy lifting.</p>
   <img src="images/generator.png" alt="Generator phase" width="600"/>
   <br/>
@@ -40,11 +37,12 @@ make run-dev
 ### 1. Creating Pipelines
 
 1. Open http://localhost:8000
-2. Navigate to "Builder" tab
-3. Click "Add Block" to add blocks to your pipeline
-4. Click on a block to configure it in the right panel
-5. Blocks automatically chain together (data flows top to bottom)
-6. Click "Save Pipeline" and give it a name
+2. Navigate to "Pipelines" tab
+3. Click "New Pipeline" to create a pipeline
+4. Drag blocks from the left palette onto the canvas
+5. Connect blocks by dragging from output to input handles
+6. Click on a block to configure it in the right panel
+7. Click "Save Pipeline" and give it a name
 
 **Example Pipeline**:
 - **LLMBlock**: Generate text using your LLM
@@ -152,9 +150,8 @@ DEBUG=false  # set to true for detailed logging
 - **Test isolation**: Separate test database, auto-cleanup
 
 ### Web UI
-- **Builder**: Visual pipeline creation with drag-and-drop
-- **Pipelines**: Manage and execute pipelines
-- **Generator**: Generate Q&A datasets from seeds
+- **Pipelines**: Visual pipeline creation with drag-and-drop editor, manage and execute pipelines
+- **Generator**: Generate datasets from seeds using pipelines
 - **Review**: Review, edit, accept/reject generated records with trace visualization
 
 ## Creating Custom Blocks
@@ -233,8 +230,7 @@ lib/
 
 frontend/
   src/pages/
-    Builder.tsx       # Visual pipeline builder
-    Pipelines.tsx     # Pipeline manager
+    Pipelines.tsx     # Visual pipeline builder and manager
     Generator.tsx     # Dataset generation
     Review.tsx        # Review records with trace
 

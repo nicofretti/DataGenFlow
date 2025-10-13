@@ -1,7 +1,7 @@
 ---
 name: 📐 Refactor
 about: Code improvements without behavior change
-title: "📐 refactor: "
+title: "📐 Refactor: "
 labels: ["refactor"]
 ---
 

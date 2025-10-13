@@ -1,7 +1,7 @@
 ---
-name: 🚀 Feature
+name: 🚀 Feat
 about: Add new functionality or capability
-title: "🚀 feat: "
+title: "🚀 Feat: "
 labels: ["enhancement"]
 ---
 

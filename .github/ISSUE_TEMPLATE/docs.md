@@ -1,7 +1,7 @@
 ---
 name: 📚 Documentation
 about: Documentation updates
-title: "📚 docs: "
+title: "📚 Docs: "
 labels: ["documentation"]
 ---
 

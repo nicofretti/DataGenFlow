@@ -46,6 +46,7 @@ Closes #
 - [ ] Comments explain "why" not "what"
 - [ ] Documentation updated (if needed)
 - [ ] No debug code or console statements
+- [ ] Copilot review run and addressed
 - [ ] `make format` passes
 - [ ] `make lint` passes
 - [ ] `make typecheck` passes

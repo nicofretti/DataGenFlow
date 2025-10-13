@@ -95,6 +95,12 @@ export default function Review() {
   }, []);
 
   const loadRecords = useCallback(async () => {
+    // don't load records if no pipeline selected
+    if (!selectedPipeline) {
+      setRecords([]);
+      return;
+    }
+
     let url = `/api/records?status=${filterStatus}&limit=100`;
     if (selectedJob) {
       url += `&job_id=${selectedJob}`;
@@ -102,9 +108,15 @@ export default function Review() {
     const res = await fetch(url);
     const data = await res.json();
     setRecords(data);
-  }, [filterStatus, selectedJob]);
+  }, [filterStatus, selectedJob, selectedPipeline]);
 
   const loadStats = useCallback(async () => {
+    // don't load stats if no pipeline selected
+    if (!selectedPipeline) {
+      setStats({ pending: 0, accepted: 0, rejected: 0 });
+      return;
+    }
+
     // fetch records to get accurate counts, filtered by job if selected
     const jobParam = selectedJob ? `&job_id=${selectedJob}` : "";
     const [pending, accepted, rejected] = await Promise.all([
@@ -117,7 +129,7 @@ export default function Review() {
       accepted: accepted.length,
       rejected: rejected.length,
     });
-  }, [selectedJob]);
+  }, [selectedJob, selectedPipeline]);
 
   const updateStatus = useCallback(async (id: number, status: string) => {
     await fetch(`/api/records/${id}`, {
@@ -288,7 +300,7 @@ export default function Review() {
             variant="primary"
             leadingVisual={DownloadIcon}
             onClick={exportAccepted}
-            disabled={!selectedJob || stats.accepted === 0}
+            disabled={stats.accepted === 0}
           >
             Export Accepted
           </Button>
@@ -296,9 +308,9 @@ export default function Review() {
             variant="danger"
             leadingVisual={TrashIcon}
             onClick={deleteAllRecords}
-            disabled={!selectedJob}
+            disabled={records.length === 0}
           >
-            Delete All
+            Delete {selectedJob ? "Job" : "All"}
           </Button>
         </Box>
       </Box>
@@ -481,7 +493,21 @@ export default function Review() {
         </Box>
       </Box>
 
-      {records.length === 0 ? (
+      {!selectedPipeline ? (
+        <Box
+          sx={{
+            textAlign: "center",
+            py: 6,
+            border: "1px dashed",
+            borderColor: "border.default",
+            borderRadius: 2,
+          }}
+        >
+          <Text sx={{ color: "fg.muted", fontSize: 2 }}>
+            Please select a pipeline to view records
+          </Text>
+        </Box>
+      ) : records.length === 0 ? (
         <Box
           sx={{
             textAlign: "center",

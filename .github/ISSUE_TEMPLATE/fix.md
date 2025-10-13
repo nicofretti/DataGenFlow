@@ -1,7 +1,7 @@
 ---
 name: 🧩 Fix
 about: Bug fixes or corrections
-title: "🧩 fix: "
+title: "🧩 Fix: "
 labels: ["bug"]
 ---
 
