@@ -1,4 +1,4 @@
-.PHONY: check-deps install dev dev-ui dev-backend run-dev build-ui run mock-llm generate list export clean lint format lint-frontend format-frontend format-all lint-all typecheck typecheck-frontend typecheck-all test setup
+.PHONY: check-deps install dev dev-ui dev-backend run-dev build-ui run mock-llm clean lint format lint-frontend format-frontend format-all lint-all typecheck typecheck-frontend typecheck-all test setup
 
 # check if required dependencies are installed
 check-deps:
@@ -53,15 +53,6 @@ run: build-ui
 
 mock-llm:
 	uv run python mock_llm.py
-
-generate:
-	uv run python cli.py generate $(FILE)
-
-list:
-	uv run python cli.py list
-
-export:
-	uv run python cli.py export $(OUTPUT)
 
 clean:
 	rm -rf __pycache__ */__pycache__ */*/__pycache__
