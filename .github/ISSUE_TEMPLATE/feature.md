@@ -1,23 +1,25 @@
 ---
 name: 🚀 Feature
 about: Add new functionality or capability
+title: "🚀 feat: "
+labels: ["enhancement"]
 ---
 
 <!--
-PR Title Format: 🚀 Feat: add <short description>
-Example: 🚀 Feat: add retry logic to LLM block
+Title Format: 🚀 feat: <short description>
+Example: 🚀 feat: add retry logic to LLM block
 -->
 
 ## Description
-<!-- What does this PR add? Be clear and concise. -->
+<!-- What does this feature add? Be clear and concise -->
 
 
-## Proposed Solution
-<!-- Why is this needed? How does it work? -->
+## Motivation
+<!-- Why is this feature needed? What problem does it solve? -->
 
 
 ## Changes
-<!-- List the specific changes made -->
+<!-- List the main changes -->
 -
 -
 -
@@ -26,21 +28,17 @@ Example: 🚀 Feat: add retry logic to LLM block
 ## Testing
 <!-- How was this tested? -->
 - [ ] Unit tests added/updated
-- [ ] Integration tests passing
 - [ ] Manual testing completed
 - [ ] All existing tests passing
 
-**Test details:**
-<!-- Describe your testing approach -->
+**Details:**
 
 
 ## Checklist
 - [ ] Code follows project style guidelines
-- [ ] Comments added explaining "why" not "what"
+- [ ] Comments explain "why" not "what"
 - [ ] Documentation updated (if needed)
-- [ ] No unnecessary `else` statements
-- [ ] Early returns used where appropriate
-- [ ] `make format` run successfully
+- [ ] `make format` passes
 - [ ] `make lint` passes
 - [ ] `make typecheck` passes
 - [ ] `make test` passes

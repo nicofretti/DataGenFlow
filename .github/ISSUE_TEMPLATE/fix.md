@@ -1,11 +1,13 @@
 ---
 name: 🧩 Fix
 about: Bug fixes or corrections
+title: "🧩 fix: "
+labels: ["bug"]
 ---
 
 <!--
-PR Title Format: 🧩 Fix: <short description>
-Example: 🧩 Fix: block configuration not visible in edit mode
+Title Format: 🧩 fix: <short description>
+Example: 🧩 fix: block configuration not visible in edit mode
 -->
 
 ## Description
@@ -13,11 +15,10 @@ Example: 🧩 Fix: block configuration not visible in edit mode
 
 
 ## Reproduction Steps
-<!-- How to reproduce the bug (important for validation) -->
+<!-- How to reproduce the bug -->
 1.
 2.
 3.
-4.
 
 
 ## Expected vs Actual
@@ -25,12 +26,8 @@ Example: 🧩 Fix: block configuration not visible in edit mode
 - **Actual**: <!-- What actually happens -->
 
 
-## Proposed Solution
-<!-- How does this fix address the issue? -->
-
-
 ## Changes
-<!-- List the specific changes made -->
+<!-- List the main changes -->
 -
 -
 -
@@ -43,16 +40,14 @@ Example: 🧩 Fix: block configuration not visible in edit mode
 - [ ] Unit tests added for regression prevention
 - [ ] All existing tests passing
 
-**Test details:**
-<!-- Describe your testing approach -->
+**Details:**
 
 
 ## Checklist
 - [ ] Code follows project style guidelines
-- [ ] Comments added explaining "why" not "what"
-- [ ] No unnecessary `else` statements
-- [ ] Early returns used where appropriate
-- [ ] `make format` run successfully
+- [ ] Comments explain "why" not "what"
+- [ ] Documentation updated (if needed)
+- [ ] `make format` passes
 - [ ] `make lint` passes
 - [ ] `make typecheck` passes
 - [ ] `make test` passes

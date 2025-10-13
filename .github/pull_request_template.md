@@ -1,18 +1,52 @@
-### Description
-<!-- Brief description of changes -->
+<!--
+Title Format: <icon> <type>: <short description>
+Examples:
+  🚀 feat: add retry logic to LLM block
+  🧩 fix: block configuration not visible in edit mode
+  📐 refactor: simplify block renderer logic
+  📚 docs: add block creation guide
 
-### Related Issue
-Closes #(related issue)
+Choose the appropriate issue template for detailed sections:
+- 🚀 Feature (new functionality)
+- 🧩 Fix (bug fixes)
+- 📐 Refactor (code improvements)
+- 📚 Documentation (doc updates)
+-->
 
-### Checklist
-- [ ] Linked issue is referenced
-- [ ] Reviewed files in the file changes
-- [ ] No debug code or print statements
-- [ ] Documentation updated if needed
-- [ ] Tests added if needed
+## Description
+<!-- Brief description of what this PR does -->
 
-Run scripts:
-- [ ] Code formatted (`make format`)
-- [ ] Linting passes (`make lint`)
-- [ ] Tests pass (`pytest tests/`)
-- [ ] Type checking passes (`make typecheck`)
+
+## Motivation
+<!-- Why is this change needed? What problem does it solve? -->
+
+
+## Changes
+<!-- List the main changes -->
+-
+-
+-
+
+
+## Related Issue
+<!-- Link to related issue if applicable -->
+Closes #
+
+
+## Testing
+<!-- How was this tested? -->
+- [ ] Manual testing completed
+- [ ] All existing tests passing
+
+**Details:**
+
+
+## Checklist
+- [ ] Code follows project style guidelines
+- [ ] Comments explain "why" not "what"
+- [ ] Documentation updated (if needed)
+- [ ] No debug code or console statements
+- [ ] `make format` passes
+- [ ] `make lint` passes
+- [ ] `make typecheck` passes
+- [ ] `make test` passes

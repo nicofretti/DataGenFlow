@@ -1,32 +1,34 @@
 ---
 name: 📚 Documentation
 about: Documentation updates
+title: "📚 docs: "
+labels: ["documentation"]
 ---
 
 <!--
-PR Title Format: 📚 Docs: <short description>
-Example: 📚 Docs: add block creation guide
+Title Format: 📚 docs: <short description>
+Example: 📚 docs: add block creation guide
 -->
 
 ## Description
 <!-- What documentation is being updated? -->
 
 
-## Changes
-<!-- List the specific changes made -->
--
--
--
-
-
 ## Motivation
 <!-- Why is this documentation needed/updated? -->
+
+
+## Changes
+<!-- List the main changes -->
+-
+-
+-
 
 
 ## Checklist
 - [ ] Documentation is clear and concise
 - [ ] Examples are accurate and tested
-- [ ] Links are valid and not broken
+- [ ] Links are valid
 - [ ] Code samples follow project style
 - [ ] Screenshots/images updated (if applicable)
 - [ ] Spelling and grammar checked
