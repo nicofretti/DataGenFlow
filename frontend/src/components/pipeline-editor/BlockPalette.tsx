@@ -67,7 +67,7 @@ export default function BlockPalette({ blocks }: BlockPaletteProps) {
             <Box
               key={block.type}
               draggable
-              onDragStart={(e) => onDragStart(e, block.type)}
+              onDragStart={(e: React.DragEvent<HTMLDivElement>) => onDragStart(e, block.type)}
               sx={{
                 p: 2,
                 mb: 1,

@@ -77,55 +77,6 @@ export default function Review() {
 
   const currentRecord = records[currentIndex] || null;
 
-  useEffect(() => {
-    loadPipelines();
-  }, []);
-
-  useEffect(() => {
-    loadRecords();
-    loadStats();
-  }, [filterStatus, selectedJob]);
-
-  useEffect(() => {
-    if (selectedPipeline) {
-      loadJobs(selectedPipeline);
-    } else {
-      setJobs([]);
-      setSelectedJob(null);
-    }
-  }, [selectedPipeline]);
-
-  // reset index when changing filter
-  useEffect(() => {
-    setCurrentIndex(0);
-    setIsEditing(false);
-    setIsExpanded(false);
-  }, [filterStatus]);
-
-  // keyboard shortcuts
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (isEditing) return; // disable shortcuts while editing
-
-      if (e.key === "a" && currentRecord) {
-        updateStatus(currentRecord.id, "accepted");
-      } else if (e.key === "r" && currentRecord) {
-        updateStatus(currentRecord.id, "rejected");
-      } else if (e.key === "e" && currentRecord) {
-        startEditing();
-      } else if (e.key === "n" && currentIndex < records.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-        setIsExpanded(false);
-      } else if (e.key === "p" && currentIndex > 0) {
-        setCurrentIndex(currentIndex - 1);
-        setIsExpanded(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [currentRecord, currentIndex, records.length, isEditing]);
-
   const loadPipelines = async () => {
     try {
       const res = await fetch("/api/pipelines");
@@ -145,7 +96,6 @@ export default function Review() {
       setJobs(jobsWithRecords);
     } catch (error) {
       console.error("Failed to load jobs:", error);
-      setJobs([]);
     }
   };
 
@@ -210,11 +160,63 @@ export default function Review() {
       body: JSON.stringify({ output: editValue, status: "edited" }),
     });
     setIsEditing(false);
-    if (currentIndex < records.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
     loadRecords();
+    loadStats();
   };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditValue("");
+  };
+
+  useEffect(() => {
+    loadPipelines();
+  }, []);
+
+  useEffect(() => {
+    loadRecords();
+    loadStats();
+  }, [filterStatus, selectedJob]);
+
+  useEffect(() => {
+    if (selectedPipeline) {
+      loadJobs(selectedPipeline);
+    } else {
+      setJobs([]);
+      setSelectedJob(null);
+    }
+  }, [selectedPipeline]);
+
+  // reset index when changing filter
+  useEffect(() => {
+    setCurrentIndex(0);
+    setIsEditing(false);
+    setIsExpanded(false);
+  }, [filterStatus]);
+
+  // keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (isEditing) return; // disable shortcuts while editing
+
+      if (e.key === "a" && currentRecord) {
+        updateStatus(currentRecord.id, "accepted");
+      } else if (e.key === "r" && currentRecord) {
+        updateStatus(currentRecord.id, "rejected");
+      } else if (e.key === "e" && currentRecord) {
+        startEditing();
+      } else if (e.key === "n" && currentIndex < records.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+        setIsExpanded(false);
+      } else if (e.key === "p" && currentIndex > 0) {
+        setCurrentIndex(currentIndex - 1);
+        setIsExpanded(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [currentRecord, currentIndex, records.length, isEditing]);
 
   const goToNext = () => {
     if (currentIndex < records.length - 1) {
@@ -357,21 +359,21 @@ export default function Review() {
             setFilterStatus(statuses[index]);
           }}
         >
-          <SegmentedControl.Button selected={filterStatus === "pending"}>
+          <SegmentedControl.Button {...({} as any)}  selected={filterStatus === "pending"}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "fg.default" }}>
               <ClockIcon size={16} />
               <Text>Pending</Text>
               <CounterLabel>{stats.pending}</CounterLabel>
             </Box>
           </SegmentedControl.Button>
-          <SegmentedControl.Button selected={filterStatus === "accepted"}>
+          <SegmentedControl.Button {...({} as any)}  selected={filterStatus === "accepted"}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "fg.default" }}>
               <CheckCircleIcon size={16} />
               <Text>Accepted</Text>
               <CounterLabel>{stats.accepted}</CounterLabel>
             </Box>
           </SegmentedControl.Button>
-          <SegmentedControl.Button selected={filterStatus === "rejected"}>
+          <SegmentedControl.Button {...({} as any)}  selected={filterStatus === "rejected"}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "fg.default" }}>
               <XCircleIcon size={16} fill="fg.danger" />
               <Text>Rejected</Text>

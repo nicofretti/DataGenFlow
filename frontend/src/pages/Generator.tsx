@@ -306,9 +306,9 @@ export default function Generator() {
               </Box>
             )}
 
-          {currentJob.status === "running" && currentJob.created_at && (
+          {currentJob.status === "running" && currentJob.started_at && (
             <Text sx={{ fontSize: 1, color: "fg.muted", mb: 2, display: "block" }}>
-              Running for {getElapsedTime(currentJob.created_at)}
+              Running for {getElapsedTime(currentJob.started_at)}
             </Text>
           )}
 

@@ -1,4 +1,4 @@
-import { Dialog, Button, Flash, Text } from "@primer/react";
+import { Dialog, Button, Flash, Text, Box } from "@primer/react";
 import { XIcon } from "@primer/octicons-react";
 
 interface ErrorModalProps {
@@ -17,11 +17,11 @@ export default function ErrorModal({ isOpen, onClose, title, message }: ErrorMod
       <Flash variant="danger" sx={{ m: 3 }}>
         {message}
       </Flash>
-      <Dialog.Footer>
+      <Box>
         <Button onClick={onClose} variant="primary">
           Close
         </Button>
-      </Dialog.Footer>
+      </Box>
     </Dialog>
   );
 }

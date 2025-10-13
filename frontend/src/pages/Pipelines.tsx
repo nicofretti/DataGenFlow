@@ -228,7 +228,7 @@ export default function Pipelines() {
           }}
         >
           <Text sx={{ color: "fg.default" }}>
-            No pipelines yet. Click "New Pipeline" to create one!
+            No pipelines yet. Click &ldquo;New Pipeline&rdquo; to create one!
           </Text>
         </Box>
       ) : (
