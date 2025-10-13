@@ -12,7 +12,7 @@ import ReactFlow, {
   NodeTypes,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Box, Button, Flash, TextInput, theme, useTheme, themeGet } from "@primer/react";
+import { Box, Button, Flash, TextInput, useTheme } from "@primer/react";
 import { XIcon } from "@primer/octicons-react";
 
 import BlockPalette from "./BlockPalette";
@@ -71,7 +71,21 @@ export default function PipelineEditor({
   const [pipelineName, setPipelineName] = useState(initialPipelineName);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const { colorMode } = useTheme();
+
+  // minimap adjusted for light/dark mode using primer theme colors
+  function MinimapWithTheme() {
+    const { theme } = useTheme();
+    const colors = theme?.colors;
+
+    return (
+      <MiniMap
+        nodeColor={colors?.neutral.muted || "#f5f5f5"}
+        style={{ backgroundColor: colors?.canvas.default || "#ffffff" }}
+        nodeStrokeColor={colors?.border.default || "#d0d7de"}
+        maskColor={colors?.canvas.subtle || "#f6f8fa"}
+      />
+    );
+  }
 
   // check if node is configured
   const isNodeConfigured = useCallback((node: Node) => {
@@ -424,7 +438,7 @@ export default function PipelineEditor({
           >
             <Background />
             <Controls />
-            <MiniMap />
+            <MinimapWithTheme />
           </ReactFlow>
         </Box>
 
