@@ -43,8 +43,8 @@ export default function Pipelines() {
       const res = await fetch("/api/templates");
       const data = await res.json();
       setTemplates(data);
-    } catch (error) {
-      console.error("Failed to load templates:", error);
+    } catch {
+      // silent fail - templates are optional
     }
   };
 

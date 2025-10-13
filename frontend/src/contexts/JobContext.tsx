@@ -43,8 +43,8 @@ export function JobProvider({ children }: { children: ReactNode }) {
         } else {
           setCurrentJob(null);
         }
-      } catch (error) {
-        console.error("Failed to poll job:", error);
+      } catch {
+        // silent fail - polling will retry
       }
       return false;
     };
@@ -73,8 +73,8 @@ export function JobProvider({ children }: { children: ReactNode }) {
         const job = await res.json();
         setCurrentJob(job);
       }
-    } catch (error) {
-      console.error("Failed to refresh job:", error);
+    } catch {
+      // silent fail - refresh is optional
     }
   };
 

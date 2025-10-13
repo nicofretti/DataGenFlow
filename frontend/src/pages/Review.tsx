@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Box,
   Heading,
@@ -13,14 +13,9 @@ import {
   Select,
 } from "@primer/react";
 import {
-  CheckIcon,
-  XIcon,
-  PencilIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CommentIcon,
-  PersonIcon,
-  GearIcon,
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
@@ -77,29 +72,29 @@ export default function Review() {
 
   const currentRecord = records[currentIndex] || null;
 
-  const loadPipelines = async () => {
+  const loadPipelines = useCallback(async () => {
     try {
       const res = await fetch("/api/pipelines");
       const data = await res.json();
       setPipelines(data);
-    } catch (error) {
-      console.error("Failed to load pipelines:", error);
+    } catch {
+      // silent fail - pipelines filter is optional
     }
-  };
+  }, []);
 
-  const loadJobs = async (pipelineId: number) => {
+  const loadJobs = useCallback(async (pipelineId: number) => {
     try {
       const res = await fetch(`/api/jobs?pipeline_id=${pipelineId}`);
       const data = await res.json();
       // only show jobs that have generated records
       const jobsWithRecords = data.filter((job: Job) => job.records_generated > 0);
       setJobs(jobsWithRecords);
-    } catch (error) {
-      console.error("Failed to load jobs:", error);
+    } catch {
+      // silent fail - jobs filter is optional
     }
-  };
+  }, []);
 
-  const loadRecords = async () => {
+  const loadRecords = useCallback(async () => {
     let url = `/api/records?status=${filterStatus}&limit=100`;
     if (selectedJob) {
       url += `&job_id=${selectedJob}`;
@@ -107,9 +102,9 @@ export default function Review() {
     const res = await fetch(url);
     const data = await res.json();
     setRecords(data);
-  };
+  }, [filterStatus, selectedJob]);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     // fetch records to get accurate counts, filtered by job if selected
     const jobParam = selectedJob ? `&job_id=${selectedJob}` : "";
     const [pending, accepted, rejected] = await Promise.all([
@@ -122,35 +117,31 @@ export default function Review() {
       accepted: accepted.length,
       rejected: rejected.length,
     });
-  };
+  }, [selectedJob]);
 
-  const updateStatus = async (id: number, status: string) => {
+  const updateStatus = useCallback(async (id: number, status: string) => {
     await fetch(`/api/records/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-    // move to next record after action, or previous if on last record
-    if (currentIndex < records.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
-    loadRecords();
-    loadStats();
-  };
+
+    // reload records and stats after update
+    await loadRecords();
+    await loadStats();
+  }, [loadRecords, loadStats]);
 
   // get final output from record
   const getFinalOutput = (record: Record): string => {
     return record.output || "";
   };
 
-  const startEditing = () => {
+  const startEditing = useCallback(() => {
     if (!currentRecord) return;
     setIsEditing(true);
     setEditValue(getFinalOutput(currentRecord));
     setIsExpanded(true); // expand when editing
-  };
+  }, [currentRecord]);
 
   const saveEdit = async () => {
     if (!currentRecord) return;
@@ -164,19 +155,14 @@ export default function Review() {
     loadStats();
   };
 
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setEditValue("");
-  };
-
   useEffect(() => {
     loadPipelines();
-  }, []);
+  }, [loadPipelines]);
 
   useEffect(() => {
     loadRecords();
     loadStats();
-  }, [filterStatus, selectedJob]);
+  }, [filterStatus, selectedJob, loadRecords, loadStats]);
 
   useEffect(() => {
     if (selectedPipeline) {
@@ -185,7 +171,7 @@ export default function Review() {
       setJobs([]);
       setSelectedJob(null);
     }
-  }, [selectedPipeline]);
+  }, [selectedPipeline, loadJobs]);
 
   // reset index when changing filter
   useEffect(() => {
@@ -193,6 +179,15 @@ export default function Review() {
     setIsEditing(false);
     setIsExpanded(false);
   }, [filterStatus]);
+
+  // keep currentIndex in valid range when records change
+  useEffect(() => {
+    if (records.length === 0) {
+      setCurrentIndex(0);
+    } else if (currentIndex >= records.length) {
+      setCurrentIndex(records.length - 1);
+    }
+  }, [records.length, currentIndex]);
 
   // keyboard shortcuts
   useEffect(() => {
@@ -216,7 +211,7 @@ export default function Review() {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [currentRecord, currentIndex, records.length, isEditing]);
+  }, [currentRecord, currentIndex, records.length, isEditing, updateStatus, startEditing]);
 
   const goToNext = () => {
     if (currentIndex < records.length - 1) {
@@ -233,15 +228,22 @@ export default function Review() {
   };
 
   const deleteAllRecords = async () => {
-    if (!selectedJob || !selectedPipeline) return;
+    const confirmMessage = selectedJob
+      ? `Delete all records for this job? This cannot be undone.`
+      : `Delete all ${filterStatus} records? This cannot be undone.`;
 
-    if (!confirm(`Delete all records for this job? This cannot be undone.`)) return;
+    if (!confirm(confirmMessage)) return;
 
     try {
-      await fetch(`/api/records?job_id=${selectedJob}`, { method: "DELETE" });
-      setMessage({ type: "success", text: "Job and records deleted" });
-      setSelectedJob(null);
-      await loadJobs(selectedPipeline);
+      const url = selectedJob ? `/api/records?job_id=${selectedJob}` : `/api/records`;
+      await fetch(url, { method: "DELETE" });
+      setMessage({ type: "success", text: "Records deleted successfully" });
+
+      if (selectedJob && selectedPipeline) {
+        setSelectedJob(null);
+        await loadJobs(selectedPipeline);
+      }
+
       loadRecords();
       loadStats();
     } catch (error) {
@@ -250,8 +252,10 @@ export default function Review() {
   };
 
   const exportAccepted = () => {
-    if (!selectedJob) return;
-    window.location.href = `/api/export/download?status=accepted&job_id=${selectedJob}`;
+    const url = selectedJob
+      ? `/api/export/download?status=accepted&job_id=${selectedJob}`
+      : `/api/export/download?status=accepted`;
+    window.location.href = url;
   };
 
   const getStatusVariant = (status: string) => {
@@ -327,8 +331,8 @@ export default function Review() {
           <FormControl.Caption>Filter records by pipeline</FormControl.Caption>
         </FormControl>
 
-        <FormControl required>
-          <FormControl.Label>Select Job</FormControl.Label>
+        <FormControl>
+          <FormControl.Label>Filter by Job (Optional)</FormControl.Label>
           <Select
             value={selectedJob?.toString() || ""}
             onChange={(e) => {
@@ -337,7 +341,7 @@ export default function Review() {
             }}
             disabled={!selectedPipeline || jobs.length === 0}
           >
-            <Select.Option value="">Select a job...</Select.Option>
+            <Select.Option value="">All Jobs</Select.Option>
             {jobs.map((job) => (
               <Select.Option key={job.id} value={job.id.toString()}>
                 Job #{job.id} - {job.status} - {job.records_generated} records (
@@ -346,7 +350,7 @@ export default function Review() {
             ))}
           </Select>
           <FormControl.Caption>
-            {selectedPipeline ? "Select a job to view records" : "Select a pipeline first"}
+            {selectedPipeline ? "Optionally filter by a specific job" : "Select a pipeline first"}
           </FormControl.Caption>
         </FormControl>
       </Box>
