@@ -76,7 +76,21 @@ function BlockNode({ data }: NodeProps<BlockData>) {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}>
-          <Text sx={{ fontWeight: "bold", fontSize: 1, color: "fg.default" }}>{block.name}</Text>
+          <Text
+            sx={{
+              fontWeight: "bold",
+              fontSize: 1,
+              color: "fg.default",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "150px"
+            }}
+            title={block.name}
+          >
+            {block.name}
+          </Text>
+
           {status && (
             <Label variant={status.variant} size="small">
               {status.label}
