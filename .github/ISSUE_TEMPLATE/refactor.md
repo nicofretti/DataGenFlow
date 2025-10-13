@@ -6,8 +6,8 @@ labels: ["refactor"]
 ---
 
 <!--
-Title Format: 📐 refactor: <short description>
-Example: 📐 refactor: simplify block renderer logic
+Title Format: 📐 Refactor: <short description>
+Example: 📐 Refactor: simplify block renderer logic
 -->
 
 ## Description

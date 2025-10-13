@@ -6,8 +6,8 @@ labels: ["bug"]
 ---
 
 <!--
-Title Format: 🧩 fix: <short description>
-Example: 🧩 fix: block configuration not visible in edit mode
+Title Format: 🧩 Fix: <short description>
+Example: 🧩 Fix: block configuration not visible in edit mode
 -->
 
 ## Description

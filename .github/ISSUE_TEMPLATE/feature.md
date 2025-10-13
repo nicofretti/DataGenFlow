@@ -6,8 +6,8 @@ labels: ["enhancement"]
 ---
 
 <!--
-Title Format: 🚀 feat: <short description>
-Example: 🚀 feat: add retry logic to LLM block
+Title Format: 🚀 Feat: <short description>
+Example: 🚀 Feat: add retry logic to LLM block
 -->
 
 ## Description

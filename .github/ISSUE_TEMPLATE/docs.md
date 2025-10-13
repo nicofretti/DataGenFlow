@@ -6,8 +6,8 @@ labels: ["documentation"]
 ---
 
 <!--
-Title Format: 📚 docs: <short description>
-Example: 📚 docs: add block creation guide
+Title Format: 📚 Docs: <short description>
+Example: 📚 Docs: add block creation guide
 -->
 
 ## Description
