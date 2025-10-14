@@ -14,9 +14,7 @@
 
 ### DataGenFlow in Action
 
-<video controls>
-  <source src="images/video/minimal.mp4" type="video/mp4">
-</video>
+https://github.com/nicofretti/DataGenFlow/blob/develop/images/video/minimal.mp4
 
 Define seeds → Build pipeline → Review results → Export data
 
