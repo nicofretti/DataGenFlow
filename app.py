@@ -105,8 +105,7 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
     active_job = job_queue.get_active_job()
     if active_job:
         detail_msg = (
-            f"Job {active_job['id']} is already running. "
-            "Cancel it first or wait for completion."
+            f"Job {active_job['id']} is already running. Cancel it first or wait for completion."
         )
         raise HTTPException(status_code=409, detail=detail_msg)
 
@@ -322,8 +321,8 @@ async def update_pipeline(pipeline_id: int, pipeline_data: dict[str, Any]) -> di
     return {"id": pipeline_id, "name": name}
 
 
-@api.post("/pipelines/{pipeline_id}/execute")
-async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, Any]:
+@api.post("/pipelines/{pipeline_id}/execute", response_model=None)
+async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, Any] | JSONResponse:
     try:
         pipeline_data = await storage.get_pipeline(pipeline_id)
         if not pipeline_data:

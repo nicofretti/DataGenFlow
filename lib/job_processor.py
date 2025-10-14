@@ -91,7 +91,7 @@ async def _process_job(
 
         # calculate total executions
         total_executions = sum(
-            seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1
+            (seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1)
             for seed in seeds_data
         )
 

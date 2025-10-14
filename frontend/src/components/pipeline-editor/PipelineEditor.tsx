@@ -8,7 +8,6 @@ import ReactFlow, {
   useEdgesState,
   Connection,
   Node,
-  Edge,
   NodeTypes,
 } from "reactflow";
 import "reactflow/dist/style.css";
@@ -58,7 +57,7 @@ interface PipelineEditorProps {
 }
 
 export default function PipelineEditor({
-  pipelineId,
+  pipelineId: _pipelineId,
   pipelineName: initialPipelineName = "New Pipeline",
   initialPipeline,
   onSave,
@@ -240,7 +239,7 @@ export default function PipelineEditor({
     if (stateChanged || callbacksChanged) {
       setNodes(updatedNodes);
     }
-  }, [nodes.length, edges.length]);
+  }, [nodes, edges, setNodes, isNodeConfigured, isNodeConnected, handleDeleteNode]);
 
   // handle new edge connection
   const onConnect = useCallback(
@@ -398,7 +397,7 @@ export default function PipelineEditor({
         </Box>
         <Box sx={{ display: "flex", gap: 2 }}>
           <Button onClick={handleSave} disabled={saving} variant="primary">
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving..." : "Save Pipeline"}
           </Button>
           <Button onClick={onClose}>
             <XIcon /> Close

@@ -19,7 +19,7 @@ Thank you for your interest in contributing! This document provides guidelines f
    ```bash
    git checkout -b feature/your-feature-name
    ```
-   Better to click "Create a new branch" on GitHub when making a PR do have a a good branch name.
+   Tip: Click "Create a new branch" on GitHub when making a PR to have a good branch name.
 
 ## Development Workflow
 
@@ -111,7 +111,7 @@ Fixed issue where block configuration panel doesn't appear when editing existing
 - **Actual**: Nothing happens when clicking the block
 
 ### Proposed Solution
-- Updated `Builder.tsx` to properly load block config when entering edit mode
+- Updated `Pipelines.tsx` to properly load block config when entering edit mode
 - Fixed state initialization in `useEffect` hook
 - Added null check for block config before rendering
 

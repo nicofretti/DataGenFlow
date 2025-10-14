@@ -1,10 +1,12 @@
 ---
 name: 📐 Refactor
 about: Code improvements without behavior change
+title: "📐 Refactor: "
+labels: ["refactor"]
 ---
 
 <!--
-PR Title Format: 📐 Refactor: <short description>
+Title Format: 📐 Refactor: <short description>
 Example: 📐 Refactor: simplify block renderer logic
 -->
 
@@ -17,14 +19,14 @@ Example: 📐 Refactor: simplify block renderer logic
 
 
 ## Changes
-<!-- List the specific changes made -->
+<!-- List the main changes -->
 -
 -
 -
 
 
-## Behavior Changes
-<!-- Confirm no behavior changes (this is a refactor) -->
+## Behavior Verification
+<!-- Confirm no behavior changes -->
 - [ ] No functional behavior changes
 - [ ] All existing tests pass without modification
 - [ ] API contracts unchanged
@@ -33,20 +35,16 @@ Example: 📐 Refactor: simplify block renderer logic
 ## Testing
 <!-- How was this validated? -->
 - [ ] All existing tests passing
-- [ ] No new tests needed (behavior unchanged)
 - [ ] Manual testing completed
 
-**Test details:**
-<!-- Describe your testing approach -->
+**Details:**
 
 
 ## Checklist
 - [ ] Code follows project style guidelines
-- [ ] Comments added explaining "why" not "what"
-- [ ] No unnecessary `else` statements
-- [ ] Early returns used where appropriate
-- [ ] Code is more readable/maintainable after refactor
-- [ ] `make format` run successfully
+- [ ] Comments explain "why" not "what"
+- [ ] Code is more readable/maintainable
+- [ ] `make format` passes
 - [ ] `make lint` passes
 - [ ] `make typecheck` passes
 - [ ] `make test` passes

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
 import { Box, IconButton, ThemeProvider, useTheme, Heading, Text } from "@primer/react";
 import { SunIcon, MoonIcon, BeakerIcon, ChecklistIcon, WorkflowIcon } from "@primer/octicons-react";
@@ -47,7 +47,6 @@ function Navigation() {
             <img src="/logo.png" alt="DataGenFlow Logo" style={{ width: "40px", height: "40px" }} />
             <Heading sx={{ fontSize: 3, color: "fg.default" }}>DataGenFlow</Heading>
           </Box>
-          <Text sx={{ fontSize: 1, color: "fg.muted", mb: 2 }}>Dataset Generation</Text>
           <GlobalJobIndicator />
         </Box>
 
@@ -112,7 +111,7 @@ function Navigation() {
 }
 
 export default function App() {
-  const [colorMode, setColorMode] = useState<"light" | "dark" | "auto">(() => {
+  const [colorMode] = useState<"light" | "dark" | "auto">(() => {
     // read from localStorage or default to light
     const stored = localStorage.getItem("colorMode");
     if (stored === "dark" || stored === "light" || stored === "auto") {

@@ -1,5 +1,4 @@
 import { Dialog, Button, Flash, Text, Box } from "@primer/react";
-import { XIcon } from "@primer/octicons-react";
 
 interface ErrorModalProps {
   isOpen: boolean;

@@ -15,8 +15,5 @@ blocks:
   - type: OutputBlock
     config:
       format_template: |
-        {% if valid %}Valid JSON Generated
-        {{ parsed_json | tojson }}
-        {% else %}Invalid JSON
-        Raw output: {{ assistant }}
-        {% endif %}
+        {% if valid %}{{ parsed_json | tojson }}
+        {% else %}Raw output: {{ assistant }}{% endif %}

@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
-import { Box, Text, Label, useDetails } from "@primer/react";
+import { Box, Text, Label } from "@primer/react";
 import { DEFAULT_HANDLE_STYLE } from "./utils";
 
 interface StartEndData {

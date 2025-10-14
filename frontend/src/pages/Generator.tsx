@@ -48,15 +48,15 @@ export default function Generator() {
     } else {
       setGenerating(false);
     }
-  }, [currentJob?.status]);
+  }, [currentJob]);
 
   const fetchPipelines = async () => {
     try {
       const res = await fetch("/api/pipelines");
       const data = await res.json();
       setPipelines(data);
-    } catch (error) {
-      console.error("Failed to fetch pipelines:", error);
+    } catch {
+      // silent fail - will show empty pipeline list
     }
   };
 

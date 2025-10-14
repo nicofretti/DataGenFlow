@@ -182,13 +182,13 @@ class TestAPIPipelines:
         pipeline_id = create_response.json()["id"]
 
         # try to update with missing name
-        invalid_data = {"blocks": []}
-        response = client.put(f"/api/pipelines/{pipeline_id}", json=invalid_data)
+        invalid_data_no_name = {"blocks": []}
+        response = client.put(f"/api/pipelines/{pipeline_id}", json=invalid_data_no_name)
         assert response.status_code == 400
 
         # try to update with missing blocks
-        invalid_data = {"name": "Test"}
-        response = client.put(f"/api/pipelines/{pipeline_id}", json=invalid_data)
+        invalid_data_no_blocks = {"name": "Test"}
+        response = client.put(f"/api/pipelines/{pipeline_id}", json=invalid_data_no_blocks)
         assert response.status_code == 400
 
     def test_delete_pipeline(self, client):
