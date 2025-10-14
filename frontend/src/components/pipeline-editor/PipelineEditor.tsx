@@ -397,7 +397,7 @@ export default function PipelineEditor({
         </Box>
         <Box sx={{ display: "flex", gap: 2 }}>
           <Button onClick={handleSave} disabled={saving} variant="primary">
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving..." : "Save Pipeline"}
           </Button>
           <Button onClick={onClose}>
             <XIcon /> Close
