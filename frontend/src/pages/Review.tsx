@@ -131,17 +131,20 @@ export default function Review() {
     });
   }, [selectedJob, selectedPipeline]);
 
-  const updateStatus = useCallback(async (id: number, status: string) => {
-    await fetch(`/api/records/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
+  const updateStatus = useCallback(
+    async (id: number, status: string) => {
+      await fetch(`/api/records/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
 
-    // reload records and stats after update
-    await loadRecords();
-    await loadStats();
-  }, [loadRecords, loadStats]);
+      // reload records and stats after update
+      await loadRecords();
+      await loadStats();
+    },
+    [loadRecords, loadStats]
+  );
 
   // get final output from record
   const getFinalOutput = (record: Record): string => {
@@ -375,21 +378,21 @@ export default function Review() {
             setFilterStatus(statuses[index]);
           }}
         >
-          <SegmentedControl.Button {...({} as any)}  selected={filterStatus === "pending"}>
+          <SegmentedControl.Button {...({} as any)} selected={filterStatus === "pending"}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "fg.default" }}>
               <ClockIcon size={16} />
               <Text>Pending</Text>
               <CounterLabel>{stats.pending}</CounterLabel>
             </Box>
           </SegmentedControl.Button>
-          <SegmentedControl.Button {...({} as any)}  selected={filterStatus === "accepted"}>
+          <SegmentedControl.Button {...({} as any)} selected={filterStatus === "accepted"}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "fg.default" }}>
               <CheckCircleIcon size={16} />
               <Text>Accepted</Text>
               <CounterLabel>{stats.accepted}</CounterLabel>
             </Box>
           </SegmentedControl.Button>
-          <SegmentedControl.Button {...({} as any)}  selected={filterStatus === "rejected"}>
+          <SegmentedControl.Button {...({} as any)} selected={filterStatus === "rejected"}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "fg.default" }}>
               <XCircleIcon size={16} fill="fg.danger" />
               <Text>Rejected</Text>
