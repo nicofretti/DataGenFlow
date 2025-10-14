@@ -14,7 +14,7 @@
 
 ### DataGenFlow in Action
 
-https://github.com/user-attachments/assets/ed1d7645-4cd6-46c0-ab29-38a5df4f9813
+https://github.com/user-attachments/assets/7ca7a319-e2c1-4e24-a4c7-2b098d692aa1
 
 Full video [here!](images/video/full_video.mp4)
 
@@ -272,8 +272,6 @@ Result: Simple, understandable code that's easy to maintain and extend.
 ---
 
 <div align="center">
-
-Ready to transform your data workflows?
 
 [Get Started](#quick-start) • [View Documentation](#documentation)
 
