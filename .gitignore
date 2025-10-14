@@ -1,0 +1,40 @@
+# python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# virtual environments
+.venv
+
+# environment
+.env
+
+# database
+data/*.db
+data/*.db-journal
+
+# ide
+.vscode/
+.idea/
+.claude/
+
+# cache
+.mypy_cache/
+.ruff_cache/
+
+# uv
+uv.lock
+
+# frontend
+frontend/node_modules/
+frontend/build/
+frontend/.svelte-kit/
+frontend/package-lock.json
+
+# project notes (not for commits)
+point.md
+plan.md
+llm/*.*

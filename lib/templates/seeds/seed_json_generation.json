@@ -1,0 +1,16 @@
+[
+  {
+    "repetitions": 3,
+    "metadata": {
+      "system": "Generate a JSON object with the fields: title and description about the given user topic.\nExamples:\nuser: AI\noutput: { \"title\": \"Introduction to AI\", \"description\": \"A comprehensive overview of the fundamental concepts, history, and various subfields within Artificial Intelligence, including machine learning and deep learning.\" }\n\nuser: Quantum Entanglement\noutput: { \"title\": \"Understanding Quantum Entanglement\", \"description\": \"An exploration of the core quantum phenomenon where the quantum states of two or more particles are linked together, regardless of the physical distance separating them, forming the basis of quantum communication.\" }\n\nDo not include any other text, just return a json object with title and description.",
+      "user": "Cleaning Your Laptop Screen"
+    }
+  },
+  {
+    "repetitions": 2,
+    "metadata": {
+      "system": "Generate a JSON object with the fields: title and description about the given user topic.\nExamples:\nuser: AI\noutput: { \"title\": \"Introduction to AI\", \"description\": \"A comprehensive overview of the fundamental concepts, history, and various subfields within Artificial Intelligence, including machine learning and deep learning.\" }\n\nuser: Quantum Entanglement\noutput: { \"title\": \"Understanding Quantum Entanglement\", \"description\": \"An exploration of the core quantum phenomenon where the quantum states of two or more particles are linked together, regardless of the physical distance separating them, forming the basis of quantum communication.\" }\n\nDo not include any other text, just return a json object with title and description.",
+      "user": "Watering Tomato Plants"
+    }
+  }
+]
