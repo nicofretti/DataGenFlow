@@ -1,75 +1,61 @@
 <div align="center">
   <img src="images/logo/banner.png" alt="DataGenFlow Logo"/>
+
+  <h3>Simple Data Generation Pipelines</h3>
+  <p><em>Build, execute, and validate data generation workflows visually</em></p>
+
+  <p>
+    <a href="#quick-start">Quick Start</a> •
+    <a href="#how-it-works">How It Works</a> •
+    <a href="#documentation">Documentation</a>
+  </p>
 </div>
+
+---
 
 <div align="center">
-  <p><strong>1. Build smarter workflows visually</strong><br>
-  Drag, drop, and connect blocks in an intuitive pipeline builder.</p>
-  <img src="images/pipelines.png" alt="Pipeline Builder" width="600"/>
-  <br/>
 
-  <p><strong>2. Generate data records in seconds</strong><br>
-  Feed your seed data and let custom pipelines do the heavy lifting.</p>
-  <img src="images/generator.png" alt="Generator phase" width="600"/>
-  <br/>
+### DataGenFlow in Action
 
-  <p><strong>3. Review and perfect your results</strong><br>
-  Instantly edit, accept, or reject generated records with full trace visibility.</p>
-  <img src="images/review.png" alt="Review phase" width="600"/>
-  <br/>
+*[Video demonstration coming soon]*
+
+**Four-step workflow:** Define seeds → Build pipeline → Review results → Export data
+
 </div>
+
+## Why DataGenFlow?
+
+DataGenFlow transforms complex data generation workflows into intuitive visual pipelines. A minimal tool to help you generate and validate data from seed templates with full visibility.
+
+### Key Benefits
+
+- **Easy to Extend**: Add custom blocks in minutes with auto-discovery
+- **Faster Development**: Visual pipeline builder eliminates boilerplate code
+- **Simple to Use**: Intuitive drag-and-drop interface, no training required
+- **Full Transparency**: Complete execution traces for debugging
 
 ## Quick Start
 
+Get started in under 2 minutes:
+
 ```bash
-# install dependencies
+# Install dependencies
 make setup
 make dev
 
-# start both backend and frontend (single command)
+# Launch application (backend + frontend)
 make run-dev
 
-# open browser at http://localhost:8000
+# Open http://localhost:8000
 ```
 
-## Using the Application
+**That's it!** No complex configuration, no external dependencies required.
 
-### 1. Creating Pipelines
+## How It Works
 
-1. Open http://localhost:8000
-2. Navigate to "Pipelines" tab
-3. Click "New Pipeline" to create a pipeline
-4. Drag blocks from the left palette onto the canvas
-5. Connect blocks by dragging from output to input handles
-6. Click on a block to configure it in the right panel
-7. Click "Save Pipeline" and give it a name
+### 1. Define Your Seed Data
 
-**Example Pipeline**:
-- **LLMBlock**: Generate text using your LLM
-- **ValidatorBlock**: Ensure output meets quality standards
-- **OutputBlock**: Format the final result
-
-For a detailed guide, see [How to Use QADataGen](docs/how_to_use.md).
-
-### 2. Generating Records
-
-1. Navigate to "Generator" tab
-2. Upload your seed JSON file (see format below)
-3. Select a pipeline from the dropdown
-4. Click "Generate"
-5. Wait for completion (progress indicator shows status)
-
-### 3. Reviewing Results
-
-1. Navigate to "Review" tab
-2. Review each generated record
-3. **Accept** (✅), **Reject** (❌), or **Edit** the output
-4. Click "View Trace" to debug issues
-5. Export accepted records as JSONL
-
-## Seed File Format
-
-Seed files define the variables used in your pipeline templates.
+Start by creating a JSON seed file with the variables your pipeline will use. Seeds define what data you want to generate.
 
 **Single seed**:
 ```json
@@ -82,7 +68,7 @@ Seed files define the variables used in your pipeline templates.
 }
 ```
 
-**Multiple seeds**:
+**Multiple seeds** (generate different variations):
 ```json
 [
   {
@@ -104,7 +90,77 @@ Seed files define the variables used in your pipeline templates.
 
 **Fields**:
 - `repetitions`: How many times to run the pipeline with this seed
-- `metadata`: Variables accessible in templates via `{{ variable_name }}`
+- `metadata`: Variables accessible in your blocks via `{{ variable_name }}`
+
+### 2. Build Your Pipeline Visually
+
+Design your data generation workflow using drag-and-drop blocks. Each block processes data and passes it to the next one.
+
+**Avaiable Built-in Blocks:**
+- **LLM Generator**: Generate text using AI models (OpenAI, Ollama, etc.)
+- **Validator**: Check quality (length, forbidden words, patterns)
+- **JSON Validator**: Ensure structured data correctness
+- **Output Formatter**: Format results for export
+- Other blocks are under development, help us to expand [contribute!](#contributing)
+
+**Accumulated State:**
+
+As data flows through your pipeline, each block adds its outputs to an **accumulated state**. This means every block automatically has access to all data from previous blocks—no manual wiring needed.
+
+Example flow:
+```
+LLMBlock outputs: {"assistant": "Generated text"}
+  ↓ (accumulated state now contains: assistant)
+ValidatorBlock outputs: {"is_valid": true}
+  ↓ (accumulated state now contains: assistant, is_valid)
+OutputBlock can access: assistant, is_valid
+```
+
+This makes building complex pipelines incredibly simple—just connect blocks and they automatically share data.
+
+**Custom Blocks:**
+
+Need domain-specific logic? Create a custom block in minutes:
+
+```python
+from lib.blocks.base import BaseBlock
+from typing import Any
+
+class SentimentAnalyzerBlock(BaseBlock):
+    name = "Sentiment Analyzer"
+    description = "Analyzes text sentiment"
+    inputs = ["text"]  # what this block needs from accumulated state
+    outputs = ["sentiment", "confidence"]  # what it adds to accumulated state
+
+    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        text = data["text"]  # access from accumulated state
+        sentiment = analyze_sentiment(text)
+
+        # return values are added to accumulated state automatically
+        return {
+            "sentiment": sentiment.label,
+            "confidence": sentiment.score
+        }
+```
+
+**Blocks are automatically discovered** when you restart—just drop your file in `user_blocks/` and it appears in the editor.
+
+📚 **Learn more**: [Custom Block Development Guide](docs/how_to_create_blocks.md)
+
+### 3. Review and Refine
+
+After generation, review your results with our built-in interface:
+
+- **Rapid review** with keyboard shortcuts (Accept: A, Reject: R, Edit: E)
+- **Edit on the fly** for quick corrections
+- **Full execution traces** to see exactly how each result was generated
+
+### 4. Export Your Data
+
+Once reviewed, export your data in standard formats:
+
+- **JSONL format** ready for training or integration
+- **Filter by status** (accepted, rejected, pending)
 
 ## Configuration
 
@@ -127,217 +183,51 @@ PORT=8000
 DEBUG=false  # set to true for detailed logging
 ```
 
-## Features
+## Documentation
 
-### Core System
-- **Block-based pipelines**: Compose workflows from reusable blocks
-- **Visual pipeline builder**: Drag-and-drop UI for creating pipelines
-- **Execution tracing**: Full state history with timing for debugging
-- **Pipeline templates**: Pre-configured pipelines for quick start
-- **Custom blocks**: Easy extension with auto-discovery
-
-### Built-in Blocks
-- **LLMBlock**: Generate text using LLM (OpenAI-compatible)
-- **ValidatorBlock**: Validate output against rules (length, forbidden words)
-- **JSONValidatorBlock**: Parse and validate JSON from any field in accumulated state
-- **OutputBlock**: Define final pipeline output using Jinja2 templates for the review system
-
-### Developer Experience
-- **Debug logging**: Toggle detailed execution logs with `DEBUG=true`
-- **Trace IDs**: Track pipeline executions across logs and API responses
-- **Execution timing**: Per-block timing in trace output
-- **Error handling**: Structured error responses with context
-- **Test isolation**: Separate test database, auto-cleanup
-
-### Web UI
-- **Pipelines**: Visual pipeline creation with drag-and-drop editor, manage and execute pipelines
-- **Generator**: Generate datasets from seeds using pipelines
-- **Review**: Review, edit, accept/reject generated records with trace visualization
-
-## Creating Custom Blocks
-
-Create a file in `user_blocks/`:
-
-```python
-from lib.blocks.base import BaseBlock
-from typing import Any
-
-class MyBlock(BaseBlock):
-    name = "My Block"
-    description = "Does something useful"
-    inputs = ["text"]
-    outputs = ["result"]
-
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        # your logic here
-        result = data["text"].upper()
-        return {"result": result}
-```
-
-The block is auto-discovered on startup and immediately available in the UI.
-
-For detailed instructions and examples, see [How to Create Custom Blocks](docs/how_to_create_blocks.md).
-
-## Development
-
-```bash
-# both backend and frontend (single command with hot reload)
-make run-dev
-
-# or run separately in different terminals
-make dev-backend  # backend only
-make dev-ui       # frontend only
-
-# production mode (builds frontend)
-make run
-
-# code quality
-make lint      # run linting
-make typecheck # run type checking
-make format    # format code
-```
-
-## Testing
-
-```bash
-# Run all tests
-make test
-
-# Run specific test suite
-uv run pytest tests/blocks/ -v
-uv run pytest tests/test_api.py -v
-
-# Run with coverage
-uv run pytest --cov=lib --cov=app tests/
-```
-
-Tests use a separate database (`data/test_qa_records.db`) that is automatically created and cleaned up. See `TEST_DATABASE.md` for details.
-
-## Architecture
-
-```
-lib/
-  blocks/
-    builtin/          # Stable blocks (llm, validator, formatter, json_validator)
-    custom/           # Experimental blocks
-    base.py           # BaseBlock interface
-    registry.py       # Auto-discovery engine
-  templates/          # Pipeline templates
-  errors.py           # Custom exception classes
-  workflow.py         # Pipeline execution with tracing
-  storage.py          # Database operations
-  generator.py        # LLM wrapper
-
-frontend/
-  src/pages/
-    Pipelines.tsx     # Visual pipeline builder and manager
-    Generator.tsx     # Dataset generation
-    Review.tsx        # Review records with trace
-
-tests/
-  conftest.py         # Test configuration
-  blocks/             # Block unit tests
-  test_api.py         # API endpoint tests
-  test_workflow.py    # Pipeline execution tests
-```
-
-## Advanced Usage (Optional)
-
-### Using Pipeline Templates via API
-
-Quick start with pre-configured pipelines:
-
-```bash
-# list available templates
-curl http://localhost:8000/api/templates
-
-# create pipeline from template
-curl -X POST http://localhost:8000/api/pipelines/from_template/text_generation
-
-# execute the pipeline
-curl -X POST http://localhost:8000/api/pipelines/1/execute \
-  -H "Content-Type: application/json" \
-  -d '{"system": "You are helpful", "user": "Hello"}'
-```
-
-Available templates:
-- `text_generation` - Simple LLM generation
-- `validated_generation` - LLM + validation
-- `text_transformation` - Text transformation chain
-- `complete_qa_generation` - Full QA pipeline with validation and formatting
-
-### API Endpoints
-
-**Blocks**
-- `GET /api/blocks` - List all registered blocks with schemas
-
-**Templates**
-- `GET /api/templates` - List available pipeline templates
-- `POST /api/pipelines/from_template/{template_id}` - Create pipeline from template
-
-**Pipelines**
-- `POST /api/pipelines` - Create pipeline
-- `GET /api/pipelines` - List all pipelines
-- `GET /api/pipelines/{id}` - Get pipeline by ID
-- `DELETE /api/pipelines/{id}` - Delete pipeline
-- `POST /api/pipelines/{id}/execute` - Execute pipeline, returns `{result, trace, trace_id}`
-
-**Records**
-- `GET /api/records` - List records (supports status, limit, offset)
-- `GET /api/records/{id}` - Get record by ID
-- `PUT /api/records/{id}` - Update record
-- `DELETE /api/records` - Delete all records
-- `GET /api/export` - Export records as JSONL
-- `GET /api/export/download` - Download export as file
-
-**Generation**
-- `POST /api/generate` - Generate records from seed file using pipeline
-
-### Debug Mode
-
-Enable debug logging to see detailed execution information:
-
-```bash
-# In .env
-DEBUG=true
-```
-
-When enabled:
-- Logs include trace IDs for correlation
-- Per-block execution timing
-- Detailed block name and step information
-
-Example log output:
-```
-2025-10-06 10:15:32 [INFO] [a1b2c3d4-...] Starting pipeline 'Simple Text Generation' with 1 blocks
-2025-10-06 10:15:32 [DEBUG] [a1b2c3d4-...] Executing block 1/1: LLMBlock
-2025-10-06 10:15:35 [DEBUG] [a1b2c3d4-...] LLMBlock completed in 3.124s
-2025-10-06 10:15:35 [INFO] [a1b2c3d4-...] Pipeline 'Simple Text Generation' completed successfully
-```
-
-## Error Handling
-
-The system includes comprehensive error handling:
-
-- **BlockNotFoundError**: When a block type doesn't exist (shows available blocks)
-- **BlockExecutionError**: When a block fails (includes block name, step number, context)
-- **ValidationError**: When a block returns undeclared fields (shows expected vs actual)
-
-All errors return structured JSON responses with error messages and context for debugging.
+📖 **Comprehensive Guides**
+- [How to Use DataGenFlow](docs/how_to_use.md) - Complete user guide
+- [Custom Block Development](docs/how_to_create_blocks.md) - Extend functionality
+- [Developer Documentation](DEVELOPERS.md) - Technical reference for developers
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- PR title conventions with icons (🚀 Feat, 🧩 Fix, etc.)
-- PR description guidelines
-- Code style guidelines
-- Development workflow
+Contributions are welcome and appreciated. Before submitting a contribution, please review the guidelines below.
 
-## KISS Principles
+**Prerequisites:**
+- Read the [Contributing Guidelines](CONTRIBUTING.md) thoroughly
+- Check existing issues and pull requests to avoid duplication
+- Follow the project's commit conventions and code style standards
 
-This project follows Keep It Simple, Stupid principles:
-- Minimal abstraction layers
-- Flat structure over deep nesting
-- Explicit over implicit
-- Simple composition over inheritance
-- Easy to understand and modify
+**Areas for Contribution:**
+- New processing blocks and pipeline templates
+- Documentation improvements and examples
+- Bug fixes and performance optimizations
+- Test coverage expansion
+- Integration examples and use cases
+
+For detailed technical requirements and development setup, refer to the [Developer Documentation](DEVELOPERS.md).
+
+## Design Philosophy
+
+DataGenFlow is built on the **KISS principle** (Keep It Simple, Stupid):
+
+- **Minimal Abstraction**: Direct, understandable code over clever tricks
+- **Flat Architecture**: Simple structure over deep nesting
+- **Explicit Design**: Clear intentions over implicit magic
+- **Composition First**: Combine simple pieces over complex inheritance
+- **Developer Friendly**: Easy to understand, modify, and extend
+
+**Result**: Simple, understandable code that's easy to maintain and extend.
+
+---
+
+<div align="center">
+
+**Ready to transform your data workflows?**
+
+[Get Started](#quick-start) • [View Documentation](#documentation)
+
+Built with ❤️ for teams that value simplicity and power in equal measure.
+
+</div>
