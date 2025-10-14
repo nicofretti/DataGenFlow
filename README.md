@@ -14,7 +14,9 @@
 
 ### DataGenFlow in Action
 
-https://github.com/nicofretti/DataGenFlow/blob/develop/images/video/minimal.mp4
+https://github.com/user-attachments/assets/ed1d7645-4cd6-46c0-ab29-38a5df4f9813
+
+*Video demonstration coming soon*
 
 Define seeds → Build pipeline → Review results → Export data
 
