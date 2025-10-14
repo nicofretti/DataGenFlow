@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { Box, Heading, Text, Button, Flash, Label } from "@primer/react";
-import { PencilIcon, TrashIcon, PlusIcon, BeakerIcon } from "@primer/octicons-react";
+import {
+  PencilIcon,
+  TrashIcon,
+  PlusIcon,
+  BeakerIcon,
+  DownloadIcon,
+} from "@primer/octicons-react";
 import PipelineEditor from "../components/pipeline-editor/PipelineEditor";
 
 interface Pipeline {
@@ -17,6 +23,7 @@ interface Template {
   id: string;
   name: string;
   description: string;
+  example_seed?: any;
 }
 
 export default function Pipelines() {
@@ -124,6 +131,22 @@ export default function Pipelines() {
     }
   };
 
+  const downloadExampleSeed = (template: Template) => {
+    if (!template.example_seed) return;
+
+    const blob = new Blob([JSON.stringify(template.example_seed, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `seed_${template.id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // show editor if editing
   if (editing) {
     return (
@@ -189,13 +212,9 @@ export default function Pipelines() {
                   borderRadius: 2,
                   p: 3,
                   bg: "canvas.subtle",
-                  cursor: "pointer",
-                  transition: "border-color 0.2s",
-                  "&:hover": {
-                    borderColor: "accent.emphasis",
-                  },
+                  display: "flex",
+                  flexDirection: "column",
                 }}
-                onClick={() => createFromTemplate(template.id)}
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
                   <Box sx={{ color: "accent.fg" }}>
@@ -205,9 +224,31 @@ export default function Pipelines() {
                     {template.name}
                   </Heading>
                 </Box>
-                <Text sx={{ fontSize: 1, color: "fg.muted", lineHeight: 1.5 }}>
+                <Text sx={{ fontSize: 1, color: "fg.muted", lineHeight: 1.5, mb: 3, flexGrow: 1 }}>
                   {template.description}
                 </Text>
+
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <Button
+                    variant="default"
+                    sx={{ flex: 1 }}
+                    onClick={() => createFromTemplate(template.id)}
+                  >
+                    Use Template
+                  </Button>
+                  {template.example_seed && (
+                    <Button
+                      variant="default"
+                      leadingVisual={DownloadIcon}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadExampleSeed(template);
+                      }}
+                    >
+                      Download Seed
+                    </Button>
+                  )}
+                </Box>
               </Box>
             ))}
           </Box>

@@ -14,7 +14,9 @@
 
 ### DataGenFlow in Action
 
-*[Video demonstration coming soon]*
+<video controls>
+  <source src="images/video/minimal.mp4" type="video/mp4">
+</video>
 
 Define seeds → Build pipeline → Review results → Export data
 
@@ -93,39 +95,18 @@ Fields:
 
 Design your data generation workflow using drag-and-drop blocks. Each block processes data and passes it to the next one.
 
-Available Built-in Blocks:
+#### Built-in Blocks
+
+Start with ready-to-use blocks:
 - LLM Generator: Generate text using AI models (OpenAI, Ollama, etc.)
 - Validator: Check quality (length, forbidden words, patterns)
 - JSON Validator: Ensure structured data correctness
-- Output Formatter: Format results for export
-- Other blocks are under development, help us to expand [contribute!](#contributing)
+- Output Formatter: Format results for review page
+- ... waiting for more!
 
-Accumulated State:
+#### Extend with Custom Blocks
 
-As data flows through your pipeline, each block adds its outputs to an accumulated state. This means every block automatically has access to all data from previous blocks—no manual wiring needed.
-
-Example flow:
-```
-    ┌─────────────────┐
-    │   LLM Block     │ → outputs: {"assistant": "Generated text"}
-    └─────────────────┘
-        │
-        ▼ (accumulated state: assistant)
-    ┌─────────────────┐
-    │ Validator Block │ → outputs: {"is_valid": true}
-    └─────────────────┘
-        │
-        ▼ (accumulated state: assistant, is_valid)
-    ┌─────────────────┐
-    │  Output Block   │ ← can access: assistant, is_valid
-    └─────────────────┘
-```
-
-This makes building complex pipelines incredibly simple—just connect blocks and they automatically share data.
-
-Custom Blocks:
-
-Need domain-specific logic? Create a custom block in minutes:
+The real power of DataGenFlow is creating your own blocks. Add domain-specific logic in minutes with automatic discovery:
 
 ```python
 from lib.blocks.base import BaseBlock
@@ -148,9 +129,37 @@ class SentimentAnalyzerBlock(BaseBlock):
         }
 ```
 
-Blocks are automatically discovered when you restart—just drop your file in `user_blocks/` and it appears in the editor.
+Drop your file in `user_blocks/` and it's automatically discovered on restart—no configuration needed.
 
-📚 Learn more: [Custom Block Development Guide](docs/how_to_create_blocks.md)
+Why this matters:
+- Adapt to your specific domain or workflow instantly
+- Integrate proprietary validation logic or data sources
+- Build reusable components for your team
+- Share blocks as Python files—simple as copy/paste
+
+📚 Complete guide: [Custom Block Development](docs/how_to_create_blocks.md)
+
+#### Accumulated State
+
+Data flows automatically through your pipeline. Each block adds its outputs to an accumulated state that every subsequent block can access—no manual wiring:
+
+```
+    ┌─────────────────┐
+    │   LLM Block     │ → outputs: {"assistant": "Generated text"}
+    └─────────────────┘
+        │
+        ▼ (state: assistant)
+    ┌─────────────────┐
+    │ Validator Block │ → outputs: {"is_valid": true}
+    └─────────────────┘
+        │
+        ▼ (state: assistant, is_valid)
+    ┌─────────────────┐
+    │  Output Block   │ ← can access both: assistant, is_valid
+    └─────────────────┘
+```
+
+This makes building complex pipelines incredibly simple—connect blocks and they automatically share data.
 
 ### 3. Review and Refine
 
