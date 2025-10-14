@@ -90,7 +90,7 @@ class Storage:
             if self.db_path != ":memory:":
                 await db.close()
 
-    async def _migrate_schema(self, db) -> None:
+    async def _migrate_schema(self, db: Connection) -> None:
         # check if pipeline_id column exists
         cursor = await db.execute("PRAGMA table_info(records)")
         columns = await cursor.fetchall()
@@ -108,7 +108,7 @@ class Storage:
         if "trace" not in column_names:
             await db.execute("ALTER TABLE records ADD COLUMN trace TEXT")
 
-    async def _execute_with_connection(self, func: Callable[[Connection], Any]) -> Any:  # type: ignore[misc]
+    async def _execute_with_connection(self, func: Callable[[Connection], Any]) -> Any:
         # helper to execute with appropriate connection handling
         if self._conn:
             return await func(self._conn)
@@ -121,7 +121,7 @@ class Storage:
     ) -> int:
         now = datetime.now()
 
-        async def _save(db):
+        async def _save(db: Connection) -> int:
             cursor = await db.execute(
                 """
                 INSERT INTO records (
@@ -142,7 +142,7 @@ class Storage:
                 ),
             )
             await db.commit()
-            return cursor.lastrowid or 0
+            return cursor.lastrowid if cursor.lastrowid is not None else 0
 
         return await self._execute_with_connection(_save)
 
@@ -153,12 +153,12 @@ class Storage:
         offset: int = 0,
         job_id: int | None = None,
     ) -> list[Record]:
-        async def _get_all(db):
+        async def _get_all(db: Connection) -> list[Record]:
             db.row_factory = aiosqlite.Row
 
             # build query with filters
             where_clauses = []
-            params = []
+            params: list[str | int] = []
 
             if status:
                 where_clauses.append("status = ?")
@@ -186,7 +186,7 @@ class Storage:
         return await self._execute_with_connection(_get_all)
 
     async def get_by_id(self, record_id: int) -> Record | None:
-        async def _get(db):
+        async def _get(db: Connection) -> Record | None:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM records WHERE id = ?", (record_id,))
             row = await cursor.fetchone()
@@ -199,7 +199,7 @@ class Storage:
             return False
 
         valid_fields = {"output", "status", "metadata"}
-        update_fields = {k: v for k, v in updates.items() if k in valid_fields}
+        update_fields: dict[str, Any] = {k: v for k, v in updates.items() if k in valid_fields}
 
         if not update_fields:
             return False
@@ -213,9 +213,9 @@ class Storage:
         update_fields["updated_at"] = datetime.now()
 
         set_clause = ", ".join(f"{k} = ?" for k in update_fields.keys())
-        values = list(update_fields.values()) + [record_id]
+        values: list[Any] = list(update_fields.values()) + [record_id]
 
-        async def _update(db):
+        async def _update(db: Connection) -> bool:
             cursor = await db.execute(f"UPDATE records SET {set_clause} WHERE id = ?", values)
             await db.commit()
             return cursor.rowcount > 0
@@ -223,7 +223,7 @@ class Storage:
         return await self._execute_with_connection(_update)
 
     async def delete_all_records(self, job_id: int | None = None) -> int:
-        async def _delete(db):
+        async def _delete(db: Connection) -> int:
             if job_id:
                 cursor = await db.execute("DELETE FROM records WHERE job_id = ?", (job_id,))
                 count = cursor.rowcount
@@ -255,21 +255,21 @@ class Storage:
             lines.append(json.dumps(obj))
         return "\n".join(lines)
 
-    async def save_pipeline(self, name: str, definition: dict) -> int:
+    async def save_pipeline(self, name: str, definition: dict[str, Any]) -> int:
         now = datetime.now()
 
-        async def _save(db):
+        async def _save(db: Connection) -> int:
             cursor = await db.execute(
                 "INSERT INTO pipelines (name, definition, created_at) VALUES (?, ?, ?)",
                 (name, json.dumps(definition), now),
             )
             await db.commit()
-            return cursor.lastrowid or 0
+            return cursor.lastrowid if cursor.lastrowid is not None else 0
 
         return await self._execute_with_connection(_save)
 
-    async def get_pipeline(self, pipeline_id: int) -> dict | None:
-        async def _get(db):
+    async def get_pipeline(self, pipeline_id: int) -> dict[str, Any] | None:
+        async def _get(db: Connection) -> dict[str, Any] | None:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM pipelines WHERE id = ?", (pipeline_id,))
             row = await cursor.fetchone()
@@ -284,8 +284,8 @@ class Storage:
 
         return await self._execute_with_connection(_get)
 
-    async def list_pipelines(self) -> list[dict]:
-        async def _list(db):
+    async def list_pipelines(self) -> list[dict[str, Any]]:
+        async def _list(db: Connection) -> list[dict[str, Any]]:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM pipelines ORDER BY created_at DESC")
             rows = await cursor.fetchall()
@@ -301,8 +301,10 @@ class Storage:
 
         return await self._execute_with_connection(_list)
 
-    async def update_pipeline(self, pipeline_id: int, name: str, definition: dict) -> bool:
-        async def _update(db):
+    async def update_pipeline(
+        self, pipeline_id: int, name: str, definition: dict[str, Any]
+    ) -> bool:
+        async def _update(db: Connection) -> bool:
             cursor = await db.execute(
                 "UPDATE pipelines SET name = ?, definition = ? WHERE id = ?",
                 (name, json.dumps(definition), pipeline_id),
@@ -313,7 +315,7 @@ class Storage:
         return await self._execute_with_connection(_update)
 
     async def delete_pipeline(self, pipeline_id: int) -> bool:
-        async def _delete(db):
+        async def _delete(db: Connection) -> bool:
             # cascade delete: records -> jobs -> pipeline
             # delete all records for this pipeline
             await db.execute("DELETE FROM records WHERE pipeline_id = ?", (pipeline_id,))
@@ -331,19 +333,19 @@ class Storage:
     async def create_job(self, pipeline_id: int, total_seeds: int, status: str = "running") -> int:
         now = datetime.now()
 
-        async def _create(db):
+        async def _create(db: Connection) -> int:
             sql = (
                 "INSERT INTO jobs (pipeline_id, status, total_seeds, started_at) "
                 "VALUES (?, ?, ?, ?)"
             )
             cursor = await db.execute(sql, (pipeline_id, status, total_seeds, now))
             await db.commit()
-            return cursor.lastrowid or 0
+            return cursor.lastrowid if cursor.lastrowid is not None else 0
 
         return await self._execute_with_connection(_create)
 
-    async def get_job(self, job_id: int) -> dict | None:
-        async def _get(db):
+    async def get_job(self, job_id: int) -> dict[str, Any] | None:
+        async def _get(db: Connection) -> dict[str, Any] | None:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM jobs WHERE id = ?", (job_id,))
             row = await cursor.fetchone()
@@ -362,8 +364,10 @@ class Storage:
 
         return await self._execute_with_connection(_get)
 
-    async def list_jobs(self, pipeline_id: int | None = None, limit: int = 10) -> list[dict]:
-        async def _list(db):
+    async def list_jobs(
+        self, pipeline_id: int | None = None, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        async def _list(db: Connection) -> list[dict[str, Any]]:
             db.row_factory = aiosqlite.Row
             if pipeline_id:
                 cursor = await db.execute(
@@ -392,7 +396,7 @@ class Storage:
 
         return await self._execute_with_connection(_list)
 
-    async def update_job(self, job_id: int, **updates) -> bool:
+    async def update_job(self, job_id: int, **updates: Any) -> bool:
         if not updates:
             return False
 
@@ -404,9 +408,9 @@ class Storage:
             return True  # no database fields to update, but not an error
 
         set_clause = ", ".join(f"{k} = ?" for k in update_fields.keys())
-        values = list(update_fields.values()) + [job_id]
+        values: list[Any] = list(update_fields.values()) + [job_id]
 
-        async def _update(db):
+        async def _update(db: Connection) -> bool:
             cursor = await db.execute(f"UPDATE jobs SET {set_clause} WHERE id = ?", values)
             await db.commit()
             return cursor.rowcount > 0

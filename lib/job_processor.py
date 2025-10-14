@@ -91,11 +91,7 @@ async def _process_job(
 
         # calculate total executions
         total_executions = sum(
-            (
-                seed.get("repetitions", 1)
-                if isinstance(seed.get("repetitions"), int)
-                else 1
-            )
+            (seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1)
             for seed in seeds_data
         )
 
@@ -177,9 +173,7 @@ async def _process_job(
                     )
 
                     # save record with job_id
-                    await storage.save_record(
-                        record, pipeline_id=pipeline_id, job_id=job_id
-                    )
+                    await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
                     records_generated += 1
 
                     # update count and clear block info
@@ -198,9 +192,7 @@ async def _process_job(
 
                 except Exception as e:
                     records_failed += 1
-                    logger.error(
-                        f"[Job {job_id}] Execution {execution_index} failed: {e}"
-                    )
+                    logger.error(f"[Job {job_id}] Execution {execution_index} failed: {e}")
 
                     # update failed count
                     job_queue.update_job(job_id, records_failed=records_failed)

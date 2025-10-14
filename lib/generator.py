@@ -1,3 +1,5 @@
+from typing import Any
+
 import httpx
 
 from config import settings
@@ -12,16 +14,16 @@ class Generator:
         self.model = self.config.model or settings.LLM_MODEL
         self.api_key = settings.LLM_API_KEY
 
-    def render_template(self, template: str, metadata: dict[str, str | int | float]) -> str:
+    def render_template(self, template: str, metadata: dict[str, Any]) -> str:
         return render_template(template, metadata)
 
     async def generate(self, system: str, user: str) -> str:
-        headers = {"Content-Type": "application/json"}
+        headers: dict[str, str] = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
         # openai-compatible format (works with ollama, openai, anthropic)
-        payload = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system},
@@ -41,6 +43,7 @@ class Generator:
 
             # openai format response
             if "choices" in data and len(data["choices"]) > 0:
-                return data["choices"][0]["message"]["content"]
+                content: str = data["choices"][0]["message"]["content"]
+                return content
             else:
                 raise ValueError(f"unexpected response format: {data}")

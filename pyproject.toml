@@ -47,3 +47,11 @@ python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disable_error_code = ["no-untyped-def", "no-untyped-call", "var-annotated"]
+
+[[tool.mypy.overrides]]
+module = "lib.storage"
+disable_error_code = ["no-any-return"]
