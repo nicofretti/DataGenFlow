@@ -45,7 +45,8 @@ class JobQueue:
     def get_job(self, job_id: int) -> dict[str, Any] | None:
         """get job metadata by id"""
         with self._lock:
-            return self._jobs.get(job_id)
+            job = self._jobs.get(job_id)
+            return job.copy() if job is not None else None
 
     def update_job(self, job_id: int, **updates: Any) -> bool:
         """update job metadata"""
@@ -56,12 +57,13 @@ class JobQueue:
             job = self._jobs[job_id]
             job.update(updates)
 
-            # clear active job if completed/failed/cancelled
-            if updates.get("status") in ["completed", "failed", "cancelled"]:
+            # clear active job if terminal status and set completed_at consistently
+            status = updates.get("status")
+            if status in ["completed", "failed", "cancelled"]:
                 if self._active_job == job_id:
                     self._active_job = None
-                if updates.get("status") != "cancelled":
-                    job["completed_at"] = datetime.now().isoformat()
+                # set completed_at for any terminal status
+                job["completed_at"] = datetime.now().isoformat()
 
             return True
 
@@ -109,13 +111,14 @@ class JobQueue:
         with self._lock:
             if self._active_job is None:
                 return None
-            return self._jobs.get(self._active_job)
+            job = self._jobs.get(self._active_job)
+            return job.copy() if job is not None else None
 
     def get_pipeline_history(self, pipeline_id: int) -> list[dict[str, Any]]:
         """get last 10 jobs for a pipeline"""
         with self._lock:
             job_ids = list(self._job_history.get(pipeline_id, []))
-            return [self._jobs[jid] for jid in job_ids if jid in self._jobs]
+            return [self._jobs[jid].copy() for jid in job_ids if jid in self._jobs]
 
     def _add_to_history(self, pipeline_id: int, job_id: int) -> None:
         """add job to pipeline history (max 10 jobs)"""
