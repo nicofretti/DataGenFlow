@@ -274,6 +274,26 @@ GET /api/export/download?status=accepted
 
 ## Debugging
 
+### Debugging Custom Blocks
+
+DataGenFlow provides a simple debugging workflow using VS Code:
+
+1. Create your pipeline using the visual editor
+2. Note the pipeline ID from the UI (click "Debug Instructions" to expand)
+3. Open `debug_pipeline.py` and set:
+   - `PIPELINE_ID` to your pipeline ID
+   - `SEED_DATA` with test input
+4. Set breakpoints in your custom blocks
+5. Press F5 in VS Code and select "Debug Pipeline"
+
+The debugger will stop at your breakpoints, allowing you to inspect variables, step through code, and debug your custom block logic.
+
+**Tips:**
+- Use the "Copy" button next to pipeline ID in the UI
+- Edit seed data directly in debug_pipeline.py for fast iteration
+- The pipeline executes exactly as it would in production
+- No need to rebuild frontend - pipelines persist in database
+
 ### Debug Mode
 
 Enable detailed logging in `.env`:
