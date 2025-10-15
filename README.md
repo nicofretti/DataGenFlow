@@ -12,8 +12,6 @@
 
 <div align="center">
 
-### DataGenFlow in Action
-
 https://github.com/user-attachments/assets/7ca7a319-e2c1-4e24-a4c7-2b098d692aa1
 
 Full video [here!](images/video/full_video.mp4)

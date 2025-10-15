@@ -1,4 +1,4 @@
-# Contributing to QADataGen
+# Contributing to DataGenFlow
 
 Thank you for your interest in contributing! This document provides guidelines for contributing to the project.
 
@@ -7,7 +7,7 @@ Thank you for your interest in contributing! This document provides guidelines f
 1. **Fork the repository**
 2. **Clone your fork**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/QADataGen.git
+   git clone https://github.com/YOUR_USERNAME/DataGenFlow.git
    cd QADataGen
    ```
 3. **Set up development environment**:
@@ -180,4 +180,5 @@ def process_data(data):
 ## Questions?
 
 Feel free to open an issue or reach out to maintainers if you have questions about contributing.
+
 
