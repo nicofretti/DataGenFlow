@@ -21,7 +21,12 @@ import {
   XCircleIcon,
   TrashIcon,
   DownloadIcon,
+  GearIcon,
 } from "@primer/octicons-react";
+import ConfigureFieldsModal from "../components/ConfigureFieldsModal";
+import SingleRecordView from "../components/SingleRecordView";
+import TableRecordView from "../components/TableRecordView";
+import RecordDetailsModal from "../components/RecordDetailsModal";
 
 interface Record {
   id: number;
@@ -45,6 +50,13 @@ interface Pipeline {
     name: string;
     blocks: any[];
   };
+  validation_config?: {
+    field_order: {
+      primary: string[];
+      secondary: string[];
+      hidden: string[];
+    };
+  } | null;
 }
 
 interface Job {
@@ -67,8 +79,14 @@ export default function Review() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
+  const [currentPipeline, setCurrentPipeline] = useState<Pipeline | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<number | null>(null);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [viewMode, setViewMode] = useState<"single" | "table">("single");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [recordsPerPage, setRecordsPerPage] = useState(10);
+  const [selectedRecordForDetails, setSelectedRecordForDetails] = useState<Record | null>(null);
 
   const currentRecord = records[currentIndex] || null;
 
@@ -79,6 +97,21 @@ export default function Review() {
       setPipelines(data);
     } catch {
       // silent fail - pipelines filter is optional
+    }
+  }, []);
+
+  const loadCurrentPipeline = useCallback(async (pipelineId: number) => {
+    try {
+      const res = await fetch(`/api/pipelines/${pipelineId}`);
+      const data = await res.json();
+      setCurrentPipeline(data);
+
+      // show config modal if validation_config is null
+      if (!data.validation_config) {
+        setShowConfigModal(true);
+      }
+    } catch {
+      // silent fail - pipeline is optional
     }
   }, []);
 
@@ -181,12 +214,14 @@ export default function Review() {
 
   useEffect(() => {
     if (selectedPipeline) {
+      loadCurrentPipeline(selectedPipeline);
       loadJobs(selectedPipeline);
     } else {
+      setCurrentPipeline(null);
       setJobs([]);
       setSelectedJob(null);
     }
-  }, [selectedPipeline, loadJobs]);
+  }, [selectedPipeline, loadCurrentPipeline, loadJobs]);
 
   // reset index when changing filter
   useEffect(() => {
@@ -204,6 +239,11 @@ export default function Review() {
     }
   }, [records.length, currentIndex]);
 
+  // reset page when changing filters
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, selectedJob]);
+
   // keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -213,6 +253,8 @@ export default function Review() {
         updateStatus(currentRecord.id, "accepted");
       } else if (e.key === "r" && currentRecord) {
         updateStatus(currentRecord.id, "rejected");
+      } else if (e.key === "u" && currentRecord) {
+        updateStatus(currentRecord.id, "pending");
       } else if (e.key === "e" && currentRecord) {
         startEditing();
       } else if (e.key === "n" && currentIndex < records.length - 1) {
@@ -273,6 +315,28 @@ export default function Review() {
     window.location.href = url;
   };
 
+  // pagination helpers
+  const getCurrentPageRecords = () => {
+    const start = (currentPage - 1) * recordsPerPage;
+    const end = start + recordsPerPage;
+    return records.slice(start, end);
+  };
+
+  // bulk operations
+  const handleBulkAccept = async () => {
+    const visibleRecords = getCurrentPageRecords();
+    await Promise.all(
+      visibleRecords.map((r) => updateStatus(r.id, "accepted"))
+    );
+  };
+
+  const handleBulkReject = async () => {
+    const visibleRecords = getCurrentPageRecords();
+    await Promise.all(
+      visibleRecords.map((r) => updateStatus(r.id, "rejected"))
+    );
+  };
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case "pending":
@@ -299,6 +363,29 @@ export default function Review() {
         </Box>
 
         <Box sx={{ display: "flex", gap: 2 }}>
+          {selectedPipeline && (
+            <>
+              <Button
+                variant={viewMode === "single" ? "primary" : "default"}
+                onClick={() => setViewMode("single")}
+              >
+                Single View
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "primary" : "default"}
+                onClick={() => setViewMode("table")}
+              >
+                Table View
+              </Button>
+              <Button
+                leadingVisual={GearIcon}
+                onClick={() => setShowConfigModal(true)}
+                disabled={!currentPipeline}
+              >
+                Configure Layout
+              </Button>
+            </>
+          )}
           <Button
             variant="primary"
             leadingVisual={DownloadIcon}
@@ -454,6 +541,24 @@ export default function Review() {
               bg: "canvas.subtle",
             }}
           >
+            U
+          </Box>
+          <Text sx={{ color: "fg.default" }}>Set Pending</Text>
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box
+            as="kbd"
+            sx={{
+              padding: "2px 6px",
+              border: "1px solid",
+              borderColor: "border.default",
+              borderRadius: "3px",
+              fontSize: "11px",
+              fontFamily: "monospace",
+              color: "fg.default",
+              bg: "canvas.subtle",
+            }}
+          >
             E
           </Box>
           <Text sx={{ color: "fg.default" }}>Edit</Text>
@@ -522,342 +627,92 @@ export default function Review() {
         >
           <Text sx={{ color: "fg.default" }}>No {filterStatus} records found</Text>
         </Box>
+      ) : viewMode === "table" ? (
+        <TableRecordView
+          records={getCurrentPageRecords()}
+          validationConfig={currentPipeline?.validation_config || null}
+          currentPage={currentPage}
+          recordsPerPage={recordsPerPage}
+          totalRecords={records.length}
+          onAccept={(id) => updateStatus(id, "accepted")}
+          onReject={(id) => updateStatus(id, "rejected")}
+          onSetPending={(id) => updateStatus(id, "pending")}
+          onViewDetails={(record) => setSelectedRecordForDetails(record)}
+          onPageChange={setCurrentPage}
+          onRecordsPerPageChange={(perPage) => {
+            setRecordsPerPage(perPage);
+            setCurrentPage(1);
+          }}
+          onBulkAccept={handleBulkAccept}
+          onBulkReject={handleBulkReject}
+        />
       ) : currentRecord ? (
-        <Box>
-          {/* progress indicator */}
-          <Box
-            sx={{ mb: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}
-          >
-            <Text sx={{ fontSize: 1, color: "fg.default" }}>
-              Record {currentIndex + 1} of {records.length}
-            </Text>
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <Button
-                size="small"
-                leadingVisual={ChevronLeftIcon}
-                onClick={goToPrevious}
-                disabled={currentIndex === 0}
-              >
-                Previous
-              </Button>
-              <Button
-                size="small"
-                trailingVisual={ChevronRightIcon}
-                onClick={goToNext}
-                disabled={currentIndex === records.length - 1}
-              >
-                Next
-              </Button>
-            </Box>
-          </Box>
-
-          {/* single card view */}
-          <Box
-            sx={{
-              border: "1px solid",
-              borderColor: "border.default",
-              borderRadius: 2,
-              p: 4,
-              bg: "canvas.subtle",
-            }}
-          >
-            <Box
-              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <Text sx={{ fontWeight: "bold", color: "fg.default", fontSize: 1 }}>
-                  #{currentRecord.id}
-                </Text>
-                <Label variant={getStatusVariant(currentRecord.status)}>
-                  {currentRecord.status}
-                </Label>
-              </Box>
-            </Box>
-
-            {/* final output - main focus */}
-            <Box sx={{ mb: 4 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                <Box sx={{ color: "fg.default" }}>
-                  <CommentIcon size={16} />
-                </Box>
-                <Text as="div" sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default" }}>
-                  Pipeline Output
-                </Text>
-              </Box>
-              {isEditing ? (
-                <Box>
-                  <Textarea
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    rows={12}
-                    sx={{
-                      width: "100%",
-                      fontFamily: "mono",
-                      fontSize: 1,
-                      color: "fg.default",
-                      bg: "canvas.default",
-                      borderColor: "border.default",
-                    }}
-                  />
-                  <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-                    <Button size="small" variant="primary" onClick={saveEdit}>
-                      Save
-                    </Button>
-                    <Button size="small" onClick={() => setIsEditing(false)}>
-                      Cancel
-                    </Button>
-                  </Box>
-                </Box>
-              ) : (
-                <Box
-                  sx={{
-                    border: "1px solid",
-                    borderColor: "border.default",
-                    borderRadius: 2,
-                    p: 3,
-                    bg: "canvas.default",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      maxHeight: isExpanded ? "none" : "200px",
-                      overflow: isExpanded ? "visible" : "hidden",
-                      position: "relative",
-                    }}
-                  >
-                    {(() => {
-                      const output = getFinalOutput(currentRecord);
-                      const outputStr =
-                        typeof output === "string" ? output : JSON.stringify(output);
-                      return (
-                        <>
-                          <Text
-                            as="div"
-                            sx={{
-                              fontSize: 2,
-                              whiteSpace: "pre-wrap",
-                              lineHeight: 1.6,
-                              color: "fg.default",
-                            }}
-                          >
-                            {outputStr}
-                          </Text>
-                          {!isExpanded && outputStr.length > 500 && (
-                            <Box
-                              sx={{
-                                position: "absolute",
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                height: "60px",
-                                background: "linear-gradient(transparent, var(--bgColor-default))",
-                              }}
-                            />
-                          )}
-                        </>
-                      );
-                    })()}
-                  </Box>
-                  {(() => {
-                    const output = getFinalOutput(currentRecord);
-                    const outputStr = typeof output === "string" ? output : JSON.stringify(output);
-                    return (
-                      outputStr.length > 500 && (
-                        <Button
-                          size="small"
-                          variant="invisible"
-                          onClick={() => setIsExpanded(!isExpanded)}
-                          sx={{ mt: 2 }}
-                        >
-                          {isExpanded ? "Show less" : "Show more"}
-                        </Button>
-                      )
-                    );
-                  })()}
-                </Box>
-              )}
-            </Box>
-
-            {/* final accumulated state - collapsible */}
-            {currentRecord.trace &&
-              currentRecord.trace.length > 0 &&
-              (() => {
-                const finalState =
-                  currentRecord.trace[currentRecord.trace.length - 1].accumulated_state;
-                return (
-                  finalState && (
-                    <Box
-                      sx={{
-                        border: "1px solid",
-                        borderColor: "border.muted",
-                        borderRadius: 2,
-                        p: 3,
-                        bg: "canvas.inset",
-                        mb: 3,
-                      }}
-                    >
-                      <details>
-                        <summary
-                          style={{
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            marginBottom: "12px",
-                            color: "inherit",
-                          }}
-                        >
-                          <Box
-                            component="span"
-                            sx={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 1,
-                              color: "fg.default",
-                            }}
-                          >
-                            <Text sx={{ fontSize: 1, fontWeight: "semibold", color: "fg.default" }}>
-                              Final Accumulated State
-                            </Text>
-                          </Box>
-                        </summary>
-
-                        <Box sx={{ mt: 2 }}>
-                          <Box
-                            sx={{
-                              fontFamily: "mono",
-                              fontSize: 0,
-                              p: 2,
-                              bg: "canvas.default",
-                              borderRadius: 1,
-                              overflow: "auto",
-                              maxHeight: "400px",
-                              color: "fg.default",
-                            }}
-                          >
-                            <pre style={{ margin: 0 }}>{JSON.stringify(finalState, null, 2)}</pre>
-                          </Box>
-                        </Box>
-                      </details>
-                    </Box>
-                  )
-                );
-              })()}
-
-            {/* execution trace - collapsible */}
-            {currentRecord.trace && currentRecord.trace.length > 0 && (
-              <Box
-                sx={{
-                  border: "1px solid",
-                  borderColor: "border.muted",
-                  borderRadius: 2,
-                  p: 3,
-                  bg: "canvas.inset",
-                }}
-              >
-                <details>
-                  <summary
-                    style={{
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      marginBottom: "12px",
-                      color: "inherit",
-                    }}
-                  >
-                    <Box
-                      component="span"
-                      sx={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 1,
-                        color: "fg.default",
-                      }}
-                    >
-                      <Text sx={{ fontSize: 1, fontWeight: "semibold", color: "fg.default" }}>
-                        Execution Trace ({currentRecord.trace.length} blocks)
-                      </Text>
-                    </Box>
-                  </summary>
-
-                  <Box sx={{ mt: 2 }}>
-                    {currentRecord.trace.map((step, index) => (
-                      <Box
-                        key={index}
-                        sx={{
-                          mb: 3,
-                          pb: 3,
-                          borderBottom:
-                            index < currentRecord.trace!.length - 1 ? "1px solid" : "none",
-                          borderColor: step.error ? "danger.emphasis" : "border.muted",
-                        }}
-                      >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-                          <Text
-                            as="div"
-                            sx={{
-                              fontSize: 1,
-                              fontWeight: "semibold",
-                              color: step.error ? "danger.fg" : "fg.default",
-                            }}
-                          >
-                            {index + 1}. {step.block_type}
-                          </Text>
-                          {step.error && (
-                            <Label variant="danger" sx={{ fontSize: 0 }}>
-                              Failed
-                            </Label>
-                          )}
-                        </Box>
-                        {step.error && (
-                          <Flash variant="danger" sx={{ mb: 2, fontSize: 0 }}>
-                            {step.error}
-                          </Flash>
-                        )}
-                        <Box
-                          sx={{
-                            fontFamily: "mono",
-                            fontSize: 0,
-                            p: 2,
-                            bg: "canvas.default",
-                            borderRadius: 1,
-                            overflow: "auto",
-                            maxHeight: "200px",
-                            color: "fg.default",
-                          }}
-                        >
-                          <pre style={{ margin: 0 }}>
-                            {JSON.stringify({ input: step.input, output: step.output }, null, 2)}
-                          </pre>
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                </details>
-              </Box>
-            )}
-
-            {filterStatus === "pending" && !isEditing && (
-              <Box sx={{ display: "flex", gap: 2, mt: 4 }}>
-                <Button
-                  variant="primary"
-                  size="medium"
-                  onClick={() => updateStatus(currentRecord.id, "accepted")}
-                >
-                  Accept <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>A</kbd>
-                </Button>
-                <Button
-                  variant="danger"
-                  size="medium"
-                  onClick={() => updateStatus(currentRecord.id, "rejected")}
-                >
-                  Reject <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>R</kbd>
-                </Button>
-                <Button size="medium" onClick={startEditing}>
-                  Edit <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>E</kbd>
-                </Button>
-              </Box>
-            )}
-          </Box>
-        </Box>
+        <SingleRecordView
+          record={currentRecord}
+          validationConfig={currentPipeline?.validation_config || null}
+          currentIndex={currentIndex}
+          totalRecords={records.length}
+          onNext={goToNext}
+          onPrevious={goToPrevious}
+          onAccept={() => updateStatus(currentRecord.id, "accepted")}
+          onReject={() => updateStatus(currentRecord.id, "rejected")}
+          onSetPending={() => updateStatus(currentRecord.id, "pending")}
+          onEdit={async (updates) => {
+            await fetch(`/api/records/${currentRecord.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(updates),
+            });
+            loadRecords();
+            loadStats();
+          }}
+          isPending={filterStatus === "pending"}
+        />
       ) : null}
+
+      {/* Configuration Modal */}
+      {showConfigModal && selectedPipeline && (
+        <ConfigureFieldsModal
+          pipelineId={selectedPipeline}
+          onClose={() => setShowConfigModal(false)}
+          onSave={() => {
+            setShowConfigModal(false);
+            loadCurrentPipeline(selectedPipeline);
+            setMessage({ type: "success", text: "Field layout saved successfully" });
+          }}
+        />
+      )}
+
+      {/* Record Details Modal */}
+      {selectedRecordForDetails && (
+        <RecordDetailsModal
+          record={selectedRecordForDetails}
+          validationConfig={currentPipeline?.validation_config || null}
+          onClose={() => setSelectedRecordForDetails(null)}
+          onAccept={async () => {
+            await updateStatus(selectedRecordForDetails.id, "accepted");
+            setSelectedRecordForDetails(null);
+          }}
+          onReject={async () => {
+            await updateStatus(selectedRecordForDetails.id, "rejected");
+            setSelectedRecordForDetails(null);
+          }}
+          onSetPending={async () => {
+            await updateStatus(selectedRecordForDetails.id, "pending");
+            setSelectedRecordForDetails(null);
+          }}
+          onEdit={async (updates) => {
+            await fetch(`/api/records/${selectedRecordForDetails.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(updates),
+            });
+            await loadRecords();
+            await loadStats();
+            setSelectedRecordForDetails(null);
+          }}
+        />
+      )}
     </Box>
   );
 }
