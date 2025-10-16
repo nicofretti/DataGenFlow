@@ -1,0 +1,16 @@
+[
+  {
+    "repetitions": 2,
+    "metadata": {
+      "system": "You are a helpful assistant that answers questions about programming. Provide clear, concise answers with examples when appropriate.",
+      "user": "Explain what is a for loop in Python"
+    }
+  },
+  {
+    "repetitions": 1,
+    "metadata": {
+      "system": "You are a helpful assistant that answers questions about science. Use simple language and analogies to explain complex concepts.",
+      "user": "What causes the seasons to change?"
+    }
+  }
+]

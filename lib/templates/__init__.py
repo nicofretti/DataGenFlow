@@ -2,6 +2,7 @@
 Pipeline templates for quick onboarding and testing
 """
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,7 @@ class TemplateRegistry:
         if templates_dir is None:
             templates_dir = Path(__file__).parent
         self.templates_dir = templates_dir
+        self.seeds_dir = templates_dir / "seeds"
         self._templates: dict[str, dict[str, Any]] = {}
         self._load_templates()
 
@@ -25,6 +27,13 @@ class TemplateRegistry:
                 with open(template_file, "r") as f:
                     template_data = yaml.safe_load(f)
                     template_id = template_file.stem
+
+                    # load example seed if it exists
+                    seed_file = self.seeds_dir / f"seed_{template_id}.json"
+                    if seed_file.exists():
+                        with open(seed_file, "r") as sf:
+                            template_data["example_seed"] = json.load(sf)
+
                     self._templates[template_id] = template_data
             except Exception:
                 pass
@@ -36,6 +45,7 @@ class TemplateRegistry:
                 "id": template_id,
                 "name": template["name"],
                 "description": template["description"],
+                "example_seed": template.get("example_seed"),
             }
             for template_id, template in self._templates.items()
         ]
