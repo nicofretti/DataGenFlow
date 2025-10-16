@@ -91,7 +91,7 @@ class Storage:
                 await db.close()
 
     async def _migrate_schema(self, db: Connection) -> None:
-        # check if pipeline_id column exists
+        # check if pipeline_id column exists in records
         cursor = await db.execute("PRAGMA table_info(records)")
         columns = await cursor.fetchall()
         column_names = [col[1] for col in columns]
@@ -107,6 +107,15 @@ class Storage:
         # add trace if missing
         if "trace" not in column_names:
             await db.execute("ALTER TABLE records ADD COLUMN trace TEXT")
+
+        # check if validation_config column exists in pipelines
+        cursor = await db.execute("PRAGMA table_info(pipelines)")
+        pipeline_columns = await cursor.fetchall()
+        pipeline_column_names = [col[1] for col in pipeline_columns]
+
+        # add validation_config if missing
+        if "validation_config" not in pipeline_column_names:
+            await db.execute("ALTER TABLE pipelines ADD COLUMN validation_config TEXT")
 
     async def _execute_with_connection(self, func: Callable[[Connection], Any]) -> Any:
         # helper to execute with appropriate connection handling
@@ -280,6 +289,9 @@ class Storage:
                 "name": row["name"],
                 "definition": json.loads(row["definition"]),
                 "created_at": row["created_at"],
+                "validation_config": (
+                    json.loads(row["validation_config"]) if row["validation_config"] else None
+                ),
             }
 
         return await self._execute_with_connection(_get)
@@ -295,6 +307,9 @@ class Storage:
                     "name": row["name"],
                     "definition": json.loads(row["definition"]),
                     "created_at": row["created_at"],
+                    "validation_config": (
+                        json.loads(row["validation_config"]) if row["validation_config"] else None
+                    ),
                 }
                 for row in rows
             ]
@@ -308,6 +323,19 @@ class Storage:
             cursor = await db.execute(
                 "UPDATE pipelines SET name = ?, definition = ? WHERE id = ?",
                 (name, json.dumps(definition), pipeline_id),
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+
+        return await self._execute_with_connection(_update)
+
+    async def update_pipeline_validation_config(
+        self, pipeline_id: int, validation_config: dict[str, Any]
+    ) -> bool:
+        async def _update(db: Connection) -> bool:
+            cursor = await db.execute(
+                "UPDATE pipelines SET validation_config = ? WHERE id = ?",
+                (json.dumps(validation_config), pipeline_id),
             )
             await db.commit()
             return cursor.rowcount > 0
