@@ -14,6 +14,7 @@ from lib.blocks.registry import registry
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 from lib.job_processor import process_job_in_thread
 from lib.job_queue import JobQueue
+from lib.schema_utils import compute_accumulated_state_schema
 from lib.storage import Storage
 from lib.templates import template_registry
 from lib.workflow import Pipeline as WorkflowPipeline
@@ -343,6 +344,48 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
     except Exception as e:
         logger.exception(f"Unexpected error executing pipeline {pipeline_id}")
         return JSONResponse(status_code=500, content={"error": f"Unexpected error: {str(e)}"})
+
+
+@api.get("/pipelines/{pipeline_id}/accumulated_state_schema")
+async def get_accumulated_state_schema(pipeline_id: int) -> dict[str, list[str]]:
+    """get list of field names that will be in accumulated state for this pipeline"""
+    pipeline_data = await storage.get_pipeline(pipeline_id)
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="pipeline not found")
+
+    blocks = pipeline_data["definition"]["blocks"]
+    fields = compute_accumulated_state_schema(blocks)
+    return {"fields": fields}
+
+
+@api.put("/pipelines/{pipeline_id}/validation_config")
+async def update_validation_config(
+    pipeline_id: int, validation_config: dict[str, Any]
+) -> dict[str, bool]:
+    """update the validation_config for a pipeline"""
+    # validate structure
+    if "field_order" not in validation_config:
+        raise HTTPException(
+            status_code=400, detail="validation_config must have field_order property"
+        )
+
+    field_order = validation_config["field_order"]
+    if not isinstance(field_order, dict):
+        raise HTTPException(status_code=400, detail="field_order must be an object")
+
+    required_keys = {"primary", "secondary", "hidden"}
+    if not all(key in field_order for key in required_keys):
+        raise HTTPException(
+            status_code=400,
+            detail=f"field_order must have {required_keys} arrays",
+        )
+
+    # update database
+    success = await storage.update_pipeline_validation_config(pipeline_id, validation_config)
+    if not success:
+        raise HTTPException(status_code=404, detail="pipeline not found")
+
+    return {"success": True}
 
 
 @api.delete("/pipelines/{pipeline_id}")

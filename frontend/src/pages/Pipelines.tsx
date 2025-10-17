@@ -12,23 +12,7 @@ import {
   ToolsIcon,
 } from "@primer/octicons-react";
 import PipelineEditor from "../components/pipeline-editor/PipelineEditor";
-
-interface Pipeline {
-  id: number;
-  name: string;
-  definition: {
-    name: string;
-    blocks: Array<{ type: string; config: Record<string, any> }>;
-  };
-  created_at: string;
-}
-
-interface Template {
-  id: string;
-  name: string;
-  description: string;
-  example_seed?: any;
-}
+import type { Pipeline, Template } from "../types";
 
 export default function Pipelines() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -308,9 +292,11 @@ export default function Pipelines() {
                   <Heading as="h3" sx={{ fontSize: 2, mb: 1, color: "fg.default" }}>
                     {pipeline.definition.name}
                   </Heading>
-                  <Text sx={{ fontSize: 1, color: "fg.default" }}>
-                    Created: {new Date(pipeline.created_at).toLocaleString()}
-                  </Text>
+                  {pipeline.created_at && (
+                    <Text sx={{ fontSize: 1, color: "fg.default" }}>
+                      Created: {new Date(pipeline.created_at).toLocaleString()}
+                    </Text>
+                  )}
                 </Box>
                 <Box sx={{ display: "flex", gap: 2 }}>
                   <Button
