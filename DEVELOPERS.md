@@ -78,7 +78,7 @@ tests/
 ```bash
 # Clone repository
 git clone <repository-url>
-cd QADataGen
+cd DataGenFlow
 
 # Install dependencies
 make dev

@@ -1,10 +1,10 @@
-# How to Use QADataGen
+# How to Use DataGenFlow
 
-This guide walks you through using QADataGen to create datasets powered by LLMs.
+This guide walks you through using DataGenFlow to create datasets powered by LLMs.
 
 ## Overview
 
-QADataGen uses a three-phase workflow:
+DataGenFlow uses a three-phase workflow:
 
 1. **Build**: Create pipelines by connecting blocks
 2. **Generate**: Run pipelines on seed data to produce records

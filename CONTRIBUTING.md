@@ -8,7 +8,7 @@ Thank you for your interest in contributing! This document provides guidelines f
 2. **Clone your fork**:
    ```bash
    git clone https://github.com/YOUR_USERNAME/DataGenFlow.git
-   cd QADataGen
+   cd DataGenFlow
    ```
 3. **Set up development environment**:
    ```bash

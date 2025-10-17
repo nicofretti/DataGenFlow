@@ -1,6 +1,6 @@
 # How to Create Custom Blocks
 
-This guide shows you how to extend QADataGen with custom blocks.
+This guide shows you how to extend DataGenFlow with custom blocks.
 
 ## What is a Block?
 

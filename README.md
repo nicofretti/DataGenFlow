@@ -21,7 +21,7 @@ https://github.com/user-attachments/assets/7ca7a319-e2c1-4e24-a4c7-2b098d692aa1
 
 </div>
 
-## Why DataGenFlow?
+## Why DataGenFlow 🌱
 
 DataGenFlow transforms complex data generation workflows into intuitive visual pipelines. A minimal tool to help you generate and validate data from seed templates with full visibility.
 
