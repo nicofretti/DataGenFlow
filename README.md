@@ -13,13 +13,12 @@
 <div align="center">
 
 https://github.com/user-attachments/assets/7ca7a319-e2c1-4e24-a4c7-2b098d692aa1
-<br/>
-[![GitHub Repo stars](https://img.shields.io/github/stars/nicofretti/DataGenFlow?style=social)](https://github.com/nicofretti/DataGenFlow/stargazers)
 
 Full video [here!](images/video/full_video.mp4) 
 
 Define seeds → Build pipeline → Review results → Export data
 
+⭐ If you find DataGenFlow useful, please consider [leaving a star](https://github.com/nicofretti/DataGenFlow/stargazers) to help others discover it! ⭐
 </div>
 
 ## Why DataGenFlow?
