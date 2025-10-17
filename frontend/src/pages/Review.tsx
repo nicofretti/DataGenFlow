@@ -3,76 +3,34 @@ import {
   Box,
   Heading,
   Button,
-  Label,
   Text,
-  Textarea,
   SegmentedControl,
   CounterLabel,
   Flash,
   FormControl,
   Select,
+  ActionMenu,
+  ActionList,
 } from "@primer/react";
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CommentIcon,
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
   TrashIcon,
   DownloadIcon,
   GearIcon,
+  KebabHorizontalIcon,
 } from "@primer/octicons-react";
 import ConfigureFieldsModal from "../components/ConfigureFieldsModal";
 import SingleRecordView from "../components/SingleRecordView";
 import TableRecordView from "../components/TableRecordView";
 import RecordDetailsModal from "../components/RecordDetailsModal";
-
-interface Record {
-  id: number;
-  output: string;
-  status: string;
-  metadata: any;
-  trace?: Array<{
-    block_type: string;
-    input: any;
-    output: any;
-    accumulated_state?: any;
-    error?: string;
-  }>;
-  error?: string;
-}
-
-interface Pipeline {
-  id: number;
-  name: string;
-  definition: {
-    name: string;
-    blocks: any[];
-  };
-  validation_config?: {
-    field_order: {
-      primary: string[];
-      secondary: string[];
-      hidden: string[];
-    };
-  } | null;
-}
-
-interface Job {
-  id: number;
-  pipeline_id: number;
-  status: string;
-  records_generated: number;
-  records_failed: number;
-  started_at: string;
-}
+import type { RecordData, Pipeline, Job } from "../types";
 
 export default function Review() {
-  const [records, setRecords] = useState<Record[]>([]);
+  const [records, setRecords] = useState<RecordData[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"pending" | "accepted" | "rejected">("pending");
   const [stats, setStats] = useState({ pending: 0, accepted: 0, rejected: 0 });
@@ -83,12 +41,20 @@ export default function Review() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<number | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
-  const [viewMode, setViewMode] = useState<"single" | "table">("single");
+  const [viewMode, setViewMode] = useState<"single" | "table">(() => {
+    const saved = localStorage.getItem("review_view_mode");
+    return (saved as "single" | "table") || "table";
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(10);
-  const [selectedRecordForDetails, setSelectedRecordForDetails] = useState<Record | null>(null);
+  const [selectedRecordForDetails, setSelectedRecordForDetails] = useState<RecordData | null>(null);
 
   const currentRecord = records[currentIndex] || null;
+
+  // persist view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem("review_view_mode", viewMode);
+  }, [viewMode]);
 
   const loadPipelines = useCallback(async () => {
     try {
@@ -179,29 +145,11 @@ export default function Review() {
     [loadRecords, loadStats]
   );
 
-  // get final output from record
-  const getFinalOutput = (record: Record): string => {
-    return record.output || "";
-  };
-
   const startEditing = useCallback(() => {
     if (!currentRecord) return;
     setIsEditing(true);
-    setEditValue(getFinalOutput(currentRecord));
-    setIsExpanded(true); // expand when editing
+    setIsExpanded(true);
   }, [currentRecord]);
-
-  const saveEdit = async () => {
-    if (!currentRecord) return;
-    await fetch(`/api/records/${currentRecord.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ output: editValue, status: "edited" }),
-    });
-    setIsEditing(false);
-    loadRecords();
-    loadStats();
-  };
 
   useEffect(() => {
     loadPipelines();
@@ -308,48 +256,18 @@ export default function Review() {
     }
   };
 
-  const exportAccepted = () => {
+  const exportAll = () => {
     const url = selectedJob
-      ? `/api/export/download?status=accepted&job_id=${selectedJob}`
-      : `/api/export/download?status=accepted`;
+      ? `/api/export/download?job_id=${selectedJob}`
+      : `/api/export/download`;
     window.location.href = url;
   };
 
-  // pagination helpers
+  // pagination helper
   const getCurrentPageRecords = () => {
     const start = (currentPage - 1) * recordsPerPage;
     const end = start + recordsPerPage;
     return records.slice(start, end);
-  };
-
-  // bulk operations
-  const handleBulkAccept = async () => {
-    const visibleRecords = getCurrentPageRecords();
-    await Promise.all(
-      visibleRecords.map((r) => updateStatus(r.id, "accepted"))
-    );
-  };
-
-  const handleBulkReject = async () => {
-    const visibleRecords = getCurrentPageRecords();
-    await Promise.all(
-      visibleRecords.map((r) => updateStatus(r.id, "rejected"))
-    );
-  };
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "attention";
-      case "accepted":
-        return "success";
-      case "rejected":
-        return "danger";
-      case "edited":
-        return "accent";
-      default:
-        return "default";
-    }
   };
 
   return (
@@ -366,42 +284,40 @@ export default function Review() {
           {selectedPipeline && (
             <>
               <Button
-                variant={viewMode === "single" ? "primary" : "default"}
-                onClick={() => setViewMode("single")}
+                onClick={() => setViewMode(viewMode === "single" ? "table" : "single")}
               >
-                Single View
+                {viewMode === "single" ? "Table View" : "Single View"}
               </Button>
-              <Button
-                variant={viewMode === "table" ? "primary" : "default"}
-                onClick={() => setViewMode("table")}
-              >
-                Table View
-              </Button>
-              <Button
-                leadingVisual={GearIcon}
-                onClick={() => setShowConfigModal(true)}
-                disabled={!currentPipeline}
-              >
-                Configure Layout
-              </Button>
+              <ActionMenu>
+                <ActionMenu.Anchor>
+                  <Button leadingVisual={KebabHorizontalIcon} aria-label="More options" />
+                </ActionMenu.Anchor>
+                <ActionMenu.Overlay>
+                  <ActionList>
+                    <ActionList.Item onSelect={() => setShowConfigModal(true)}>
+                      <ActionList.LeadingVisual>
+                        <GearIcon />
+                      </ActionList.LeadingVisual>
+                      Configure Layout
+                    </ActionList.Item>
+                    <ActionList.Item onSelect={exportAll}>
+                      <ActionList.LeadingVisual>
+                        <DownloadIcon />
+                      </ActionList.LeadingVisual>
+                      Export All
+                    </ActionList.Item>
+                    <ActionList.Divider />
+                    <ActionList.Item variant="danger" onSelect={deleteAllRecords}>
+                      <ActionList.LeadingVisual>
+                        <TrashIcon />
+                      </ActionList.LeadingVisual>
+                      Delete All Records
+                    </ActionList.Item>
+                  </ActionList>
+                </ActionMenu.Overlay>
+              </ActionMenu>
             </>
           )}
-          <Button
-            variant="primary"
-            leadingVisual={DownloadIcon}
-            onClick={exportAccepted}
-            disabled={stats.accepted === 0}
-          >
-            Export Accepted
-          </Button>
-          <Button
-            variant="danger"
-            leadingVisual={TrashIcon}
-            onClick={deleteAllRecords}
-            disabled={records.length === 0}
-          >
-            Delete {selectedJob ? "Job" : "All"}
-          </Button>
         </Box>
       </Box>
 
@@ -489,117 +405,119 @@ export default function Review() {
         </SegmentedControl>
       </Box>
 
-      {/* keyboard shortcuts hint */}
-      <Box sx={{ mb: 3, display: "flex", gap: 3, fontSize: 1, alignItems: "center" }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            as="kbd"
-            sx={{
-              padding: "2px 6px",
-              border: "1px solid",
-              borderColor: "border.default",
-              borderRadius: "3px",
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "fg.default",
-              bg: "canvas.subtle",
-            }}
-          >
-            A
+      {/* keyboard shortcuts hint - only in single view */}
+      {viewMode === "single" && selectedPipeline && records.length > 0 && (
+        <Box sx={{ my: 3, display: "flex", gap: 3, fontSize: 1, alignItems: "center", justifyContent: "center" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              as="kbd"
+              sx={{
+                padding: "2px 6px",
+                border: "1px solid",
+                borderColor: "border.default",
+                borderRadius: "3px",
+                fontSize: "11px",
+                fontFamily: "monospace",
+                color: "fg.default",
+                bg: "canvas.subtle",
+              }}
+            >
+              A
+            </Box>
+            <Text sx={{ color: "fg.default" }}>Accept</Text>
           </Box>
-          <Text sx={{ color: "fg.default" }}>Accept</Text>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            as="kbd"
-            sx={{
-              padding: "2px 6px",
-              border: "1px solid",
-              borderColor: "border.default",
-              borderRadius: "3px",
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "fg.default",
-              bg: "canvas.subtle",
-            }}
-          >
-            R
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              as="kbd"
+              sx={{
+                padding: "2px 6px",
+                border: "1px solid",
+                borderColor: "border.default",
+                borderRadius: "3px",
+                fontSize: "11px",
+                fontFamily: "monospace",
+                color: "fg.default",
+                bg: "canvas.subtle",
+              }}
+            >
+              R
+            </Box>
+            <Text sx={{ color: "fg.default" }}>Reject</Text>
           </Box>
-          <Text sx={{ color: "fg.default" }}>Reject</Text>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            as="kbd"
-            sx={{
-              padding: "2px 6px",
-              border: "1px solid",
-              borderColor: "border.default",
-              borderRadius: "3px",
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "fg.default",
-              bg: "canvas.subtle",
-            }}
-          >
-            U
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              as="kbd"
+              sx={{
+                padding: "2px 6px",
+                border: "1px solid",
+                borderColor: "border.default",
+                borderRadius: "3px",
+                fontSize: "11px",
+                fontFamily: "monospace",
+                color: "fg.default",
+                bg: "canvas.subtle",
+              }}
+            >
+              U
+            </Box>
+            <Text sx={{ color: "fg.default" }}>Set Pending</Text>
           </Box>
-          <Text sx={{ color: "fg.default" }}>Set Pending</Text>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            as="kbd"
-            sx={{
-              padding: "2px 6px",
-              border: "1px solid",
-              borderColor: "border.default",
-              borderRadius: "3px",
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "fg.default",
-              bg: "canvas.subtle",
-            }}
-          >
-            E
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              as="kbd"
+              sx={{
+                padding: "2px 6px",
+                border: "1px solid",
+                borderColor: "border.default",
+                borderRadius: "3px",
+                fontSize: "11px",
+                fontFamily: "monospace",
+                color: "fg.default",
+                bg: "canvas.subtle",
+              }}
+            >
+              E
+            </Box>
+            <Text sx={{ color: "fg.default" }}>Edit</Text>
           </Box>
-          <Text sx={{ color: "fg.default" }}>Edit</Text>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            as="kbd"
-            sx={{
-              padding: "2px 6px",
-              border: "1px solid",
-              borderColor: "border.default",
-              borderRadius: "3px",
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "fg.default",
-              bg: "canvas.subtle",
-            }}
-          >
-            N
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              as="kbd"
+              sx={{
+                padding: "2px 6px",
+                border: "1px solid",
+                borderColor: "border.default",
+                borderRadius: "3px",
+                fontSize: "11px",
+                fontFamily: "monospace",
+                color: "fg.default",
+                bg: "canvas.subtle",
+              }}
+            >
+              N
+            </Box>
+            <Text sx={{ color: "fg.default" }}>Next</Text>
           </Box>
-          <Text sx={{ color: "fg.default" }}>Next</Text>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            as="kbd"
-            sx={{
-              padding: "2px 6px",
-              border: "1px solid",
-              borderColor: "border.default",
-              borderRadius: "3px",
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "fg.default",
-              bg: "canvas.subtle",
-            }}
-          >
-            P
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              as="kbd"
+              sx={{
+                padding: "2px 6px",
+                border: "1px solid",
+                borderColor: "border.default",
+                borderRadius: "3px",
+                fontSize: "11px",
+                fontFamily: "monospace",
+                color: "fg.default",
+                bg: "canvas.subtle",
+              }}
+            >
+              P
+            </Box>
+            <Text sx={{ color: "fg.default" }}>Previous</Text>
           </Box>
-          <Text sx={{ color: "fg.default" }}>Previous</Text>
         </Box>
-      </Box>
+      )}
 
       {!selectedPipeline ? (
         <Box
@@ -643,8 +561,6 @@ export default function Review() {
             setRecordsPerPage(perPage);
             setCurrentPage(1);
           }}
-          onBulkAccept={handleBulkAccept}
-          onBulkReject={handleBulkReject}
         />
       ) : currentRecord ? (
         <SingleRecordView
@@ -713,6 +629,7 @@ export default function Review() {
           }}
         />
       )}
+
     </Box>
   );
 }

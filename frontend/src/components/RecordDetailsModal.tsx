@@ -2,31 +2,10 @@ import { useEffect } from "react";
 import { Box, Button } from "@primer/react";
 import { XIcon } from "@primer/octicons-react";
 import SingleRecordView from "./SingleRecordView";
-
-interface Record {
-  id: number;
-  output: string;
-  status: string;
-  metadata: any;
-  trace?: Array<{
-    block_type: string;
-    input: any;
-    output: any;
-    accumulated_state?: any;
-    error?: string;
-  }>;
-}
-
-interface ValidationConfig {
-  field_order: {
-    primary: string[];
-    secondary: string[];
-    hidden: string[];
-  };
-}
+import type { RecordData, ValidationConfig } from "../types";
 
 interface RecordDetailsModalProps {
-  record: Record | null;
+  record: RecordData | null;
   validationConfig: ValidationConfig | null;
   onClose: () => void;
   onAccept: () => void;
@@ -88,7 +67,7 @@ export default function RecordDetailsModal({
           border: "1px solid",
           borderColor: "border.default",
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* close button */}
         <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>

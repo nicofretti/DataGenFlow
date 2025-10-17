@@ -7,31 +7,11 @@ import {
   XCircleIcon,
   ArrowLeftIcon,
 } from "@primer/octicons-react";
-
-interface Record {
-  id: number;
-  output: string;
-  status: string;
-  metadata: any;
-  trace?: Array<{
-    block_type: string;
-    input: any;
-    output: any;
-    accumulated_state?: any;
-    error?: string;
-  }>;
-}
-
-interface ValidationConfig {
-  field_order: {
-    primary: string[];
-    secondary: string[];
-    hidden: string[];
-  };
-}
+import type { RecordData, ValidationConfig } from "../types";
+import { getStatusVariant } from "../utils/status";
 
 interface SingleRecordViewProps {
-  record: Record;
+  record: RecordData;
   validationConfig: ValidationConfig | null;
   currentIndex: number;
   totalRecords: number;
@@ -90,21 +70,6 @@ export default function SingleRecordView({
   const cancelEdit = () => {
     setIsEditing(false);
     setIsExpanded(false);
-  };
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "attention";
-      case "accepted":
-        return "success";
-      case "rejected":
-        return "danger";
-      case "edited":
-        return "accent";
-      default:
-        return "default";
-    }
   };
 
   const renderFieldValue = (value: any, isLarge: boolean = false) => {

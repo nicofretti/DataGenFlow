@@ -14,16 +14,9 @@ import {
 } from "@primer/react";
 import { PlayIcon, XIcon, UploadIcon } from "@primer/octicons-react";
 import { useJob } from "../contexts/JobContext";
-import ErrorModal from "../components/ErrorModal";
-
-interface Pipeline {
-  id: number;
-  name: string;
-  definition: {
-    name: string;
-    blocks: any[];
-  };
-}
+import type { Pipeline } from "../types";
+import { getElapsedTime } from "../utils/format";
+import { getStatusColor } from "../utils/status";
 
 export default function Generator() {
   const navigate = useNavigate();
@@ -35,7 +28,6 @@ export default function Generator() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
-  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
     fetchPipelines();
@@ -98,20 +90,14 @@ export default function Generator() {
       // check not empty
       const seeds = Array.isArray(data) ? data : [data];
       if (seeds.length === 0) {
-        setErrorModal({
-          title: "Empty File",
-          message: "The file contains no seeds. Please add at least one seed with metadata.",
-        });
+        setMessage({ type: "error", text: "Empty file: The file contains no seeds. Please add at least one seed with metadata." });
         return;
       }
 
       // check basic structure
       for (let i = 0; i < seeds.length; i++) {
         if (!seeds[i].metadata) {
-          setErrorModal({
-            title: "Invalid Seed",
-            message: `Seed ${i + 1} is missing the required 'metadata' field.`,
-          });
+          setMessage({ type: "error", text: `Invalid seed: Seed ${i + 1} is missing the required 'metadata' field.` });
           return;
         }
       }
@@ -120,12 +106,9 @@ export default function Generator() {
       setFile(selectedFile);
       setMessage(null);
     } catch (e) {
-      setErrorModal({
-        title: "Invalid JSON",
-        message:
-          e instanceof Error
-            ? e.message
-            : "The file is not valid JSON. Please check your file syntax.",
+      setMessage({
+        type: "error",
+        text: e instanceof Error ? `Invalid JSON: ${e.message}` : "The file is not valid JSON. Please check your file syntax.",
       });
     }
   };
@@ -134,10 +117,7 @@ export default function Generator() {
     if (!file || !selectedPipeline) return;
 
     if (generating) {
-      setErrorModal({
-        title: "Job Already Running",
-        message: "A generation job is already in progress. Cancel it first or wait for completion.",
-      });
+      setMessage({ type: "error", text: "Job already running: A generation job is already in progress. Cancel it first or wait for completion." });
       return;
     }
 
@@ -156,10 +136,7 @@ export default function Generator() {
 
       if (!res.ok) {
         const error = await res.json();
-        setErrorModal({
-          title: "Generation Failed",
-          message: error.detail || "Failed to start generation. Please try again.",
-        });
+        setMessage({ type: "error", text: `Generation failed: ${error.detail || "Failed to start generation. Please try again."}` });
         return;
       }
 
@@ -170,12 +147,9 @@ export default function Generator() {
       const job = await jobRes.json();
       setCurrentJob(job);
     } catch (error) {
-      setErrorModal({
-        title: "Network Error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to connect to server. Please check your connection.",
+      setMessage({
+        type: "error",
+        text: error instanceof Error ? `Network error: ${error.message}` : "Failed to connect to server. Please check your connection.",
       });
     } finally {
       // always reset generating if there's no active job
@@ -198,33 +172,8 @@ export default function Generator() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    if (status === "completed") return "success";
-    if (status === "failed" || status === "cancelled") return "danger";
-    return "accent";
-  };
-
-  const getElapsedTime = (startTime: string) => {
-    const start = new Date(startTime);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - start.getTime()) / 1000);
-
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ${minutes % 60}m`;
-  };
-
   return (
     <Box>
-      <ErrorModal
-        isOpen={errorModal !== null}
-        onClose={() => setErrorModal(null)}
-        title={errorModal?.title || ""}
-        message={errorModal?.message || ""}
-      />
-
       <Box sx={{ mb: 4 }}>
         <Heading sx={{ mb: 2, color: "fg.default" }}>Generate Records</Heading>
         <Text sx={{ color: "fg.default" }}>

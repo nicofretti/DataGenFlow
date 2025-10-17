@@ -222,7 +222,7 @@ export default function ConfigureFieldsModal({
               draggable
               onDragStart={() => handleDragStart(field, section)}
               onDragOver={handleDragOver}
-              onDrop={(e) => {
+              onDrop={(e: React.DragEvent) => {
                 e.stopPropagation();
                 handleDropOnField(field, section);
               }}
@@ -328,7 +328,7 @@ export default function ConfigureFieldsModal({
           border: "1px solid",
           borderColor: "border.default",
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
           <Box>

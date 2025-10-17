@@ -1,30 +1,10 @@
 import { Box, Text, Button, Select, FormControl } from "@primer/react";
 import { CheckCircleIcon, XCircleIcon, EyeIcon } from "@primer/octicons-react";
-
-interface Record {
-  id: number;
-  output: string;
-  status: string;
-  metadata: any;
-  trace?: Array<{
-    block_type: string;
-    input: any;
-    output: any;
-    accumulated_state?: any;
-    error?: string;
-  }>;
-}
-
-interface ValidationConfig {
-  field_order: {
-    primary: string[];
-    secondary: string[];
-    hidden: string[];
-  };
-}
+import type { RecordData, ValidationConfig } from "../types";
+import { truncateText } from "../utils/format";
 
 interface TableRecordViewProps {
-  records: Record[];
+  records: RecordData[];
   validationConfig: ValidationConfig | null;
   currentPage: number;
   recordsPerPage: number;
@@ -32,11 +12,9 @@ interface TableRecordViewProps {
   onAccept: (id: number) => void;
   onReject: (id: number) => void;
   onSetPending: (id: number) => void;
-  onViewDetails: (record: Record) => void;
+  onViewDetails: (record: RecordData) => void;
   onPageChange: (page: number) => void;
   onRecordsPerPageChange: (perPage: number) => void;
-  onBulkAccept: () => void;
-  onBulkReject: () => void;
 }
 
 export default function TableRecordView({
@@ -51,20 +29,35 @@ export default function TableRecordView({
   onViewDetails,
   onPageChange,
   onRecordsPerPageChange,
-  onBulkAccept,
-  onBulkReject,
 }: TableRecordViewProps) {
-  // get primary fields from validation config
-  const primaryFields = validationConfig?.field_order.primary || ["assistant"];
+  // get primary fields from validation config or smart defaults
+  const getSmartDefaultFields = (): string[] => {
+    if (validationConfig?.field_order.primary && validationConfig.field_order.primary.length > 0) {
+      return validationConfig.field_order.primary;
+    }
 
-  // truncate text for display
-  const truncateText = (text: any, maxLength: number = 100): string => {
-    const str = typeof text === "string" ? text : JSON.stringify(text);
-    return str.length > maxLength ? str.substring(0, maxLength) + "..." : str;
+    // get fields from first record's accumulated_state
+    if (records.length > 0 && records[0].trace && records[0].trace.length > 0) {
+      const finalState = records[0].trace[records[0].trace.length - 1].accumulated_state || {};
+      const fields = Object.keys(finalState).sort();
+
+      // prefer "assistant" field if it exists
+      if (fields.includes("assistant")) {
+        return ["assistant"];
+      }
+
+      // otherwise return first 2 fields alphabetically
+      return fields.slice(0, 2);
+    }
+
+    // fallback to default
+    return ["assistant"];
   };
 
+  const primaryFields = getSmartDefaultFields();
+
   // get final accumulated state from record
-  const getFinalState = (record: Record) => {
+  const getFinalState = (record: RecordData) => {
     return record.trace && record.trace.length > 0
       ? record.trace[record.trace.length - 1].accumulated_state || {}
       : {};
@@ -247,13 +240,12 @@ export default function TableRecordView({
             </Box>
           </Box>
 
-          {/* pagination and bulk actions */}
+          {/* pagination */}
           <Box
             sx={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              mb: 3,
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -294,26 +286,6 @@ export default function TableRecordView({
                 Next
               </Button>
             </Box>
-          </Box>
-
-          {/* bulk actions */}
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Button
-              variant="primary"
-              leadingVisual={CheckCircleIcon}
-              onClick={onBulkAccept}
-              disabled={records.length === 0}
-            >
-              Accept All Visible ({records.length})
-            </Button>
-            <Button
-              variant="danger"
-              leadingVisual={XCircleIcon}
-              onClick={onBulkReject}
-              disabled={records.length === 0}
-            >
-              Reject All Visible ({records.length})
-            </Button>
           </Box>
         </>
       )}
