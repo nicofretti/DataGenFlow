@@ -31,12 +31,28 @@ const steps: Step[] = [
   {
     number: 3,
     title: 'Review Results',
-    description: 'Review your results with keyboard shortcuts (A/R/E) and full execution traces.',
+    description: 'Review your results with keyboard shortcuts and configure the view to easily see the needed data.',
+    code: `Keyboard Shortcuts:
+A → Accept  |  R → Reject  |  U → Pending
+E → Edit    |  N → Next    |  P → Previous
+
+Field Configuration:
+Primary: [output]
+Secondary: [metadata]
+Hidden: [created_at, updated_at]`,
+    language: 'text'
   },
   {
     number: 4,
     title: 'Export Data',
     description: 'Export your data in JSONL format, filtered by status (accepted, rejected, pending).',
+    code: `{
+  "id": 71,
+  "output": "{"title": "..."}",
+  "metadata": {...},
+  "status": "accepted"
+}`,
+    language: 'json'
   }
 ]
 
