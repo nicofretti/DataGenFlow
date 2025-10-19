@@ -19,7 +19,7 @@ export default function Header() {
 
           <div className="flex items-center space-x-6">
             <Link
-              to="/docs/README"
+              to="/docs/overview"
               className={`text-sm hover:text-primary transition-colors ${
                 isDocsPage ? 'text-primary' : 'text-gray-300'
               }`}

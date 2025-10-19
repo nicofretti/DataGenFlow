@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div>
             <img
-              src="/images/logo/banner.png"
+              src="/images/logo/logo_name_empty.svg"
               alt="DataGenFlow Logo"
               className="h-8 mb-4"
             />
