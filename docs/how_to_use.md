@@ -1,10 +1,29 @@
-# How to Use QADataGen
+# How to Use DataGenFlow
 
-This guide walks you through using QADataGen to create datasets powered by LLMs.
+This guide walks you through using DataGenFlow to create datasets powered by LLMs.
+
+## Table of Contents
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+- [Phase 1: Building Pipelines](#phase-1-building-pipelines)
+  - [What is a Pipeline?](#what-is-a-pipeline)
+  - [Creating Your First Pipeline](#creating-your-first-pipeline)
+  - [Example: Simple Q&A Pipeline](#example-simple-qa-pipeline)
+- [Phase 2: Generating Records](#phase-2-generating-records)
+  - [Preparing Seed Data](#preparing-seed-data)
+  - [Running Generation](#running-generation)
+- [Phase 3: Reviewing Results](#phase-3-reviewing-results)
+  - [Review Interface](#review-interface)
+  - [Reviewing Records](#reviewing-records)
+  - [Using Execution Traces](#using-execution-traces)
+  - [Exporting Results](#exporting-results)
+- [Tips and Best Practices](#tips-and-best-practices)
+- [Common Issues](#common-issues)
+- [Next Steps](#next-steps)
 
 ## Overview
 
-QADataGen uses a three-phase workflow:
+DataGenFlow uses a three-phase workflow:
 
 1. **Build**: Create pipelines by connecting blocks
 2. **Generate**: Run pipelines on seed data to produce records
@@ -21,60 +40,90 @@ QADataGen uses a three-phase workflow:
 ### What is a Pipeline?
 
 A pipeline is a sequence of blocks that process data. Each block:
-- Takes inputs (text, data, etc.)
+- Takes inputs from accumulated state (previous blocks' outputs + seed data)
 - Performs an operation (LLM generation, validation, formatting)
-- Outputs results for the next block
+- Outputs results that get added to accumulated state for next blocks
+
+**Key concept**: All block outputs accumulate, so later blocks can access any data from earlier blocks.
 
 ### Creating Your First Pipeline
 
-1. **Navigate to Builder tab**
+**Step 1**: Navigate to Pipelines page
    - Open http://localhost:8000
-   - Click "Builder" in navigation
+   - Click "Pipelines" in navigation
 
-2. **Add blocks**
-   - Click "Add Block" button
-   - Select block type (e.g., "LLM")
-   - Block appears in the canvas
+**Step 2**: Choose creation method
+   - From template: Click a template card to create pre-configured pipeline
+   - From scratch: Click "+ New Pipeline" to use visual editor
 
-3. **Configure blocks**
-   - Click on a block to select it
-   - Configuration panel appears on the right
-   - Fill in required fields
+**Step 3**: Visual Pipeline Editor (if creating from scratch)
+   - Start/End blocks: Automatically added (circular nodes, cannot be deleted)
+   - Add blocks: Drag blocks from left palette onto canvas
+   - Connect blocks: Drag from output handle to input handle
+   - Configure blocks: Click gear icon on block to open config panel
+   - See accumulated state: Each block shows available fields at that point
 
-4. **Connect blocks** (if using multiple blocks)
-   - Blocks automatically chain outputs to inputs
-   - Data flows top to bottom
+**Step 4**: Configure blocks
+- Click gear icon (⚙️) on any block
+- Configuration panel opens on right
+- Fill in required parameters
+- Red "Not Configured" badge shows missing fields
+- Yellow "Not Connected" badge shows disconnected blocks
 
-5. **Save pipeline**
-   - Click "Save Pipeline"
-   - Give it a descriptive name
-   - Pipeline is now ready to use
+**Step 5**: Save pipeline
+- Enter pipeline name at top
+- Click "Save Pipeline" button
+- Pipeline validation runs (checks all blocks configured and connected)
+- Pipeline appears in list
 
-### Example: Simple Q&A Pipeline
+### Example: JSON Generation Pipeline
 
-**Goal**: Generate question-answer pairs using an LLM
+This example comes from the built-in "JSON Generation with Validation" template.
 
-**Blocks needed**:
-1. **LLMBlock** - Generates the Q&A
-2. **ValidatorBlock** - Ensures output meets quality standards
-3. **OutputBlock** - Formats the final result
+**Goal**: Generate structured JSON objects about topics with automatic validation
 
-**Configuration**:
+**Pipeline Blocks**:
+1. **LLMBlock** - Generates JSON from topic
+2. **JSONValidatorBlock** - Validates and parses JSON structure
+3. **OutputBlock** - Formats validated output
 
-**Block 1: LLMBlock**
-- Name: "Q&A Generator"
-- System prompt: `You are a helpful assistant that generates high-quality question-answer pairs.`
-- User prompt: `Generate a Q&A pair about {{ topic }}`
+**Block Configurations**:
 
-**Block 2: ValidatorBlock**
-- Name: "Length Validator"
-- Min length: 50
-- Max length: 500
-- Forbidden words: (empty)
+**Block 1**: LLMBlock
+- Temperature: `0.7`
+- Max tokens: `2048`
+- System prompt: Uses `{{ system }}` from seed (defines JSON structure and examples)
+- User prompt: Uses `{{ user }}` from seed (the topic)
 
-**Block 3: OutputBlock**
-- Name: "Final Output"
-- Format template: `{{ assistant }}`
+**Block 2**: JSONValidatorBlock
+- Field name: `assistant` (validates LLM output)
+- Required fields: `[]` (accepts any valid JSON)
+- Strict mode: `false` (allows flexible structure)
+
+**Block 3**: OutputBlock
+- Format template:
+  ```jinja2
+  {% if valid %}{{ parsed_json | tojson }}
+  {% else %}Raw output: {{ assistant }}{% endif %}
+  ```
+
+**Example Seed Data**:
+```json
+{
+  "repetitions": 3,
+  "metadata": {
+    "system": "Generate a JSON object with the fields: title and description about the given user topic.\nExamples:\nuser: AI\noutput: { \"title\": \"Introduction to AI\", \"description\": \"A comprehensive overview...\" }\n\nDo not include any other text, just return a json object with title and description.",
+    "user": "Cleaning Your Laptop Screen"
+  }
+}
+```
+
+**What Happens**:
+1. LLM receives system prompt (JSON structure) and user topic
+2. LLM generates: `{ "title": "...", "description": "..." }`
+3. JSONValidatorBlock parses and validates the JSON
+4. OutputBlock returns formatted JSON if valid, or raw output if invalid
+5. Result is saved for review with full execution trace
 
 ## Phase 2: Generating Records
 
@@ -119,49 +168,67 @@ Or multiple seeds:
 
 ### Running Generation
 
-1. **Navigate to Generator tab**
+1. **Navigate to Generator page**
 2. **Upload seed file**
    - Click "Choose File"
    - Select your JSON seed file
 3. **Select pipeline**
-   - Choose from saved pipelines
+   - Choose from saved pipelines in dropdown
 4. **Click "Generate"**
-   - Progress indicator shows status
-   - Errors are displayed if validation fails
-5. **Wait for completion**
-   - Records are saved automatically
-   - Navigate to Review tab when done
+   - Job starts in background
+   - Can only run one job at a time
+5. **Monitor progress**:
+   - **Global indicator**: Top-right corner shows active job
+   - **Detailed progress**: Generator page shows:
+     - Progress bar with percentage
+     - Current step (e.g., "Processing seed 5/10")
+     - Current block being executed
+     - Success/failure counts
+     - Elapsed time
+   - Progress updates every 2 seconds
+6. **Cancel job** (optional):
+   - Click "Cancel Job" to stop generation
+7. **Wait for completion**:
+   - Records saved automatically as generated
+   - Navigate to Review page when done
+   - Job appears in job selector
 
 ## Phase 3: Reviewing Results
 
 ### Review Interface
 
-The Review tab shows all generated records with:
-- **Output**: The final pipeline result
-- **Metadata**: Input variables used
-- **Trace**: Execution history (click "View Trace")
-- **Actions**: Accept, Reject, Edit
+The Review page shows generated records with a clean card-based layout:
+- **Job selector**: Filter records by generation job (required)
+- **Status filter**: View Pending, Accepted, or Rejected records
+- **Record cards**: Each shows output, metadata, and actions
+- **Trace viewer**: Collapsible execution history with timing
 
 ### Reviewing Records
 
-1. **Navigate to Review tab**
-2. **Filter by status** (optional)
-   - Pending: Not yet reviewed
-   - Accepted: Approved records
-   - Rejected: Discarded records
-   - Edited: Modified records
+**Step 1**: Navigate to Review page
 
-3. **Review each record**:
-   - Read the output
-   - Check if it meets your quality standards
+**Step 2**: Select a job (required)
+   - Choose from dropdown of recent jobs
+   - Only shows jobs that generated records
+   - Stats update when switching jobs
 
-4. **Take action**:
-   - **Accept**: Mark as approved (click ✅)
-   - **Reject**: Mark as discarded (click ❌)
-   - **Edit**: Modify the output
-     - Click "Edit" button
-     - Modify text in editor
-     - Click "Save"
+**Step 3**: Filter by status
+   - **Pending**: Not yet reviewed (default view)
+   - **Accepted**: Approved records
+   - **Rejected**: Discarded records
+
+**Step 4**: Review each record*
+   - Read the output in card format
+   - Click "View Trace" to see execution details
+   - Check metadata (seed variables used)
+
+**Step 5**: Take action
+   - **Accept** (A key): Mark as approved
+   - **Reject** (R key): Mark as discarded
+   - **Edit** (E key): Modify the output
+     - Opens edit modal
+     - Make changes to output text
+     - Click "Save" to update record
 
 ### Using Execution Traces
 
@@ -178,18 +245,23 @@ Traces help debug issues by showing:
 
 ### Exporting Results
 
-1. **Filter to Accepted records** (optional)
-2. **Click "Export" button**
-3. **Choose format**:
-   - JSONL (recommended for ML training)
-   - JSON
-4. **Download file**
+Export is scoped to the currently selected job:
+
+1. **Select job** from dropdown
+2. **Filter by status** (optional - export all or just accepted/rejected)
+3. **Click "Export JSONL" button**
+4. **File downloads** automatically with job-scoped records
 
 **Export format**:
 ```jsonl
-{"id": 1, "output": "...", "metadata": {...}, "status": "accepted"}
-{"id": 2, "output": "...", "metadata": {...}, "status": "accepted"}
+{"id": 1, "output": "...", "metadata": {...}, "status": "accepted", "trace": [...]}
+{"id": 2, "output": "...", "metadata": {...}, "status": "accepted", "trace": [...]}
 ```
+
+**Deleting Records**:
+- "Delete All" button removes all records for selected job
+- Also deletes the job itself
+- Job disappears from selector after deletion
 
 ## Tips and Best Practices
 
@@ -233,6 +305,6 @@ Traces help debug issues by showing:
 
 ## Next Steps
 
-- Learn to create custom blocks: [how_to_create_blocks.md](how_to_create_blocks.md)
-- Explore API endpoints: [README.md](../README.md#advanced-usage)
-- Check architecture: [architecture.md](architecture.md)
+- **Create custom blocks**: Extend DataGenFlow with your own logic - [Custom Blocks Guide](how_to_create_blocks)
+- **Developer guide**: Deep dive into architecture and API - [DEVELOPERS.md](DEVELOPERS)
+- **Contribute**: Share improvements and ideas - [CONTRIBUTING.md](CONTRIBUTING)

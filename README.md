@@ -1,28 +1,27 @@
 <div align="center">
   <img src="images/logo/banner.png" alt="DataGenFlow Logo"/>
-
   <p>
     <a href="#quick-start">Quick Start</a> •
     <a href="#how-it-works">How It Works</a> •
     <a href="#documentation">Documentation</a>
   </p>
-</div>
 
----
+  [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+  [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+  [![GitHub stars](https://img.shields.io/github/stars/nicofretti/DataGenFlow.svg?style=social&label=Star)](https://github.com/nicofretti/DataGenFlow)
+</div>
 
 <div align="center">
 
-### DataGenFlow in Action
-
 https://github.com/user-attachments/assets/7ca7a319-e2c1-4e24-a4c7-2b098d692aa1
 
-Full video [here!](images/video/full_video.mp4)
+**Define seeds → Build pipeline → Review results → Export data**
 
-Define seeds → Build pipeline → Review results → Export data
+[Watch full demo](images/video/full_video.mp4)
 
 </div>
 
-## Why DataGenFlow?
+## Why DataGenFlow 🌱
 
 DataGenFlow transforms complex data generation workflows into intuitive visual pipelines. A minimal tool to help you generate and validate data from seed templates with full visibility.
 
@@ -178,6 +177,10 @@ Why this matters:
 - Integrate proprietary validation logic or data sources
 - Build reusable components for your team
 - Share blocks as Python files—simple as copy/paste
+
+**Debugging Custom Blocks**
+
+Need to debug your custom block? Use the included `debug_pipeline.py` script with VS Code debugger. See [Developer Documentation](DEVELOPERS.md#debugging-custom-blocks) for details.
 
 📚 Complete guide: [Custom Block Development](docs/how_to_create_blocks.md)
 

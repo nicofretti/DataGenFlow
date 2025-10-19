@@ -1,20 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-
-interface Job {
-  id: number;
-  pipeline_id: number;
-  status: string;
-  progress: number;
-  current_seed: number;
-  total_seeds: number;
-  current_block: string | null;
-  current_step: string | null;
-  records_generated: number;
-  records_failed: number;
-  error: string | null;
-  started_at: string;
-  completed_at: string | null;
-}
+import type { Job } from "../types";
 
 interface JobContextType {
   currentJob: Job | null;

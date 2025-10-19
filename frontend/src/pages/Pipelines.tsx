@@ -1,30 +1,18 @@
 import { useEffect, useState } from "react";
-import { Box, Heading, Text, Button, Flash, Label } from "@primer/react";
+import { Box, Heading, Text, Button, Flash, Label, IconButton } from "@primer/react";
 import {
   PencilIcon,
   TrashIcon,
   PlusIcon,
   BeakerIcon,
   DownloadIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  ToolsIcon,
 } from "@primer/octicons-react";
 import PipelineEditor from "../components/pipeline-editor/PipelineEditor";
-
-interface Pipeline {
-  id: number;
-  name: string;
-  definition: {
-    name: string;
-    blocks: Array<{ type: string; config: Record<string, any> }>;
-  };
-  created_at: string;
-}
-
-interface Template {
-  id: string;
-  name: string;
-  description: string;
-  example_seed?: any;
-}
+import type { Pipeline, Template } from "../types";
 
 export default function Pipelines() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -33,6 +21,7 @@ export default function Pipelines() {
   const [editing, setEditing] = useState<{ mode: "new" | "edit"; pipeline?: Pipeline } | null>(
     null
   );
+  const [expandedDebug, setExpandedDebug] = useState<number | null>(null);
 
   useEffect(() => {
     loadPipelines();
@@ -145,6 +134,12 @@ export default function Pipelines() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setMessage({ type: "success", text: "Copied to clipboard" });
+    setTimeout(() => setMessage(null), 2000);
   };
 
   // show editor if editing
@@ -297,9 +292,11 @@ export default function Pipelines() {
                   <Heading as="h3" sx={{ fontSize: 2, mb: 1, color: "fg.default" }}>
                     {pipeline.definition.name}
                   </Heading>
-                  <Text sx={{ fontSize: 1, color: "fg.default" }}>
-                    Created: {new Date(pipeline.created_at).toLocaleString()}
-                  </Text>
+                  {pipeline.created_at && (
+                    <Text sx={{ fontSize: 1, color: "fg.default" }}>
+                      Created: {new Date(pipeline.created_at).toLocaleString()}
+                    </Text>
+                  )}
                 </Box>
                 <Box sx={{ display: "flex", gap: 2 }}>
                   <Button
@@ -330,6 +327,90 @@ export default function Pipelines() {
                     </Label>
                   ))}
                 </Box>
+              </Box>
+
+              <Box sx={{ mt: 3, pt: 3}}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    cursor: "pointer",
+                    py: 1,
+                  }}
+                  onClick={() =>
+                    setExpandedDebug(expandedDebug === pipeline.id ? null : pipeline.id)
+                  }
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <Box sx={{ color: "fg.muted" }}>
+                      {expandedDebug === pipeline.id ? (
+                        <ChevronDownIcon size={16} />
+                      ) : (
+                        <ChevronRightIcon size={16} />
+                      )}
+                    </Box>
+                    <Text sx={{ fontSize: 1, color: "fg.muted" }}>Developer Tools</Text>
+                  </Box>
+
+                  {!expandedDebug && (
+                    <Text sx={{ fontSize: 0, color: "fg.muted", fontFamily: "mono" }}>
+                      ID: {pipeline.id}
+                    </Text>
+                  )}
+                </Box>
+
+                {expandedDebug === pipeline.id && (
+                  <Box sx={{ pl: 4 }}>
+                    <Box sx={{ fontSize: 1, color: "fg.muted", lineHeight: 2 }}>
+                      <Text sx={{ display: "block" }}>1. Open debug_pipeline.py</Text>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <Text sx={{ display: "block", color: "fg.muted" }}>
+                          {" "}
+                          2. Set PIPELINE_ID =
+                        </Text>
+
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 2,
+                          }}
+                        >
+                          <Box>
+                            <Text
+                              sx={{
+                                fontFamily: "mono",
+                                fontSize: 2,
+                                fontWeight: "bold",
+                                color: "accent.fg",
+                              }}
+                            >
+                              {pipeline.id}
+                            </Text>
+                          </Box>
+                          <Button
+                            size="small"
+                            leadingVisual={CopyIcon}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(pipeline.id.toString());
+                            }}
+                          >
+                            Copy ID
+                          </Button>
+                        </Box>
+                      </Box>
+                      <Text sx={{ display: "block" }}>3. Configure your test seed data</Text>
+                      <Text sx={{ display: "block" }}>
+                        4. Set breakpoints in your custom blocks
+                      </Text>
+                      <Text sx={{ display: "block" }}>
+                        5. Press F5 in VS Code to start debugging
+                      </Text>
+                    </Box>
+                  </Box>
+                )}
               </Box>
             </Box>
           ))}

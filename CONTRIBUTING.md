@@ -1,14 +1,22 @@
-# Contributing to QADataGen
+# Contributing to DataGenFlow
 
 Thank you for your interest in contributing! This document provides guidelines for contributing to the project.
+
+## Table of Contents
+- [Getting Started](#getting-started)
+- [Development Workflow](#development-workflow)
+- [Pull Request Conventions](#pull-request-conventions)
+- [Code Style](#code-style)
+- [Commit Messages](#commit-messages)
+- [Questions](#questions)
 
 ## Getting Started
 
 1. **Fork the repository**
 2. **Clone your fork**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/QADataGen.git
-   cd QADataGen
+   git clone https://github.com/YOUR_USERNAME/DataGenFlow.git
+   cd DataGenFlow
    ```
 3. **Set up development environment**:
    ```bash
@@ -63,7 +71,7 @@ Select the appropriate template to get a pre-filled PR description with the righ
 
 ### PR Title Format
 
-```
+```bash
 <icon> <type>: <short description>
 ```
 
@@ -180,4 +188,5 @@ def process_data(data):
 ## Questions?
 
 Feel free to open an issue or reach out to maintainers if you have questions about contributing.
+
 

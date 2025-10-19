@@ -14,7 +14,7 @@ Complete technical documentation for DataGenFlow developers.
 
 ### Project Structure
 
-```
+```text
 lib/
   blocks/
     builtin/          # Stable blocks (llm, validator, json_validator, output)
@@ -78,7 +78,7 @@ tests/
 ```bash
 # Clone repository
 git clone <repository-url>
-cd QADataGen
+cd DataGenFlow
 
 # Install dependencies
 make dev
@@ -274,6 +274,26 @@ GET /api/export/download?status=accepted
 
 ## Debugging
 
+### Debugging Custom Blocks
+
+DataGenFlow provides a simple debugging workflow using VS Code:
+
+1. Create your pipeline using the visual editor
+2. Note the pipeline ID from the UI (click "Debug Instructions" to expand)
+3. Open `debug_pipeline.py` and set:
+   - `PIPELINE_ID` to your pipeline ID
+   - `SEED_DATA` with test input
+4. Set breakpoints in your custom blocks
+5. Press F5 in VS Code and select "Debug Pipeline"
+
+The debugger will stop at your breakpoints, allowing you to inspect variables, step through code, and debug your custom block logic.
+
+**Tips:**
+- Use the "Copy" button next to pipeline ID in the UI
+- Edit seed data directly in debug_pipeline.py for fast iteration
+- The pipeline executes exactly as it would in production
+- No need to rebuild frontend - pipelines persist in database
+
 ### Debug Mode
 
 Enable detailed logging in `.env`:
@@ -288,7 +308,7 @@ DEBUG=true
 - Stack traces with context
 
 **Example logs:**
-```
+```bash
 2025-10-14 10:15:32 [INFO] [a1b2c3d4] Pipeline 'Data Gen' started (3 blocks)
 2025-10-14 10:15:32 [DEBUG] [a1b2c3d4] Block 1/3: LLMBlock executing
 2025-10-14 10:15:35 [DEBUG] [a1b2c3d4] LLMBlock completed (3.124s)
@@ -480,7 +500,7 @@ CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
+See [CONTRIBUTING](CONTRIBUTING) for guidelines on:
 - Code style and conventions
 - PR title format
 - Review process
@@ -488,7 +508,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
 
 ## Additional Resources
 
-- [User Guide](docs/how_to_use.md)
-- [Custom Blocks Guide](docs/how_to_create_blocks.md)
-- [Test Database](TEST_DATABASE.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
+- [User Guide](how_to_use)
+- [Custom Blocks Guide](how_to_create_blocks)
+- [Contributing Guidelines](CONTRIBUTING)
