@@ -11,14 +11,16 @@
   },
   "dependencies": {
     "@primer/react": "^37.31.0",
-    "gray-matter": "^4.0.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.9.4",
-    "react-syntax-highlighter": "^15.6.6"
+    "react-syntax-highlighter": "^15.6.6",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.14",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^24.8.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
