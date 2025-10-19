@@ -179,7 +179,7 @@ export default function Content({ markdown, title }: ContentProps) {
               />
             )
           },
-          h1({ children }) {
+          h1() {
             // skip h1 from markdown since we already show title at top
             return null
           },
