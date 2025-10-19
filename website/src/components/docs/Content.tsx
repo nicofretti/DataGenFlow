@@ -15,9 +15,28 @@ function CopyButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      // try modern clipboard API first
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      // fallback to legacy method
+      const textArea = document.createElement('textarea')
+      textArea.value = code
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-999999px'
+      document.body.appendChild(textArea)
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (e) {
+        console.error('Failed to copy:', e)
+      }
+      document.body.removeChild(textArea)
+    }
   }
 
   return (
@@ -161,12 +180,8 @@ export default function Content({ markdown, title }: ContentProps) {
             )
           },
           h1({ children }) {
-            const id = generateId(children)
-            return (
-              <h1 id={id} className="text-3xl font-bold mt-8 mb-4 text-white scroll-mt-20">
-                {children}
-              </h1>
-            )
+            // skip h1 from markdown since we already show title at top
+            return null
           },
           h2({ children }) {
             const id = generateId(children)
