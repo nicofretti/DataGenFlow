@@ -2,6 +2,14 @@
 
 Thank you for your interest in contributing! This document provides guidelines for contributing to the project.
 
+## Table of Contents
+- [Getting Started](#getting-started)
+- [Development Workflow](#development-workflow)
+- [Pull Request Conventions](#pull-request-conventions)
+- [Code Style](#code-style)
+- [Commit Messages](#commit-messages)
+- [Questions](#questions)
+
 ## Getting Started
 
 1. **Fork the repository**
@@ -63,7 +71,7 @@ Select the appropriate template to get a pre-filled PR description with the righ
 
 ### PR Title Format
 
-```
+```bash
 <icon> <type>: <short description>
 ```
 

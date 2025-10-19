@@ -2,14 +2,36 @@
 
 This guide shows you how to extend DataGenFlow with custom blocks.
 
+## Table of Contents
+- [What is a Block?](#what-is-a-block)
+- [Quick Example](#quick-example)
+- [Block Anatomy](#block-anatomy)
+- [Step-by-Step Guide](#step-by-step-guide)
+- [Examples](#examples)
+- [Best Practices](#best-practices)
+- [Testing Custom Blocks](#testing-custom-blocks)
+- [Debugging](#debugging)
+- [Common Patterns](#common-patterns)
+- [Next Steps](#next-steps)
+
 ## What is a Block?
 
 A block is a reusable component that:
-1. Takes inputs from previous blocks (or seed data)
+1. Takes inputs from accumulated state (previous blocks' outputs + seed data)
 2. Executes custom logic
-3. Outputs data for the next block
+3. Outputs data that gets added to accumulated state
 
-Blocks are the building blocks of pipelines.
+Blocks are the building blocks of pipelines, connected visually in the pipeline editor.
+
+### Built-in Blocks
+
+DataGenFlow includes these stable blocks:
+- **LLMBlock**: Generate text using LLM with Jinja2 template rendering
+- **ValidatorBlock**: Validate text content (length, forbidden words, patterns)
+- **JSONValidatorBlock**: Parse and validate JSON from any accumulated state field
+- **OutputBlock**: Format final pipeline output using Jinja2 templates
+
+You can create custom blocks to add your own logic and integrate with external services.
 
 ## Quick Example
 
@@ -96,14 +118,14 @@ The `data` dict contains:
 ### 1. Choose a Location
 
 **Option A: User blocks** (recommended)
-```
+```bash
 user_blocks/
 └── my_block.py
 ```
 Use this for personal/experimental blocks.
 
 **Option B: Custom blocks**
-```
+```bash
 lib/blocks/custom/
 └── my_block.py
 ```
@@ -498,6 +520,6 @@ async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
 
 ## Next Steps
 
-- Check out builtin blocks for more examples: `lib/blocks/builtin/`
-- Read the architecture docs: [architecture.md](architecture.md)
-- Contribute your block: [CONTRIBUTING.md](../CONTRIBUTING.md)
+- **Check builtin blocks for examples**: Explore `lib/blocks/builtin/` for reference implementations (LLMBlock, ValidatorBlock, JSONValidatorBlock, OutputBlock)
+- **Read developer guide**: [DEVELOPERS.md](DEVELOPERS) for architecture details and API reference
+- **Contribute your block**: Share useful blocks with the community via [CONTRIBUTING.md](CONTRIBUTING)
