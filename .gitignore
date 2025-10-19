@@ -38,3 +38,8 @@ frontend/package-lock.json
 point.md
 plan.md
 llm/*.*
+
+# website
+website/node_modules/
+website/dist/
+website/public/** */
