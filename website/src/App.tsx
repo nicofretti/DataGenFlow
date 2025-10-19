@@ -3,8 +3,10 @@ import Landing from './pages/Landing'
 import Docs from './pages/Docs'
 
 function App() {
+  const basename = import.meta.env.BASE_URL
+  
   return (
-    <Router>
+    <Router basename={basename}>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/docs/*" element={<Docs />} />

@@ -49,9 +49,9 @@ export default function Hero() {
             <video
               className="w-full rounded"
               controls
-              poster="/images/logo/banner.png"
+              poster={`${import.meta.env.BASE_URL}images/logo/banner.png`}
             >
-              <source src="/images/video/full_video.mp4" type="video/mp4" />
+              <source src={`${import.meta.env.BASE_URL}images/video/full_video.mp4`} type="video/mp4" />
               Your browser does not support the video tag.
             </video>
           </div>

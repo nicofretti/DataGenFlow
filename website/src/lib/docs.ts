@@ -34,7 +34,8 @@ export async function fetchDoc(slug: string): Promise<DocFile | null> {
   }
 
   try {
-    const url = `/docs/${slug}.md`
+    const base = import.meta.env.BASE_URL
+    const url = `${base}docs/${slug}.md`
     console.log('Fetching doc from:', url)
     const response = await fetch(url)
     console.log('Response status:', response.status, response.statusText)

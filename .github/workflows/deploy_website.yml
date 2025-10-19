@@ -31,6 +31,8 @@ jobs:
       - name: Build
         working-directory: ./website
         run: yarn build
+        env:
+          BASE_URL: /DataGenFlow/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

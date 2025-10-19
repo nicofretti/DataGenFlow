@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 export default function Footer() {
   const currentYear = new Date().getFullYear()
 
@@ -7,7 +9,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div>
             <img
-              src="/images/logo/logo_name_empty.svg"
+              src={`${import.meta.env.BASE_URL}images/logo/logo_name_empty.svg`}
               alt="DataGenFlow Logo"
               className="h-8 mb-4"
             />
@@ -20,19 +22,19 @@ export default function Footer() {
             <h3 className="font-semibold mb-4 text-primary">Resources</h3>
             <ul className="space-y-2">
               <li>
-                <a href="/docs/how_to_use" className="text-gray-400 hover:text-primary transition-colors text-sm">
+                <Link to="/docs/how_to_use" className="text-gray-400 hover:text-primary transition-colors text-sm">
                   Documentation
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/docs/how_to_create_blocks" className="text-gray-400 hover:text-primary transition-colors text-sm">
+                <Link to="/docs/how_to_create_blocks" className="text-gray-400 hover:text-primary transition-colors text-sm">
                   Custom Blocks
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/docs/DEVELOPERS" className="text-gray-400 hover:text-primary transition-colors text-sm">
+                <Link to="/docs/DEVELOPERS" className="text-gray-400 hover:text-primary transition-colors text-sm">
                   Developer Guide
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -61,9 +63,9 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="/docs/CONTRIBUTING" className="text-gray-400 hover:text-primary transition-colors text-sm">
+                <Link to="/docs/CONTRIBUTING" className="text-gray-400 hover:text-primary transition-colors text-sm">
                   Contributing
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

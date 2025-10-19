@@ -18,7 +18,7 @@ export default function Sidebar() {
       <div className="p-6">
         <Link to="/" className="flex items-center mb-10 group">
           <img
-            src="/images/logo/logo_name_empty.svg"
+            src={`${import.meta.env.BASE_URL}images/logo/logo_name_empty.svg`}
             alt="DataGenFlow"
             className="h-8 w-full transition-opacity group-hover:opacity-80"
           />

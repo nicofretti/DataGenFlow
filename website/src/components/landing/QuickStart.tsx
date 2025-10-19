@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import Button from '../shared/Button'
 
 export default function QuickStart() {
@@ -57,11 +58,11 @@ make run-dev
                 </Button>
               </a>
 
-              <a href="/docs/overview">
+              <Link to="/docs/overview">
                 <Button variant="outline" size="lg">
                   Read Documentation
                 </Button>
-              </a>
+              </Link>
             </div>
           </div>
         </div>

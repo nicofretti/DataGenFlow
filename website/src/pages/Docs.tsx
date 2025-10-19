@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Sidebar, Content } from '@/components/docs'
 import { fetchDoc } from '@/lib/docs'
 import { DocFile } from '@/lib/types'
@@ -72,12 +72,12 @@ export default function Docs() {
                 </p>
               )}
               <div className="space-y-4">
-                <a
-                  href="/docs/overview"
+                <Link
+                  to="/docs/overview"
                   className="inline-block px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   Go to documentation home
-                </a>
+                </Link>
                 <p className="text-gray-500 text-sm">
                   or choose a page from the sidebar
                 </p>

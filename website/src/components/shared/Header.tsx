@@ -11,7 +11,7 @@ export default function Header() {
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
             <img
-              src="/images/logo/logo_name_empty.svg"
+              src={`${import.meta.env.BASE_URL}images/logo/logo_name_empty.svg`}
               alt="DataGenFlow Logo"
               className="w-full h-8"
             />
