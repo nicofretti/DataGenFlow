@@ -57,7 +57,7 @@ make run-dev
                 </Button>
               </a>
 
-              <a href="/docs/README">
+              <a href="/docs/overview">
                 <Button variant="outline" size="lg">
                   Read Documentation
                 </Button>
