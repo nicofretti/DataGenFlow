@@ -12,6 +12,8 @@ class PersonaGeneratorBlock(BaseBlock):
     description = "Generate conversational personas using algorithm from Li et al., 2016"
     inputs = []  # can work without seed
     outputs = ["personas", "persona_metadata"]
+    algorithm = "persona_driven_generation"
+    paper = "Li et al., 2016 - A Persona-Based Neural Conversation Model"
 
     def __init__(
         self,

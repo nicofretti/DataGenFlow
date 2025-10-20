@@ -11,6 +11,8 @@ class BackTranslationBlock(BaseBlock):
     description = "Generate diverse conversation variations using back-translation algorithm (Sennrich et al., 2016)"
     inputs = ["conversation"]
     outputs = ["diverse_conversations", "diversity_score", "algorithm", "paper"]
+    algorithm = "back_translation_diversity"
+    paper = "Sennrich et al., 2016 - Improving Neural Machine Translation Models with Monolingual Data"
 
     def __init__(
         self,

@@ -7,6 +7,8 @@ class AdversarialPerturbationBlock(BaseBlock):
     description = "Generate edge cases with controlled perturbations (Belinkov & Bisk, 2018)"
     inputs = ["conversation"]
     outputs = ["perturbed_conversation", "difficulty_score", "perturbations_applied", "paper"]
+    algorithm = "adversarial_perturbation"
+    paper = "Belinkov & Bisk, 2018 - Synthetic and Natural Noise Both Break Neural Machine Translation"
 
     def __init__(self, perturbation_type: str = "realistic_noise", intensity: float = 0.5):
         self.perturbation_type = perturbation_type

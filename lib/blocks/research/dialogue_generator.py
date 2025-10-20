@@ -8,6 +8,8 @@ class DialogueGeneratorBlock(BaseBlock):
     description = "Generate multi-turn conversations using persona-driven algorithm (Li et al., 2016)"
     inputs = []  # can work with personas or just topic
     outputs = ["dialogue", "turn_count", "algorithm"]
+    algorithm = "persona_driven_dialogue"
+    paper = "Li et al., 2016 - A Persona-Based Neural Conversation Model"
 
     def __init__(self, turns: int = 5, algo: str = "persona_driven", max_tokens: int = 2000):
         self.turns = turns
