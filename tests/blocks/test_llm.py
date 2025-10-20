@@ -139,14 +139,18 @@ class TestLLMBlock:
         assert "config_schema" in schema
         config = schema["config_schema"]
 
-        assert "model" in config
-        assert config["model"]["type"] == "string"
-        assert config["model"]["default"] is None
+        # check JSON schema format
+        assert config["type"] == "object"
+        assert "properties" in config
 
-        assert "temperature" in config
-        assert config["temperature"]["type"] == "number"
-        assert config["temperature"]["default"] == 0.7
+        assert "model" in config["properties"]
+        assert config["properties"]["model"]["type"] == "string"
+        assert config["properties"]["model"]["default"] is None
 
-        assert "max_tokens" in config
-        assert config["max_tokens"]["type"] == "number"
-        assert config["max_tokens"]["default"] == 2048
+        assert "temperature" in config["properties"]
+        assert config["properties"]["temperature"]["type"] == "number"
+        assert config["properties"]["temperature"]["default"] == 0.7
+
+        assert "max_tokens" in config["properties"]
+        assert config["properties"]["max_tokens"]["type"] == "integer"
+        assert config["properties"]["max_tokens"]["default"] == 2048
