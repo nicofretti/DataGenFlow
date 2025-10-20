@@ -1,0 +1,45 @@
+name: "Customer Service Conversations"
+description: "Generate realistic customer service conversations with research-backed algorithms"
+version: 1.0
+domain: "conversational_ai"
+algorithms:
+  - name: "Persona-Driven Generation"
+    paper: "Li et al., 2016"
+    block: "PersonaGeneratorBlock"
+  - name: "Back-Translation Diversity"
+    paper: "Sennrich et al., 2016"
+    block: "BackTranslationBlock"
+
+blocks:
+  - type: "PersonaGeneratorBlock"
+    config:
+      num_personas: 2
+      personality_traits: ["helpful", "professional"]
+      generate_from_metadata: true
+
+  - type: "DialogueGeneratorBlock"
+    config:
+      turns: 5
+      algo: "persona_driven"
+      max_tokens: 2000
+
+  - type: "BackTranslationBlock"
+    config:
+      num_variations: 1
+      temperature: 0.7
+      paraphrase_model: "t5-base"
+
+  - type: "ValidatorBlock"
+    config:
+      min_length: 50
+      max_length: 5000
+      forbidden_words: []
+
+  - type: "MetricsCalculatorBlock"
+    config:
+      compute:
+        - "diversity"
+        - "coherence"
+        - "engagement"
+
+example_seed: "customer_service_example"
