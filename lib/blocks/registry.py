@@ -15,6 +15,7 @@ class BlockRegistry:
         # scan lib/blocks/builtin/, lib/blocks/custom/, and user_blocks/ for block classes
         scan_dirs = [
             "lib/blocks/builtin",
+            "lib/blocks/research",
             "lib/blocks/custom",
             "user_blocks",
         ]
