@@ -1,5 +1,5 @@
 import inspect
-from typing import get_type_hints, Any
+from typing import get_type_hints, get_origin, get_args, Any, Union
 
 
 class BlockConfigSchema:
@@ -35,6 +35,29 @@ class BlockConfigSchema:
     @staticmethod
     def _get_property_def(param_type) -> dict:
         """convert Python type to JSON schema"""
+        # handle union types (e.g., str | None, list[str] | None)
+        origin = get_origin(param_type)
+        if origin is Union:
+            args = get_args(param_type)
+            # filter out NoneType from union
+            non_none_types = [arg for arg in args if arg is not type(None)]
+            if len(non_none_types) == 1:
+                # if only one non-None type, use that type
+                return BlockConfigSchema._get_property_def(non_none_types[0])
+            # if multiple non-None types, use the first one
+            if non_none_types:
+                return BlockConfigSchema._get_property_def(non_none_types[0])
+
+        # handle list types
+        if origin is list:
+            args = get_args(param_type)
+            item_type = args[0] if args else str
+            return {
+                "type": "array",
+                "items": BlockConfigSchema._get_property_def(item_type)
+            }
+
+        # handle basic types
         if param_type == int:
             return {"type": "integer"}
         elif param_type == float:
