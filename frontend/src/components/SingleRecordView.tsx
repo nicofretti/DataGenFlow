@@ -73,7 +73,7 @@ export default function SingleRecordView({
   };
 
   const renderFieldValue = (value: any, isLarge: boolean = false) => {
-    const valueStr = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    const valueStr = typeof value === "string" ? value : JSON.stringify(value, null, 2) || "";
     const maxLength = isLarge ? 500 : 200;
 
     return (
