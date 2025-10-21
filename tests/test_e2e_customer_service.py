@@ -67,11 +67,15 @@ async def test_full_customer_service_pipeline(storage):
 
         # 9. save record and verify
         # use dialogue as output (pipeline_output might be metrics dict from last block)
+        import json
+
         output = accumulated_state.get("dialogue", "")
         if isinstance(output, dict):
-            import json
-
             output = json.dumps(output)
+
+        # ensure output is a string
+        if not isinstance(output, str):
+            output = str(output)
 
         record = Record(
             output=output,
