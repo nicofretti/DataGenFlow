@@ -9,6 +9,10 @@ class BlockConfigSchema:
         sig = inspect.signature(block_class.__init__)
         type_hints = get_type_hints(block_class.__init__)
 
+        # check for class-level enum and field reference definitions
+        enum_values = getattr(block_class, '_config_enums', {})
+        field_refs = getattr(block_class, '_field_references', [])
+
         properties = {}
         required = []
 
@@ -19,10 +23,19 @@ class BlockConfigSchema:
             param_type = type_hints.get(param_name, str)
             property_def = BlockConfigSchema._get_property_def(param_type)
 
+            # add default value if present
             if param.default != inspect.Parameter.empty:
                 property_def["default"] = param.default
             else:
                 required.append(param_name)
+
+            # add enum values if defined
+            if param_name in enum_values:
+                property_def["enum"] = enum_values[param_name]
+
+            # mark as field reference for UI dropdown
+            if param_name in field_refs:
+                property_def["isFieldReference"] = True
 
             properties[param_name] = property_def
 

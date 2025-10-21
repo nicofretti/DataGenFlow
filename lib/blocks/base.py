@@ -10,8 +10,6 @@ class BaseBlock(ABC):
     description: str = "Base block description"
     inputs: list[str] = []
     outputs: list[str] = []
-    algorithm: str | None = None  # for research blocks
-    paper: str | None = None      # citation
 
     @abstractmethod
     async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -25,7 +23,7 @@ class BaseBlock(ABC):
     @classmethod
     def get_schema(cls) -> dict[str, Any]:
         """returns full block schema (inputs, outputs, config)"""
-        schema = {
+        return {
             "type": cls.__name__,
             "name": cls.name,
             "description": cls.description,
@@ -33,11 +31,3 @@ class BaseBlock(ABC):
             "outputs": cls.outputs,
             "config_schema": cls.get_config_schema()
         }
-
-        # include algorithm and paper fields if they are defined
-        if cls.algorithm:
-            schema["algorithm"] = cls.algorithm
-        if cls.paper:
-            schema["paper"] = cls.paper
-
-        return schema
