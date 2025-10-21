@@ -25,10 +25,22 @@ Blocks are the building blocks of pipelines, connected visually in the pipeline 
 
 ### Built-in Blocks
 
-DataGenFlow includes these stable blocks:
-- **LLMBlock**: Generate text using LLM with Jinja2 template rendering
+DataGenFlow includes these atomic blocks:
+
+**Generators:**
+- **TextGenerator**: Generate text using LiteLLM (multi-provider LLM access)
+- **StructuredGenerator**: Generate structured JSON with schema validation
+
+**Metrics:**
+- **DiversityScore**: Calculate lexical diversity for text variations
+- **CoherenceScore**: Measure text coherence based on sentence structure
+- **RougeScore**: Calculate ROUGE score comparing generated vs reference text
+
+**Validators:**
 - **ValidatorBlock**: Validate text content (length, forbidden words, patterns)
 - **JSONValidatorBlock**: Parse and validate JSON from any accumulated state field
+
+**Output:**
 - **OutputBlock**: Format final pipeline output using Jinja2 templates
 
 You can create custom blocks to add your own logic and integrate with external services.
@@ -93,6 +105,31 @@ Parameters become configuration options in the UI:
 - Type hints are used for validation
 - Default values make parameters optional
 - Simple types only: `str`, `int`, `float`, `bool`
+
+### UI Configuration Features
+
+**Enum Dropdowns:**
+```python
+class MyBlock(BaseBlock):
+    _config_enums = {
+        "mode": ["fast", "accurate", "balanced"]
+    }
+
+    def __init__(self, mode: str = "balanced"):
+        self.mode = mode
+```
+The UI will show a dropdown with the three options instead of a text input.
+
+**Field Reference Dropdowns:**
+```python
+class MyBlock(BaseBlock):
+    _field_references = ["input_field", "reference_field"]
+
+    def __init__(self, input_field: str = "assistant", reference_field: str = "reference"):
+        self.input_field = input_field
+        self.reference_field = reference_field
+```
+The UI will show dropdowns populated with available fields from previous blocks in the pipeline.
 
 ### Execute Method
 
