@@ -17,26 +17,24 @@ class MetricsCalculatorBlock(BaseBlock):
         """compute all requested metrics from accumulated state"""
         metrics = {}
 
+        # get the conversation text (could be "conversation" or "dialogue")
+        text = data.get("conversation") or data.get("dialogue", "")
+
         if "diversity" in self.compute and "diversity_score" in data:
             metrics["diversity"] = data.get("diversity_score", 0)
 
-        if "coherence" in self.compute and "conversation" in data:
-            metrics["coherence"] = DiversityMetrics.compute_coherence_score(
-                data["conversation"]
-            )
+        if "coherence" in self.compute and text:
+            metrics["coherence"] = DiversityMetrics.compute_coherence_score(text)
 
         if "difficulty" in self.compute:
             metrics["difficulty"] = data.get("difficulty_score", 0)
 
         if "engagement" in self.compute:
-            metrics["engagement"] = self._compute_engagement(data.get("conversation", ""))
+            metrics["engagement"] = self._compute_engagement(text)
 
         summary = self._create_summary(metrics)
 
-        return {
-            "metrics": metrics,
-            "metrics_summary": summary
-        }
+        return {"metrics": metrics, "metrics_summary": summary}
 
     def _compute_engagement(self, text: str) -> float:
         """simple engagement: presence of questions, exclamations"""
