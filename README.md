@@ -145,6 +145,19 @@ Start with ready-to-use blocks:
 - Output Formatter: Format results for review page
 - ... waiting for more!
 
+#### Conversational AI Vertical
+
+DataGenFlow includes research-backed algorithms for synthetic conversation generation:
+
+- **Persona-Driven Dialogue** - Generate realistic multi-turn conversations with consistent character voices
+- **Back-Translation Diversity** - Automatically create diverse variations while maintaining intent
+- **Adversarial Perturbation** - Generate edge cases and robustness test scenarios
+- **Quality Metrics** - Auto-computed scores for diversity, coherence, and engagement
+
+Perfect for training conversational AI, chatbots, and dialogue systems. Get started with the pre-configured "Customer Service Conversations" template.
+
+📚 Complete guide: [Conversational AI Vertical](docs/conversational-ai-vertical.md) | [Research Algorithms](docs/research-algorithms.md)
+
 #### Extend with Custom Blocks
 
 The real power of DataGenFlow is creating your own blocks. Add domain-specific logic in minutes with automatic discovery:
