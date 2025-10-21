@@ -9,6 +9,8 @@ interface BlockData {
     type: string;
     name: string;
     description?: string;
+    algorithm?: string;
+    paper?: string;
     inputs: string[];
     outputs: string[];
     config_schema?: Record<string, any>;
@@ -141,6 +143,24 @@ function BlockNode({ data }: NodeProps<BlockData>) {
           <Text sx={{ fontSize: 0, color: "fg.muted", fontStyle: "italic" }}>
             {block.description}
           </Text>
+        </Box>
+      )}
+
+      {/* Algorithm info */}
+      {(block.algorithm || block.paper) && (
+        <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "border.default", bg: "accent.subtle" }}>
+          {block.algorithm && (
+            <Box sx={{ mb: block.paper ? 1 : 0 }}>
+              <Label variant="accent" size="small">
+                {block.algorithm}
+              </Label>
+            </Box>
+          )}
+          {block.paper && (
+            <Text sx={{ fontSize: 0, color: "fg.muted", fontStyle: "italic" }} title={block.paper}>
+              {block.paper.length > 50 ? `${block.paper.substring(0, 50)}...` : block.paper}
+            </Text>
+          )}
         </Box>
       )}
 

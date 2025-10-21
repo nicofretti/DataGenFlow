@@ -3,6 +3,8 @@ export interface RecordData {
   output: string;
   status: string;
   metadata: any;
+  metrics?: Record<string, number>;
+  algorithm?: string;
   trace?: Array<{
     block_type: string;
     input: any;
@@ -53,4 +55,15 @@ export interface Template {
   name: string;
   description: string;
   example_seed?: any;
+}
+
+export interface BlockSchema {
+  type: string;
+  name: string;
+  description?: string;
+  algorithm?: string;
+  paper?: string;
+  inputs: string[];
+  outputs: string[];
+  config_schema?: any;
 }

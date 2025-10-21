@@ -167,6 +167,63 @@ export default function SingleRecordView({
           <Label variant={getStatusVariant(record.status)}>{record.status}</Label>
         </Box>
 
+        {/* metrics section */}
+        {record.metrics && Object.keys(record.metrics).length > 0 && (
+          <Box
+            sx={{
+              border: "1px solid",
+              borderColor: "border.default",
+              borderRadius: 2,
+              p: 3,
+              bg: "canvas.default",
+              mb: 3,
+            }}
+          >
+            <Text
+              as="div"
+              sx={{ fontSize: 1, fontWeight: "semibold", mb: 2, color: "fg.default" }}
+            >
+              Quality Metrics
+            </Text>
+            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 2 }}>
+              {Object.entries(record.metrics).map(([key, value]) => (
+                <Box
+                  key={key}
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "border.muted",
+                    borderRadius: 1,
+                    p: 2,
+                    bg: "canvas.subtle",
+                  }}
+                >
+                  <Text
+                    as="div"
+                    sx={{ fontSize: 0, color: "fg.muted", mb: 1, textTransform: "capitalize" }}
+                  >
+                    {key}
+                  </Text>
+                  <Text
+                    as="div"
+                    sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default" }}
+                  >
+                    {value.toFixed(2)}
+                  </Text>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
+
+        {/* algorithm info */}
+        {record.algorithm && (
+          <Box sx={{ mb: 3 }}>
+            <Text sx={{ fontSize: 1, color: "fg.muted" }}>
+              Generated using: <Label variant="accent" size="small">{record.algorithm}</Label>
+            </Text>
+          </Box>
+        )}
+
         {/* primary fields - large and prominent */}
         {primaryFields.length > 0 && (
           <Box sx={{ mb: 4 }}>
