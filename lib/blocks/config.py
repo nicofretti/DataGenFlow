@@ -12,6 +12,7 @@ class BlockConfigSchema:
         # check for class-level enum and field reference definitions
         enum_values = getattr(block_class, '_config_enums', {})
         field_refs = getattr(block_class, '_field_references', [])
+        field_descriptions = getattr(block_class, '_config_descriptions', {})
 
         properties = {}
         required = []
@@ -37,6 +38,10 @@ class BlockConfigSchema:
             if param_name in field_refs:
                 property_def["isFieldReference"] = True
 
+            # add description for UI help text
+            if param_name in field_descriptions:
+                property_def["description"] = field_descriptions[param_name]
+
             properties[param_name] = property_def
 
         return {
@@ -61,6 +66,10 @@ class BlockConfigSchema:
             if non_none_types:
                 return BlockConfigSchema._get_property_def(non_none_types[0])
 
+        # handle dict types
+        if origin is dict:
+            return {"type": "object"}
+
         # handle list types
         if origin is list:
             args = get_args(param_type)
@@ -79,5 +88,7 @@ class BlockConfigSchema:
             return {"type": "boolean"}
         elif param_type == str:
             return {"type": "string"}
+        elif param_type == dict:
+            return {"type": "object"}
         else:
             return {"type": "string"}

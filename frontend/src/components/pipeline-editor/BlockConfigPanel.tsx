@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Box, Heading, Button, TextInput, Textarea, Checkbox, Text, useTheme, FormControl } from "@primer/react";
+import { Box, Heading, Button, TextInput, Textarea, Checkbox, Text, useTheme, FormControl, Select } from "@primer/react";
 import { XIcon } from "@primer/octicons-react";
 import { Background, Node } from "reactflow";
 import Editor from "@monaco-editor/react";
@@ -8,9 +8,10 @@ interface BlockConfigPanelProps {
   node: Node;
   onUpdate: (nodeId: string, config: Record<string, any>) => void;
   onClose: () => void;
+  availableFields?: string[];
 }
 
-export default function BlockConfigPanel({ node, onUpdate, onClose }: BlockConfigPanelProps) {
+export default function BlockConfigPanel({ node, onUpdate, onClose, availableFields = [] }: BlockConfigPanelProps) {
   const { block, config } = node.data;
   const [formData, setFormData] = useState<Record<string, any>>(config || {});
   const { resolvedColorScheme } = useTheme();
@@ -30,6 +31,43 @@ export default function BlockConfigPanel({ node, onUpdate, onClose }: BlockConfi
     // boolean field
     if (schema.type === "boolean") {
       return <Checkbox checked={value} onChange={(e) => handleChange(key, e.target.checked)} />;
+    }
+
+    // enum dropdown (predefined options)
+    if (schema.enum && Array.isArray(schema.enum)) {
+      return (
+        <Select value={value} onChange={(e) => handleChange(key, e.target.value)} sx={{ width: "100%" }}>
+          {schema.enum.map((option: string) => (
+            <Select.Option key={option} value={option}>
+              {option}
+            </Select.Option>
+          ))}
+        </Select>
+      );
+    }
+
+    // field reference dropdown (references to accumulated_state fields)
+    // use TextInput with datalist to allow both selection and custom typing
+    if (schema.isFieldReference) {
+      const datalistId = `datalist-${key}`;
+      return (
+        <Box>
+          <TextInput
+            value={value}
+            onChange={(e) => handleChange(key, e.target.value)}
+            list={datalistId}
+            placeholder={availableFields.length > 0 ? "Select or type field name" : "Type field name"}
+            sx={{ width: "100%" }}
+          />
+          {availableFields.length > 0 && (
+            <datalist id={datalistId}>
+              {availableFields.map((field) => (
+                <option key={field} value={field} />
+              ))}
+            </datalist>
+          )}
+        </Box>
+      );
     }
 
     // number field
@@ -105,6 +143,63 @@ export default function BlockConfigPanel({ node, onUpdate, onClose }: BlockConfi
       );
     }
 
+    // object or array field - use monaco editor with JSON
+    if (schema.type === "object" || schema.type === "array") {
+      const jsonValue = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      return (
+        <Box
+          sx={{
+            border: "1px solid",
+            borderColor: "border.default",
+            borderRadius: 2,
+            overflow: "hidden",
+          }}
+        >
+          <Editor
+            height="300px"
+            defaultLanguage="json"
+            value={jsonValue}
+            onChange={(newValue) => {
+              try {
+                const parsed = JSON.parse(newValue || "{}");
+                handleChange(key, parsed);
+              } catch {
+                // keep as string if invalid JSON
+                handleChange(key, newValue || "");
+              }
+            }}
+            theme={resolvedColorScheme === "dark" ? "vs-dark" : "light"}
+            options={{
+              minimap: { enabled: false },
+              scrollbar: {
+                vertical: "auto",
+                horizontal: "auto",
+                verticalScrollbarSize: 10,
+                horizontalScrollbarSize: 10,
+              },
+              lineNumbers: "on",
+              lineNumbersMinChars: 3,
+              glyphMargin: false,
+              folding: true,
+              lineDecorationsWidth: 5,
+              scrollBeyondLastLine: false,
+              renderLineHighlight: "none",
+              overviewRulerLanes: 0,
+              hideCursorInOverviewRuler: true,
+              overviewRulerBorder: false,
+              wordWrap: wordWrap ? "on" : "off",
+              fontSize: 13,
+              fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
+              tabSize: 2,
+              padding: { top: 8, bottom: 8 },
+              formatOnPaste: true,
+              formatOnType: true,
+            }}
+          />
+        </Box>
+      );
+    }
+
     // string field - use textarea for long strings or multiline
     const isLongString = typeof value === "string" && value.length > 100;
     const isMultiline =
@@ -171,7 +266,7 @@ export default function BlockConfigPanel({ node, onUpdate, onClose }: BlockConfi
 
       {/* Config fields */}
       <Box sx={{ flex: 1, mb: 3 }}>
-        {Object.entries(block.config_schema || {}).map(([key, schema]: [string, any]) => {
+        {Object.entries(block.config_schema?.properties || {}).map(([key, schema]: [string, any]) => {
           const isTemplateField =
             schema.format === "jinja2" ||
             schema.format === "template" ||
@@ -193,6 +288,17 @@ export default function BlockConfigPanel({ node, onUpdate, onClose }: BlockConfi
                   {schema.required && (
                     <Text as="span" sx={{ color: "danger.fg", ml: 1 }}>
                       *
+                    </Text>
+                  )}
+                  {schema.default !== undefined && schema.default !== null && (
+                    <Text as="span" sx={{ fontSize: 0, color: "fg.muted", ml: 2, fontWeight: "normal" }}>
+                      (default: {
+                        typeof schema.default === "object"
+                          ? (Array.isArray(schema.default) && schema.default.length === 0
+                              ? "[]"
+                              : (Object.keys(schema.default).length === 0 ? "{}" : "see editor"))
+                          : String(schema.default)
+                      })
                     </Text>
                   )}
                 </Text>

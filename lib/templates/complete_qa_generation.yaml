@@ -1,17 +1,14 @@
 name: Complete QA Generation
-description: Full pipeline with LLM generation, validation, and formatting
+description: Full pipeline with LLM generation and validation
 blocks:
-  - type: LLMBlock
+  - type: TextGenerator
     config:
       temperature: 0.7
       max_tokens: 2048
+      system_prompt: ""
+      user_prompt: ""
 
   - type: ValidatorBlock
     config:
       min_length: 20
       max_length: 5000
-
-  - type: OutputBlock
-    config:
-      format_template: |
-        Assistant: {{ assistant }}

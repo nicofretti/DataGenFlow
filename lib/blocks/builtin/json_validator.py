@@ -11,6 +11,8 @@ class JSONValidatorBlock(BaseBlock):
     inputs = ["*"]
     outputs = ["valid", "parsed_json"]
 
+    _field_references = ["field_name"]
+
     def __init__(
         self,
         field_name: str = "assistant",
@@ -32,36 +34,40 @@ class JSONValidatorBlock(BaseBlock):
     async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
         field_output = data.get(self.field_name, "")
 
-        # remove the ```json ... ``` if needed
-        field_output = re.sub(
-            r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", r"\1", field_output, flags=re.DOTALL
-        ).strip()
+        # if already parsed (e.g., from StructuredGenerator), use it directly
+        if isinstance(field_output, dict) or isinstance(field_output, list):
+            parsed = field_output
+        else:
+            # remove the ```json ... ``` if needed
+            field_output = re.sub(
+                r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", r"\1", field_output, flags=re.DOTALL
+            ).strip()
 
-        try:
-            # try to parse JSON from specified field
-            parsed = json.loads(field_output)
+            try:
+                # try to parse JSON from specified field
+                parsed = json.loads(field_output)
+            except json.JSONDecodeError as e:
+                if self.strict:
+                    raise ValueError(f"invalid JSON: {str(e)}")
 
-            # check if required fields are present
-            if self.required_fields:
-                missing_fields = [field for field in self.required_fields if field not in parsed]
-                if missing_fields:
-                    return {
-                        "valid": False,
-                        "parsed_json": None,
-                    }
+                # not strict mode, mark as invalid but continue
+                return {
+                    "valid": False,
+                    "parsed_json": None,
+                }
 
-            # validation passed
-            return {
-                "valid": True,
-                "parsed_json": parsed,
-            }
+        # validate parsed JSON
+        # check if required fields are present
+        if self.required_fields:
+            missing_fields = [field for field in self.required_fields if field not in parsed]
+            if missing_fields:
+                return {
+                    "valid": False,
+                    "parsed_json": None,
+                }
 
-        except json.JSONDecodeError as e:
-            if self.strict:
-                raise ValueError(f"invalid JSON: {str(e)}")
-
-            # not strict mode, mark as invalid but continue
-            return {
-                "valid": False,
-                "parsed_json": None,
-            }
+        # validation passed
+        return {
+            "valid": True,
+            "parsed_json": parsed,
+        }

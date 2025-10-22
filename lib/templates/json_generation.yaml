@@ -1,19 +1,22 @@
-name: JSON Generation with Validation
-description: Generate structured JSON from a topic with validation
+name: JSON Generation
+description: Generate structured JSON data with validation
 blocks:
-  - type: LLMBlock
+  - type: StructuredGenerator
     config:
+      json_schema:
+        type: object
+        properties:
+          data:
+            type: string
+            description: Generated data
+        required:
+          - data
       temperature: 0.7
       max_tokens: 2048
+      prompt: ""
 
   - type: JSONValidatorBlock
     config:
-      field_name: "assistant"
+      field_name: "generated"
       required_fields: []
       strict: false
-
-  - type: OutputBlock
-    config:
-      format_template: |
-        {% if valid %}{{ parsed_json | tojson }}
-        {% else %}Raw output: {{ assistant }}{% endif %}

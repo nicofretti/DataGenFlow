@@ -89,15 +89,13 @@ export default function PipelineEditor({
   // check if node is configured
   const isNodeConfigured = useCallback((node: Node) => {
     const { block, config } = node.data;
-    if (!block.config_schema) return true;
+    if (!block.config_schema?.properties) return true;
 
     // check all required fields are filled
-    return Object.entries(block.config_schema).every(([key, schema]: [string, any]) => {
-      if (schema.required) {
-        const value = config[key];
-        return value !== undefined && value !== null && value !== "";
-      }
-      return true;
+    const required = block.config_schema.required || [];
+    return required.every((key: string) => {
+      const value = config[key];
+      return value !== undefined && value !== null && value !== "";
     });
   }, []);
 
@@ -287,6 +285,45 @@ export default function PipelineEditor({
     event.dataTransfer.dropEffect = "move";
   }, []);
 
+  // compute available fields from previous blocks
+  const getAvailableFields = useCallback((currentNode: Node | null): string[] => {
+    if (!currentNode) return [];
+
+    // find all nodes that come before this node in the pipeline
+    const predecessors = new Set<string>();
+    const visited = new Set<string>();
+
+    const findPredecessors = (nodeId: string) => {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+
+      edges.forEach((edge) => {
+        if (edge.target === nodeId) {
+          predecessors.add(edge.source);
+          findPredecessors(edge.source);
+        }
+      });
+    };
+
+    findPredecessors(currentNode.id);
+
+    // collect all outputs from predecessor nodes
+    const availableFields = new Set<string>();
+
+    nodes.forEach((node) => {
+      if (predecessors.has(node.id)) {
+        const outputs = node.data.block.outputs || [];
+        outputs.forEach((output) => {
+          if (output !== "*") {
+            availableFields.add(output);
+          }
+        });
+      }
+    });
+
+    return Array.from(availableFields).sort();
+  }, [nodes, edges]);
+
   // handle config update
   const handleConfigUpdate = useCallback(
     (nodeId: string, config: Record<string, any>) => {
@@ -447,6 +484,7 @@ export default function PipelineEditor({
             node={selectedNode}
             onUpdate={handleConfigUpdate}
             onClose={() => setSelectedNode(null)}
+            availableFields={getAvailableFields(selectedNode)}
           />
         )}
       </Box>

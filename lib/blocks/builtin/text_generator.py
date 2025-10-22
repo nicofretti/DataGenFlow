@@ -2,6 +2,9 @@ from lib.blocks.base import BaseBlock
 import litellm
 from typing import Any
 from config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TextGenerator(BaseBlock):
@@ -9,6 +12,11 @@ class TextGenerator(BaseBlock):
     description = "Generate text using LLM with configurable parameters"
     inputs = []
     outputs = ["assistant", "system", "user"]
+
+    _config_descriptions = {
+        "system_prompt": "Jinja2 template. Reference fields with {{ field_name }} or {{ metadata.field_name }}",
+        "user_prompt": "Jinja2 template. Reference fields with {{ field_name }} or {{ metadata.field_name }}"
+    }
 
     def __init__(
         self,
@@ -35,14 +43,34 @@ class TextGenerator(BaseBlock):
         if user:
             messages.append({"role": "user", "content": user})
 
-        response = await litellm.acompletion(
-            model=self.model,
-            messages=messages,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            api_key=settings.LLM_API_KEY,
-            api_base=settings.LLM_ENDPOINT
-        )
+        # add ollama/ prefix if using ollama endpoint and model doesn't have provider prefix
+        model = self.model
+
+        # for ollama, litellm expects just the model with ollama/ prefix
+        if "11434" in settings.LLM_ENDPOINT and "/" not in model:
+            model = f"ollama/{model}"
+            # extract base url from endpoint (remove /v1/chat/completions or /api/generate)
+            import re
+            api_base = re.sub(r'/(v1/chat/completions|api/generate).*$', '', settings.LLM_ENDPOINT)
+            logger.info(f"Calling LiteLLM ollama with model={model}, api_base={api_base}")
+            response = await litellm.acompletion(
+                model=model,
+                messages=messages,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                api_base=api_base
+            )
+        else:
+            # for other providers, use api_base
+            logger.info(f"Calling LiteLLM with model={model}, api_base={settings.LLM_ENDPOINT}")
+            response = await litellm.acompletion(
+                model=model,
+                messages=messages,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                api_key=settings.LLM_API_KEY,
+                api_base=settings.LLM_ENDPOINT
+            )
 
         assistant = response.choices[0].message.content
 

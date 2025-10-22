@@ -9,8 +9,6 @@ interface BlockData {
     type: string;
     name: string;
     description?: string;
-    algorithm?: string;
-    paper?: string;
     inputs: string[];
     outputs: string[];
     config_schema?: Record<string, any>;
@@ -146,24 +144,6 @@ function BlockNode({ data }: NodeProps<BlockData>) {
         </Box>
       )}
 
-      {/* Algorithm info */}
-      {(block.algorithm || block.paper) && (
-        <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "border.default", bg: "accent.subtle" }}>
-          {block.algorithm && (
-            <Box sx={{ mb: block.paper ? 1 : 0 }}>
-              <Label variant="accent" size="small">
-                {block.algorithm}
-              </Label>
-            </Box>
-          )}
-          {block.paper && (
-            <Text sx={{ fontSize: 0, color: "fg.muted", fontStyle: "italic" }} title={block.paper}>
-              {block.paper.length > 50 ? `${block.paper.substring(0, 50)}...` : block.paper}
-            </Text>
-          )}
-        </Box>
-      )}
-
       {/* Inputs/Outputs */}
       <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "border.default" }}>
         <Text sx={{ fontSize: 0, color: "fg.muted", display: "block", mb: 1 }}>
@@ -179,11 +159,27 @@ function BlockNode({ data }: NodeProps<BlockData>) {
         <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "border.default" }}>
           {Object.entries(config)
             .slice(0, 3)
-            .map(([key, value]) => (
-              <Text key={key} sx={{ fontSize: 0, color: "fg.muted", display: "block" }}>
-                {key}: {String(value)}
-              </Text>
-            ))}
+            .map(([key, value]) => {
+              let displayValue: string;
+              if (typeof value === "object" && value !== null) {
+                if (Array.isArray(value)) {
+                  displayValue = value.length === 0 ? "[]" : `[${value.length} items]`;
+                } else {
+                  const keys = Object.keys(value);
+                  displayValue = keys.length === 0 ? "{}" : `{${keys.length} fields}`;
+                }
+              } else if (typeof value === "string" && value.length > 30) {
+                displayValue = value.slice(0, 30) + "...";
+              } else {
+                displayValue = String(value);
+              }
+
+              return (
+                <Text key={key} sx={{ fontSize: 0, color: "fg.muted", display: "block" }}>
+                  {key}: {displayValue}
+                </Text>
+              );
+            })}
           {Object.keys(config).length > 3 && (
             <Text sx={{ fontSize: 0, color: "fg.muted", fontStyle: "italic" }}>
               +{Object.keys(config).length - 3} more...

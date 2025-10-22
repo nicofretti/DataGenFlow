@@ -10,6 +10,10 @@ class OutputBlock(BaseBlock):
     inputs = ["*"]
     outputs = ["pipeline_output"]
 
+    _config_descriptions = {
+        "format_template": "Jinja2 template. Reference fields with {{ field_name }} or {{ metadata.field_name }}. Supports filters and conditionals."
+    }
+
     def __init__(self, format_template: str = "Result: {{ assistant }}") -> None:
         self.format_template = format_template
 
