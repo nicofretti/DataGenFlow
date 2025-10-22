@@ -57,3 +57,9 @@ disable_error_code = ["no-untyped-def", "no-untyped-call", "var-annotated"]
 [[tool.mypy.overrides]]
 module = "lib.storage"
 disable_error_code = ["no-any-return"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: integration tests requiring external services (ollama, etc) - only run when explicitly called",
+]
+addopts = "-m 'not integration'"

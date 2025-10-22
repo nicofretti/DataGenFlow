@@ -6,8 +6,6 @@ interface Block {
   type: string;
   name: string;
   description?: string;
-  algorithm?: string;
-  paper?: string;
   inputs: string[];
   outputs: string[];
   config_schema: Record<string, any>;
@@ -99,13 +97,6 @@ export default function BlockPalette({ blocks }: BlockPaletteProps) {
               >
                 {block.name}
               </Text>
-              {block.algorithm && (
-                <Box sx={{ mb: 1 }}>
-                  <Label variant="accent" size="small">
-                    {block.algorithm}
-                  </Label>
-                </Box>
-              )}
               <Text sx={{ fontSize: 0, color: "fg.muted", display: "block" }}>
                 IN: {block.inputs.length > 0 ? block.inputs.join(", ") : "none"}
               </Text>
