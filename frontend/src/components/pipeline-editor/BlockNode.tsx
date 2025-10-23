@@ -4,6 +4,10 @@ import { Box, Text, IconButton, Label } from "@primer/react";
 import { XIcon, GearIcon } from "@primer/octicons-react";
 import { DEFAULT_HANDLE_STYLE } from "./utils";
 
+// Constants for maintainability
+const BLOCK_NODE_WIDTH = "220px";
+const BLOCK_NAME_MAX_WIDTH = "160px";
+
 interface BlockData {
   block: {
     type: string;
@@ -32,7 +36,7 @@ function BlockNode({ data }: NodeProps<BlockData>) {
     onDelete,
   } = data;
 
-  // get status label and variant
+  // Determine connection/configuration status
   const getStatus = () => {
     if (!isConfigured) return { label: "Not Configured", variant: "danger" as const };
     if (!isConnected) return { label: "Not Connected", variant: "attention" as const };
@@ -44,7 +48,7 @@ function BlockNode({ data }: NodeProps<BlockData>) {
   return (
     <Box
       sx={{
-        minWidth: "220px",
+        minWidth: BLOCK_NODE_WIDTH,
         border: "2px solid",
         borderColor: "border.default",
         borderRadius: 2,
@@ -84,17 +88,21 @@ function BlockNode({ data }: NodeProps<BlockData>) {
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              maxWidth: "100px",
+              maxWidth: BLOCK_NAME_MAX_WIDTH,
+              flexShrink: 1,
             }}
+            title={block.name}
           >
             {block.name}
           </Text>
+
           {status && (
             <Label variant={status.variant} size="small">
               {status.label}
             </Label>
           )}
         </Box>
+
         <Box sx={{ display: "flex", gap: 1 }}>
           {onConfigClick && (
             <IconButton
@@ -188,7 +196,7 @@ function BlockNode({ data }: NodeProps<BlockData>) {
         </Box>
       )}
 
-      {/* Accumulated State - THE KEY FEATURE! */}
+      {/* Accumulated State */}
       <Box sx={{ p: 2, bg: "accent.subtle" }}>
         <Text
           sx={{ fontSize: 0, fontWeight: "bold", display: "block", mb: 1, color: "fg.default" }}
