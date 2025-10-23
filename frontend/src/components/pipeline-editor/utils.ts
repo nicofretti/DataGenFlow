@@ -197,14 +197,14 @@ export function convertFromPipelineFormat(
         id: `e-start-1`,
         source: "start",
         target: "1",
-        type: "smoothstep",
+        type: "custom",
       });
     } else {
       edges.push({
         id: `e${index}-${index + 1}`,
         source: `${index}`,
         target: nodeId,
-        type: "smoothstep",
+        type: "custom",
       });
     }
   });
@@ -228,7 +228,7 @@ export function convertFromPipelineFormat(
       id: `e${pipeline.blocks.length}-end`,
       source: `${pipeline.blocks.length}`,
       target: "end",
-      type: "smoothstep",
+      type: "custom",
     });
   } else {
     // if no blocks, connect Start directly to End
@@ -236,7 +236,7 @@ export function convertFromPipelineFormat(
       id: "e-start-end",
       source: "start",
       target: "end",
-      type: "smoothstep",
+      type: "custom",
     });
   }
 

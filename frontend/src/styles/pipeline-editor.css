@@ -1,0 +1,22 @@
+/**
+ * Pipeline Editor CSS - Minimal theme-agnostic styles
+ * Most styling is handled via Primer's theme system in component sx props
+ */
+
+:root {
+  /* category colors - keep consistent across themes */
+  --color-generator: #3b82f6;
+  --color-validator: #10b981;
+  --color-score: #8b5cf6;
+  --color-output: #f59e0b;
+
+  /* transitions */
+  --transition-fast: 150ms ease-out;
+  --transition-normal: 200ms ease-out;
+  --transition-slow: 300ms ease-out;
+}
+
+/* ReactFlow edge transitions - theme agnostic */
+.react-flow__edge-path {
+  transition: stroke-width var(--transition-normal), opacity var(--transition-normal);
+}
