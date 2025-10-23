@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Box, Heading, Button, TextInput, Textarea, Checkbox, Text, useTheme, Select, Tooltip } from "@primer/react";
 import { XIcon, StarFillIcon } from "@primer/octicons-react";
 import { Node } from "reactflow";
@@ -17,13 +17,18 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
   const { resolvedColorScheme } = useTheme();
   const [wordWrap, setWordWrap] = useState(false);
 
-  const handleChange = (key: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
-  };
+  // sync formData when node config changes
+  useEffect(() => {
+    setFormData(config || {});
+  }, [node.id, config]);
 
-  const handleSave = () => {
+  const handleChange = useCallback((key: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const handleSave = useCallback(() => {
     onUpdate(node.id, formData);
-  };
+  }, [node.id, formData, onUpdate]);
 
   const renderField = (key: string, schema: any) => {
     const value = formData[key] ?? schema.default ?? "";

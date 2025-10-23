@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Box, Heading, Text, TextInput } from "@primer/react";
+import { Box, Text, TextInput } from "@primer/react";
 import { SearchIcon, ChevronDownIcon, ChevronRightIcon } from "@primer/octicons-react";
 
 interface Block {

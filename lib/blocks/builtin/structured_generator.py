@@ -24,7 +24,7 @@ class StructuredGenerator(BaseBlock):
     def __init__(
         self,
         json_schema: dict[str, Any],
-        model: str | None = None,
+        model: str | None = settings.LLM_MODEL,
         temperature: float = 0.7,
         max_tokens: int = 2048,
         prompt: str = "prompt",

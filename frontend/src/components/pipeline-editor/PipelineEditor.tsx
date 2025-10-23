@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -14,7 +14,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import "../../styles/pipeline-editor.css";
-import { Box, Button, Flash, TextInput, useTheme } from "@primer/react";
+import { Box, Button, Flash, Text, TextInput, useTheme } from "@primer/react";
 import { XIcon, ZapIcon } from "@primer/octicons-react";
 
 import BlockPalette from "./BlockPalette";
@@ -489,6 +489,18 @@ export default function PipelineEditor({
     }
   };
 
+  // calculate pipeline validity
+  const isPipelineValid = useMemo(() => {
+    if (nodes.length === 0) return false;
+
+    // check all nodes are configured and connected
+    return nodes.every((node) => {
+      const isConfigured = isNodeConfigured(node);
+      const isConnected = isNodeConnected(node.id);
+      return isConfigured && isConnected;
+    });
+  }, [nodes, edges, isNodeConfigured, isNodeConnected]);
+
   return (
     <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Header */}
@@ -513,6 +525,42 @@ export default function PipelineEditor({
             sx={{ width: "100%", fontSize: 2, fontWeight: "bold" }}
           />
         </Box>
+
+        {/* Status indicator */}
+        {nodes.length > 0 && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              border: "1px solid",
+              borderColor: isPipelineValid ? "success.emphasis" : "danger.emphasis",
+              bg: isPipelineValid ? "success.subtle" : "danger.subtle",
+            }}
+          >
+            <Box
+              sx={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                bg: isPipelineValid ? "success.fg" : "danger.fg",
+              }}
+            />
+            <Text
+              sx={{
+                fontSize: 1,
+                fontWeight: "bold",
+                color: isPipelineValid ? "success.fg" : "danger.fg",
+              }}
+            >
+              {isPipelineValid ? "Valid" : "Invalid"}
+            </Text>
+          </Box>
+        )}
+
         <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
           {/* Auto-layout button */}
           <Button
