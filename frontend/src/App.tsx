@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
 import { Box, IconButton, ThemeProvider, useTheme, Heading, Text } from "@primer/react";
 import { SunIcon, MoonIcon, BeakerIcon, ChecklistIcon, WorkflowIcon } from "@primer/octicons-react";
@@ -8,10 +8,22 @@ import Pipelines from "./pages/Pipelines";
 import GlobalJobIndicator from "./components/GlobalJobIndicator";
 import { JobProvider } from "./contexts/JobContext";
 
+// context to control navigation visibility
+const NavigationContext = createContext<{
+  hideNavigation: boolean;
+  setHideNavigation: (hide: boolean) => void;
+}>({
+  hideNavigation: false,
+  setHideNavigation: () => {},
+});
+
+export const useNavigation = () => useContext(NavigationContext);
+
 function Navigation() {
   const location = useLocation();
   const { resolvedColorScheme, setColorMode } = useTheme();
   const isDark = resolvedColorScheme === "dark";
+  const { hideNavigation } = useNavigation();
 
   const navItems = [
     { path: "/pipelines", label: "Pipelines", icon: WorkflowIcon },
@@ -28,19 +40,20 @@ function Navigation() {
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
       {/* left sidebar */}
-      <Box
-        sx={{
-          width: 240,
-          borderRight: "1px solid",
-          borderColor: "border.default",
-          bg: "canvas.subtle",
-          display: "flex",
-          flexDirection: "column",
-          position: "fixed",
-          height: "100vh",
-          overflowY: "auto",
-        }}
-      >
+      {!hideNavigation && (
+        <Box
+          sx={{
+            width: 240,
+            borderRight: "1px solid",
+            borderColor: "border.default",
+            bg: "canvas.subtle",
+            display: "flex",
+            flexDirection: "column",
+            position: "fixed",
+            height: "100vh",
+            overflowY: "auto",
+          }}
+        >
         {/* brand */}
         <Box sx={{ p: 4, borderBottom: "1px solid", borderColor: "border.default" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
@@ -94,11 +107,19 @@ function Navigation() {
             sx={{ width: "100%" }}
           />
         </Box>
-      </Box>
+        </Box>
+      )}
 
       {/* main content */}
-      <Box sx={{ flex: 1, ml: "240px", p: 4, bg: "canvas.default" }}>
-        <Box sx={{ maxWidth: 1280, mx: "auto" }}>
+      <Box
+        sx={{
+          flex: 1,
+          ml: hideNavigation ? 0 : "240px",
+          p: hideNavigation ? 0 : 4,
+          bg: "canvas.default",
+        }}
+      >
+        <Box sx={{ maxWidth: hideNavigation ? "none" : 1280, mx: "auto" }}>
           <Routes>
             <Route path="/" element={<Generator />} />
             <Route path="/review" element={<Review />} />
@@ -120,11 +141,15 @@ export default function App() {
     return "light";
   });
 
+  const [hideNavigation, setHideNavigation] = useState(false);
+
   return (
     <ThemeProvider colorMode={colorMode}>
       <BrowserRouter>
         <JobProvider>
-          <Navigation />
+          <NavigationContext.Provider value={{ hideNavigation, setHideNavigation }}>
+            <Navigation />
+          </NavigationContext.Provider>
         </JobProvider>
       </BrowserRouter>
     </ThemeProvider>

@@ -12,6 +12,7 @@ import {
   ToolsIcon,
 } from "@primer/octicons-react";
 import PipelineEditor from "../components/pipeline-editor/PipelineEditor";
+import { useNavigation } from "../App";
 import type { Pipeline, Template } from "../types";
 
 export default function Pipelines() {
@@ -22,11 +23,17 @@ export default function Pipelines() {
     null
   );
   const [expandedDebug, setExpandedDebug] = useState<number | null>(null);
+  const { setHideNavigation } = useNavigation();
 
   useEffect(() => {
     loadPipelines();
     loadTemplates();
   }, []);
+
+  // hide navigation when pipeline editor is open
+  useEffect(() => {
+    setHideNavigation(editing !== null);
+  }, [editing, setHideNavigation]);
 
   const loadPipelines = async () => {
     const res = await fetch("/api/pipelines");
