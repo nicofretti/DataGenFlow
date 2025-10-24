@@ -6,6 +6,7 @@ import litellm
 
 from config import settings
 from lib.blocks.base import BaseBlock
+from lib.template_renderer import render_template
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +38,12 @@ class StructuredGenerator(BaseBlock):
 
     async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
         # use config prompt or data prompt
-        user_prompt = self.prompt or data.get(
+        prompt_template = self.prompt or data.get(
             "prompt", "Generate data according to schema"
         )
+
+        # render the Jinja2 template with data context
+        user_prompt = render_template(prompt_template, data)
 
         messages = [{"role": "user", "content": user_prompt}]
 

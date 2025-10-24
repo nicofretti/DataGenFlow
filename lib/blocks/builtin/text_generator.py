@@ -1,4 +1,5 @@
 from lib.blocks.base import BaseBlock
+from lib.template_renderer import render_template
 import litellm
 from typing import Any
 from config import settings
@@ -34,8 +35,12 @@ class TextGenerator(BaseBlock):
 
     async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
         # use config prompts or data prompts
-        system = self.system_prompt or data.get("system", "")
-        user = self.user_prompt or data.get("user", "")
+        system_template = self.system_prompt or data.get("system", "")
+        user_template = self.user_prompt or data.get("user", "")
+
+        # render Jinja2 templates with data context
+        system = render_template(system_template, data) if system_template else ""
+        user = render_template(user_template, data) if user_template else ""
 
         messages = []
         if system:
