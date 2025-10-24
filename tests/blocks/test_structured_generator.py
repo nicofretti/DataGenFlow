@@ -60,3 +60,42 @@ async def test_structured_generator_schema():
     assert schema_result["name"] == "Structured Generator"
     assert "json_schema" in schema_result["config_schema"]["properties"]
     assert "temperature" in schema_result["config_schema"]["properties"]
+
+
+@pytest.mark.asyncio
+@patch('litellm.acompletion')
+async def test_structured_generator_with_enum_enforcement(mock_completion):
+    """test that structured generator enforces enum values in schema"""
+    # mock response with category from enum
+    mock_completion.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='{"category": "positive", "score": 0.9}'))]
+    )
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "category": {
+                "type": "string",
+                "enum": ["positive", "negative", "neutral"]
+            },
+            "score": {"type": "number"}
+        },
+        "required": ["category", "score"]
+    }
+
+    block = StructuredGenerator(
+        json_schema=schema,
+        prompt="Classify sentiment: Great product!",
+        temperature=0.7
+    )
+
+    result = await block.execute({})
+    generated = result["generated"]
+
+    # verify structure
+    assert "category" in generated
+    assert "score" in generated
+
+    # verify enum constraint (should be one of the allowed values)
+    assert generated["category"] in ["positive", "negative", "neutral"]
+    assert isinstance(generated["score"], (int, float))

@@ -46,6 +46,21 @@ class StructuredGenerator(BaseBlock):
         # add ollama/ prefix if using ollama endpoint and model doesn't have provider prefix
         model = self.model
 
+        # prepare response_format with schema enforcement
+        response_format: dict[str, Any]
+        if self.json_schema:
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "response",
+                    "schema": self.json_schema,
+                    "strict": True
+                }
+            }
+        else:
+            # fallback to basic json mode
+            response_format = {"type": "json_object"}
+
         # for ollama, litellm expects just the model with ollama/ prefix
         if "11434" in settings.LLM_ENDPOINT and "/" not in model:
             model = f"ollama/{model}"
@@ -58,28 +73,55 @@ class StructuredGenerator(BaseBlock):
             logger.info(
                 f"Calling LiteLLM ollama with model={model}, api_base={api_base}"
             )
-            response = await litellm.acompletion(
-                model=model,
-                messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                response_format={"type": "json_object"},
-                api_base=api_base,
-            )
+
+            try:
+                response = await litellm.acompletion(
+                    model=model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    response_format=response_format,
+                    api_base=api_base,
+                )
+            except Exception as e:
+                # fallback to basic json_object if structured outputs not supported
+                logger.warning(f"Schema enforcement failed, falling back to json_object: {e}")
+                response = await litellm.acompletion(
+                    model=model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    response_format={"type": "json_object"},
+                    api_base=api_base,
+                )
         else:
             # for other providers, use api_base
             logger.info(
                 f"Calling LiteLLM with model={model}, api_base={settings.LLM_ENDPOINT}"
             )
-            response = await litellm.acompletion(
-                model=model,
-                messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                response_format={"type": "json_object"},
-                api_key=settings.LLM_API_KEY,
-                api_base=settings.LLM_ENDPOINT,
-            )
+
+            try:
+                response = await litellm.acompletion(
+                    model=model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    response_format=response_format,
+                    api_key=settings.LLM_API_KEY,
+                    api_base=settings.LLM_ENDPOINT,
+                )
+            except Exception as e:
+                # fallback to basic json_object if structured outputs not supported
+                logger.warning(f"Schema enforcement failed, falling back to json_object: {e}")
+                response = await litellm.acompletion(
+                    model=model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    response_format={"type": "json_object"},
+                    api_key=settings.LLM_API_KEY,
+                    api_base=settings.LLM_ENDPOINT,
+                )
 
         content = response.choices[0].message.content
 
