@@ -1,14 +1,14 @@
 [
   {
-    "repetitions": 3,
+    "repetitions": 1,
     "metadata": {
-      "content": "Electric cars reduce emissions but require extensive charging infrastructure and have higher upfront costs compared to traditional vehicles."
+      "content": "Ada Lovelace, often celebrated as the world's first computer programmer, collaborated with Charles Babbage in the 19th century on his revolutionary Analytical Engine. While the machine itself was never built, Ada’s visionary notes described how it could be programmed to perform complex calculations and even create music—decades before the first real computers existed. Her work anticipated modern ideas of algorithms and computation, proving that creativity and logic can coexist beautifully in technology. Today, Ada Lovelace stands as a timeless symbol of innovation, intellect, and the boundless potential of women in STEM."
     }
   },
   {
-    "repetitions": 2,
+    "repetitions": 1,
     "metadata": {
-      "content": "Machine learning algorithms can detect patterns in medical imaging to assist radiologists in diagnosing diseases earlier and more accurately."
+      "content": "Programmers have a unique sense of humor—often filled with clever logic twists and inside jokes only fellow coders truly appreciate. For instance, one classic joke goes: 'Why do programmers prefer dark mode? Because light attracts bugs!' These jokes highlight the quirks of software development while bringing laughter to long nights of debugging. Behind the humor lies a shared understanding of problem-solving, frustration, and the joy of finally making the code run without errors. In a world built on logic, a little laughter keeps the code—and the coder—alive."
     }
   }
 ]

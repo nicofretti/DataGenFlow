@@ -1,0 +1,89 @@
+name: Q&A Generation
+description: Generate question-answer pairs from source text content
+blocks:
+  - type: TextGenerator
+    config:
+      user_prompt: |
+        Generate 3-5 comprehension questions about the given text. Output only the questions, one per line.
+
+        Examples:
+
+        Text: "Photosynthesis is the process by which plants convert sunlight into energy. Chlorophyll in leaves absorbs light, which triggers chemical reactions that produce glucose."
+        Questions:
+        What is photosynthesis?
+        What role does chlorophyll play in photosynthesis?
+        What is the end product of photosynthesis?
+
+        Text: "The Great Wall of China was built over centuries to protect against invasions. It stretches over 13,000 miles and involved millions of workers."
+        Questions:
+        Why was the Great Wall of China built?
+        How long is the Great Wall of China?
+        How many people were involved in building the Great Wall?
+        Over what time period was the Great Wall constructed?
+
+        Now generate questions for this text:
+        {{ content }}
+      temperature: 0.8
+      max_tokens: 512
+      model: null
+
+  - type: StructuredGenerator
+    config:
+      prompt: |
+        Answer each question based strictly on the original content provided.
+
+        Example:
+
+        Questions:
+        What is photosynthesis?
+        What role does chlorophyll play in photosynthesis?
+
+        Original content: "Photosynthesis is the process by which plants convert sunlight into energy. Chlorophyll in leaves absorbs light, which triggers chemical reactions that produce glucose."
+
+        Output:
+        {
+          "qa_pairs": [
+            {
+              "question": "What is photosynthesis?",
+              "answer": "Photosynthesis is the process by which plants convert sunlight into energy."
+            },
+            {
+              "question": "What role does chlorophyll play in photosynthesis?",
+              "answer": "Chlorophyll in leaves absorbs light, which triggers chemical reactions that produce glucose."
+            }
+          ]
+        }
+
+        Now answer these questions:
+
+        Questions:
+        {{ assistant }}
+
+        Original content:
+        {{ content }}
+      json_schema:
+        type: object
+        properties:
+          qa_pairs:
+            type: array
+            items:
+              type: object
+              properties:
+                question:
+                  type: string
+                  description: The question
+                answer:
+                  type: string
+                  description: Answer based on the content
+              required: ["question", "answer"]
+            minItems: 3
+            maxItems: 5
+        required: ["qa_pairs"]
+      temperature: 0.7
+      max_tokens: 1024
+
+  - type: JSONValidatorBlock
+    config:
+      field_name: "generated"
+      required_fields: ["qa_pairs"]
+      strict: true

@@ -1,4 +1,4 @@
-name: JSON Extraction
+name: JSON Generation
 description: Extract structured information from text as JSON
 blocks:
   - type: StructuredGenerator
