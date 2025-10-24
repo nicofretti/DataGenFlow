@@ -29,6 +29,15 @@ DataGenFlow uses a three-phase workflow:
 2. **Generate**: Run pipelines on seed data to produce records
 3. **Review**: Validate, edit, and export results
 
+## Quick Start with Templates
+
+DataGenFlow includes pre-configured templates for common tasks. See [Pipeline Templates](templates.md) for:
+- **JSON Extraction** - Extract structured information from text
+- **Text Classification** - Classify text into categories with confidence scores
+- **Q&A Generation** - Generate question-answer pairs from content
+
+Templates use simplified seeds with just a `content` field in metadata.
+
 ## Prerequisites
 
 - LLM endpoint configured (Ollama, OpenAI, etc.)
@@ -131,18 +140,25 @@ This example comes from the built-in "JSON Generation with Validation" template.
 
 Seed files define the variables used in your pipeline templates.
 
-**Format**:
+**Simple content-based format (for templates)**:
 ```json
-{
-  "repetitions": 2,
-  "metadata": {
-    "topic": "Python programming",
-    "difficulty": "beginner"
+[
+  {
+    "repetitions": 3,
+    "metadata": {
+      "content": "Electric cars reduce emissions but require charging infrastructure."
+    }
+  },
+  {
+    "repetitions": 2,
+    "metadata": {
+      "content": "Machine learning helps doctors diagnose diseases more accurately."
+    }
   }
-}
+]
 ```
 
-Or multiple seeds:
+**Custom variables format (for custom pipelines)**:
 ```json
 [
   {
@@ -165,6 +181,7 @@ Or multiple seeds:
 **Fields**:
 - `repetitions`: How many times to run the pipeline with this seed
 - `metadata`: Variables accessible in block templates via `{{ variable_name }}`
+- For templates, use `content` field; for custom pipelines, use any variable names
 
 ### Running Generation
 
