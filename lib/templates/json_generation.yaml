@@ -1,22 +1,24 @@
-name: JSON Generation
-description: Generate structured JSON data with validation
+name: JSON Extraction
+description: Extract structured information from text as JSON
 blocks:
   - type: StructuredGenerator
     config:
+      prompt: "Extract key information from this text and structure it as JSON with 'title' and 'description' fields. Text: {{ content }}"
       json_schema:
         type: object
         properties:
-          data:
+          title:
             type: string
-            description: Generated data
-        required:
-          - data
+            description: A concise title for the content
+          description:
+            type: string
+            description: A detailed description of the content
+        required: ["title", "description"]
       temperature: 0.7
       max_tokens: 2048
-      prompt: ""
 
   - type: JSONValidatorBlock
     config:
       field_name: "generated"
-      required_fields: []
-      strict: false
+      required_fields: ["title", "description"]
+      strict: true
