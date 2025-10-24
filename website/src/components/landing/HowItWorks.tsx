@@ -10,12 +10,11 @@ const steps: Step[] = [
   {
     number: 1,
     title: 'Define Seed Data',
-    description: 'Start by creating a JSON seed file with the variables your pipeline will use.',
+    description: 'Start with text content that your pipeline will process.',
     code: `{
-  "repetitions": 2,
+  "repetitions": 3,
   "metadata": {
-    "topic": "AI",
-    "level": "basic"
+    "content": "Electric cars reduce emissions but require charging infrastructure."
   }
 }`,
     language: 'json'
