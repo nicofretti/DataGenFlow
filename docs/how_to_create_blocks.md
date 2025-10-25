@@ -25,10 +25,22 @@ Blocks are the building blocks of pipelines, connected visually in the pipeline 
 
 ### Built-in Blocks
 
-DataGenFlow includes these stable blocks:
-- **LLMBlock**: Generate text using LLM with Jinja2 template rendering
+DataGenFlow includes these atomic blocks:
+
+**Generators:**
+- **TextGenerator**: Generate text using LiteLLM (multi-provider LLM access)
+- **StructuredGenerator**: Generate structured JSON with schema validation
+
+**Metrics:**
+- **DiversityScore**: Calculate lexical diversity for text variations
+- **CoherenceScore**: Measure text coherence based on sentence structure
+- **RougeScore**: Calculate ROUGE score comparing generated vs reference text
+
+**Validators:**
 - **ValidatorBlock**: Validate text content (length, forbidden words, patterns)
 - **JSONValidatorBlock**: Parse and validate JSON from any accumulated state field
+
+**Output:**
 - **OutputBlock**: Format final pipeline output using Jinja2 templates
 
 You can create custom blocks to add your own logic and integrate with external services.
@@ -92,7 +104,113 @@ def __init__(self, param1: str, param2: int = 10):
 Parameters become configuration options in the UI:
 - Type hints are used for validation
 - Default values make parameters optional
-- Simple types only: `str`, `int`, `float`, `bool`
+- Supported types: `str`, `int`, `float`, `bool`, `dict`, `list`
+  - `str`/`int`/`float`/`bool`: Rendered as text/number/checkbox inputs
+  - `dict`: Rendered as Monaco JSON editor with syntax highlighting
+  - `list`: Rendered as Monaco JSON editor (for complex lists) or array input
+
+### UI Configuration Features
+
+**Enum Dropdowns:**
+```python
+class MyBlock(BaseBlock):
+    _config_enums = {
+        "mode": ["fast", "accurate", "balanced"]
+    }
+
+    def __init__(self, mode: str = "balanced"):
+        self.mode = mode
+```
+The UI will show a dropdown with the three options instead of a text input.
+
+**Field Reference Dropdowns:**
+```python
+class MyBlock(BaseBlock):
+    _field_references = ["input_field", "reference_field"]
+
+    def __init__(self, input_field: str = "assistant", reference_field: str = "reference"):
+        self.input_field = input_field
+        self.reference_field = reference_field
+```
+The UI will show editable dropdowns populated with available fields from previous blocks in the pipeline. Users can select from suggestions or type custom field names.
+
+**Field Descriptions (Inline Help):**
+```python
+class MyBlock(BaseBlock):
+    _config_descriptions = {
+        "prompt": "Jinja2 template. Reference fields with {{ field_name }} or {{ metadata.field_name }}",
+        "api_key": "Your API key from the service dashboard"
+    }
+
+    def __init__(self, prompt: str = "", api_key: str = ""):
+        self.prompt = prompt
+        self.api_key = api_key
+```
+The UI will show these descriptions below each config field to help users understand how to use them.
+
+**Object/Dict Configuration (JSON Editor):**
+```python
+class MyBlock(BaseBlock):
+    _config_descriptions = {
+        "json_schema": "JSON Schema defining the structure of output data"
+    }
+
+    def __init__(self, json_schema: dict[str, Any]):
+        self.json_schema = json_schema
+```
+The UI will show a Monaco JSON editor with syntax highlighting for `dict` and `list` type parameters.
+
+**Complete Example with All Features:**
+```python
+from lib.blocks.base import BaseBlock
+from typing import Any
+
+class AdvancedBlock(BaseBlock):
+    name = "Advanced Block"
+    description = "Example block with all UI features"
+    inputs = []
+    outputs = ["result"]
+
+    # Enum dropdown for mode selection
+    _config_enums = {
+        "mode": ["fast", "balanced", "accurate"]
+    }
+
+    # Field reference dropdowns
+    _field_references = ["input_field"]
+
+    # Inline help text
+    _config_descriptions = {
+        "prompt": "Jinja2 template. Use {{ field_name }} to reference previous outputs",
+        "schema": "JSON Schema for validation",
+        "mode": "Processing mode affects speed and quality"
+    }
+
+    def __init__(
+        self,
+        input_field: str = "assistant",
+        prompt: str = "",
+        schema: dict[str, Any] = None,
+        mode: str = "balanced",
+        temperature: float = 0.7
+    ):
+        self.input_field = input_field
+        self.prompt = prompt
+        self.schema = schema or {}
+        self.mode = mode
+        self.temperature = temperature
+
+    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        # Your implementation here
+        return {"result": "processed"}
+```
+
+This will generate a UI with:
+- `input_field`: Editable dropdown with available fields
+- `prompt`: Text input with help text below
+- `schema`: Monaco JSON editor with syntax highlighting
+- `mode`: Dropdown with three options
+- `temperature`: Number input
 
 ### Execute Method
 
@@ -333,6 +451,89 @@ class DebugBlock(BaseBlock):
         return {"debug_info": debug_info}
 ```
 
+### Example 6: Field References and Descriptions (Real-World)
+
+```python
+from lib.blocks.base import BaseBlock
+from typing import Any
+from difflib import SequenceMatcher
+
+class TextSimilarityBlock(BaseBlock):
+    """compare two text fields for similarity"""
+
+    name = "Text Similarity"
+    description = "Calculate similarity score between two text fields"
+    inputs = []
+    outputs = ["similarity_score"]
+
+    # Mark which parameters reference accumulated state fields
+    _field_references = ["field1", "field2"]
+
+    # Provide helpful descriptions for users
+    _config_descriptions = {
+        "field1": "First field to compare (select from previous block outputs)",
+        "field2": "Second field to compare (select from previous block outputs)"
+    }
+
+    def __init__(self, field1: str = "assistant", field2: str = "reference"):
+        self.field1 = field1
+        self.field2 = field2
+
+    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        text1 = data.get(self.field1, "")
+        text2 = data.get(self.field2, "")
+
+        # calculate similarity
+        similarity = SequenceMatcher(None, text1, text2).ratio()
+
+        return {"similarity_score": similarity}
+```
+
+**In the UI, users will see:**
+- `field1`: Dropdown showing available fields (e.g., "assistant", "text", "generated") with help text
+- `field2`: Dropdown showing available fields with help text
+- Both dropdowns are editable, so users can type custom field names if needed
+
+### Example 7: JSON Schema Configuration
+
+```python
+from lib.blocks.base import BaseBlock
+from typing import Any
+import jsonschema
+
+class SchemaValidator(BaseBlock):
+    """validate data against a JSON schema"""
+
+    name = "Schema Validator"
+    description = "Validate JSON data against a custom schema"
+    inputs = []
+    outputs = ["valid", "errors"]
+
+    _field_references = ["data_field"]
+
+    _config_descriptions = {
+        "data_field": "Field containing the data to validate",
+        "schema": "JSON Schema for validation (use Monaco editor)"
+    }
+
+    def __init__(self, data_field: str = "generated", schema: dict[str, Any] = None):
+        self.data_field = data_field
+        self.schema = schema or {}
+
+    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        data_to_validate = data.get(self.data_field)
+
+        try:
+            jsonschema.validate(instance=data_to_validate, schema=self.schema)
+            return {"valid": True, "errors": []}
+        except jsonschema.ValidationError as e:
+            return {"valid": False, "errors": [str(e)]}
+```
+
+**In the UI, users will see:**
+- `data_field`: Editable dropdown with available fields
+- `schema`: Monaco JSON editor with syntax highlighting, line numbers, and auto-formatting
+
 ## Best Practices
 
 ### Error Handling
@@ -518,8 +719,32 @@ async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
     return {"combined": f"{uppercase} ({count})"}
 ```
 
+## Reference: Built-in Blocks Implementation
+
+Study these for real-world examples:
+
+**StructuredGenerator** (`lib/blocks/builtin/structured_generator.py`):
+- Uses `dict[str, Any]` for `json_schema` parameter (Monaco JSON editor)
+- Uses `_config_descriptions` to explain Jinja2 template syntax
+- Shows how to integrate with LiteLLM for structured generation
+
+**RougeScore** (`lib/blocks/builtin/rouge_score.py`):
+- Uses `_config_enums` for `rouge_type` dropdown
+- Uses `_field_references` for `generated_field` and `reference_field`
+- Example of comparing two fields from accumulated state
+
+**TextGenerator** (`lib/blocks/builtin/text_generator.py`):
+- Uses `_config_descriptions` for prompt fields
+- Shows async LLM API calls
+- Demonstrates conditional logic based on configuration
+
+**JSONValidatorBlock** (`lib/blocks/builtin/json_validator.py`):
+- Handles both string and parsed object inputs
+- Uses `_field_references` for flexible field selection
+- Shows error handling with strict/non-strict modes
+
 ## Next Steps
 
-- **Check builtin blocks for examples**: Explore `lib/blocks/builtin/` for reference implementations (LLMBlock, ValidatorBlock, JSONValidatorBlock, OutputBlock)
+- **Check builtin blocks for examples**: Explore `lib/blocks/builtin/` for reference implementations
 - **Read developer guide**: [DEVELOPERS.md](DEVELOPERS) for architecture details and API reference
 - **Contribute your block**: Share useful blocks with the community via [CONTRIBUTING.md](CONTRIBUTING)
