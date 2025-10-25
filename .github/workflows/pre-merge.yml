@@ -39,7 +39,7 @@ jobs:
         run: npm install -g yarn
 
       - name: Install Python dependencies
-        run: uv sync
+        run: uv sync --all-extras
 
       - name: Install frontend dependencies
         working-directory: ./frontend
