@@ -31,11 +31,9 @@ async def test_pipeline_execution_with_trace():
 
         result, trace, trace_id = await pipeline.execute(input_data)
 
-        # verify result has pipeline_output set
+        # verify result has assistant output
         assert "assistant" in result
         assert result["assistant"] == "Hello! How can I help you today?"
-        assert "pipeline_output" in result
-        assert result["pipeline_output"] == "Hello! How can I help you today?"
 
         # verify trace structure
         assert len(trace) == 1
@@ -43,9 +41,7 @@ async def test_pipeline_execution_with_trace():
 
         # verify trace has accumulated_state
         assert "accumulated_state" in trace[0]
-        assert (
-            trace[0]["accumulated_state"]["pipeline_output"] == "Hello! How can I help you today?"
-        )
+        assert trace[0]["accumulated_state"]["assistant"] == "Hello! How can I help you today?"
 
 
 @pytest.mark.asyncio

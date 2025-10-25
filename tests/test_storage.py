@@ -237,9 +237,12 @@ class TestExport:
 
         for line in lines:
             data = json.loads(line)
-            assert "output" in data
+            assert "id" in data
             assert "metadata" in data
             assert "status" in data
+            assert "accumulated_state" in data
+            assert "created_at" in data
+            assert "updated_at" in data
 
     @pytest.mark.asyncio
     async def test_export_jsonl_by_status(self, storage):
@@ -262,6 +265,8 @@ class TestExport:
     @pytest.mark.asyncio
     async def test_export_jsonl_by_job(self, storage):
         """export_jsonl filters by job_id"""
+        import json
+
         pipeline_id = await storage.save_pipeline("Test", {"blocks": []})
         job_id = await storage.create_job(pipeline_id, 1, "completed")
 
@@ -269,7 +274,12 @@ class TestExport:
         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
 
         job_jsonl = await storage.export_jsonl(job_id=job_id)
-        assert "test" in job_jsonl
+        # verify the export contains a record with the expected structure
+        data = json.loads(job_jsonl)
+        assert "id" in data
+        assert "metadata" in data
+        assert "status" in data
+        assert "accumulated_state" in data
 
 
 class TestEdgeCases:

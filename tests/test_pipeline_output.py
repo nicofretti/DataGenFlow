@@ -26,8 +26,8 @@ async def test_pipeline_output_validation():
 
 
 @pytest.mark.asyncio
-async def test_pipeline_output_default_to_assistant():
-    # test default pipeline_output when no block sets it
+async def test_pipeline_output_includes_assistant():
+    # test that assistant output is in result
     pipeline_def = {
         "name": "Test",
         "blocks": [{"type": "TextGenerator", "config": {}}],
@@ -46,6 +46,5 @@ async def test_pipeline_output_default_to_assistant():
 
         result, trace, trace_id = await pipeline.execute({"system": "test", "user": "test"})
 
-        # pipeline_output should default to assistant
-        assert result["pipeline_output"] == "Default output"
+        # result should include assistant output
         assert result["assistant"] == "Default output"

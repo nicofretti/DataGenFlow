@@ -100,19 +100,7 @@ class Pipeline:
                 # merge result into accumulated data
                 accumulated_data.update(result)
 
-                # set pipeline_output if not already set and this is the last block
-                is_last_block = i == len(self._block_instances) - 1
-                if is_last_block and "pipeline_output" not in accumulated_data:
-                    if "assistant" in accumulated_data:
-                        accumulated_data["pipeline_output"] = accumulated_data["assistant"]
-                    elif block.outputs:
-                        # use this block's first output
-                        first_output = block.outputs[0]
-                        accumulated_data["pipeline_output"] = accumulated_data.get(first_output, "")
-                    else:
-                        accumulated_data["pipeline_output"] = ""
-
-                # capture trace with accumulated state (after pipeline_output is set)
+                # capture trace with accumulated state
                 trace.append(
                     {
                         "block_type": block_name,

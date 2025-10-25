@@ -77,9 +77,6 @@ async def test_json_generation_template_end_to_end(mock_llm):
     assert "valid" in final_state
     assert "parsed_json" in final_state
 
-    # verify pipeline_output is set
-    assert "pipeline_output" in final_state
-
     # verify LLM was called with rendered template (no {{ content }})
     call_args = mock_llm.call_args
     messages = call_args.kwargs["messages"]

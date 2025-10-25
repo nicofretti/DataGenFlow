@@ -271,9 +271,11 @@ Export is scoped to the currently selected job:
 
 **Export format**:
 ```jsonl
-{"id": 1, "output": "...", "metadata": {...}, "status": "accepted", "trace": [...]}
-{"id": 2, "output": "...", "metadata": {...}, "status": "accepted", "trace": [...]}
+{"id": 1, "metadata": {...}, "status": "accepted", "accumulated_state": {...}, "created_at": "...", "updated_at": "..."}
+{"id": 2, "metadata": {...}, "status": "accepted", "accumulated_state": {...}, "created_at": "...", "updated_at": "..."}
 ```
+
+The `accumulated_state` contains only the block outputs (e.g., `assistant`, `valid`, `parsed_json`), excluding metadata to avoid duplication.
 
 **Deleting Records**:
 - "Delete All" button removes all records for selected job

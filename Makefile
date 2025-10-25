@@ -1,4 +1,4 @@
-.PHONY: check-deps install dev dev-ui dev-backend run-dev build-ui run mock-llm clean lint format lint-frontend format-frontend format-all lint-all typecheck typecheck-frontend typecheck-all test pre-merge setup
+.PHONY: check-deps install dev dev-ui dev-backend run-dev build-ui run mock-llm clean lint format lint-frontend format-frontend format-all lint-all typecheck typecheck-frontend typecheck-all test test-integration pre-merge setup
 
 # check if required dependencies are installed
 check-deps:
@@ -87,6 +87,9 @@ typecheck-all: typecheck typecheck-frontend
 
 test:
 	uv run pytest
+
+test-integration:
+	uv run pytest -m integration -v
 
 pre-merge: format-all lint-all typecheck-all test
 	@echo "✅ Pre-merge checks completed successfully. Ready to merge!"
