@@ -1,9 +1,11 @@
+import logging
+from typing import Any
+
+import litellm
+
+from config import settings
 from lib.blocks.base import BaseBlock
 from lib.template_renderer import render_template
-import litellm
-from typing import Any
-from config import settings
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +17,12 @@ class TextGenerator(BaseBlock):
     outputs = ["assistant", "system", "user"]
 
     _config_descriptions = {
-        "system_prompt": "Jinja2 template. Reference fields with {{ field_name }} or {{ metadata.field_name }}",
-        "user_prompt": "Jinja2 template. Reference fields with {{ field_name }} or {{ metadata.field_name }}"
+        "system_prompt": (
+            "Jinja2 template. Reference fields with {{ field_name }} or {{ metadata.field_name }}"
+        ),
+        "user_prompt": (
+            "Jinja2 template. Reference fields with {{ field_name }} or {{ metadata.field_name }}"
+        ),
     }
 
     def __init__(
@@ -25,7 +31,7 @@ class TextGenerator(BaseBlock):
         temperature: float = 0.7,
         max_tokens: int = 2048,
         system_prompt: str = "",
-        user_prompt: str = ""
+        user_prompt: str = "",
     ):
         self.model = model or settings.LLM_MODEL
         self.temperature = temperature
@@ -56,14 +62,15 @@ class TextGenerator(BaseBlock):
             model = f"ollama/{model}"
             # extract base url from endpoint (remove /v1/chat/completions or /api/generate)
             import re
-            api_base = re.sub(r'/(v1/chat/completions|api/generate).*$', '', settings.LLM_ENDPOINT)
+
+            api_base = re.sub(r"/(v1/chat/completions|api/generate).*$", "", settings.LLM_ENDPOINT)
             logger.info(f"Calling LiteLLM ollama with model={model}, api_base={api_base}")
             response = await litellm.acompletion(
                 model=model,
                 messages=messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                api_base=api_base
+                api_base=api_base,
             )
         else:
             # for other providers, use api_base
@@ -74,13 +81,9 @@ class TextGenerator(BaseBlock):
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
                 api_key=settings.LLM_API_KEY,
-                api_base=settings.LLM_ENDPOINT
+                api_base=settings.LLM_ENDPOINT,
             )
 
         assistant = response.choices[0].message.content
 
-        return {
-            "assistant": assistant,
-            "system": system,
-            "user": user
-        }
+        return {"assistant": assistant, "system": system, "user": user}

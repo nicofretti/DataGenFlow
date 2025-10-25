@@ -1,5 +1,16 @@
 import { useState, useCallback, useEffect } from "react";
-import { Box, Heading, Button, TextInput, Textarea, Checkbox, Text, useTheme, Select, Tooltip } from "@primer/react";
+import {
+  Box,
+  Heading,
+  Button,
+  TextInput,
+  Textarea,
+  Checkbox,
+  Text,
+  useTheme,
+  Select,
+  Tooltip,
+} from "@primer/react";
 import { XIcon, StarFillIcon } from "@primer/octicons-react";
 import { Node } from "reactflow";
 import Editor from "@monaco-editor/react";
@@ -11,7 +22,12 @@ interface BlockConfigPanelProps {
   availableFields?: string[];
 }
 
-export default function BlockConfigPanel({ node, onUpdate, onClose, availableFields = [] }: BlockConfigPanelProps) {
+export default function BlockConfigPanel({
+  node,
+  onUpdate,
+  onClose,
+  availableFields = [],
+}: BlockConfigPanelProps) {
   const { block, config } = node.data;
   const [formData, setFormData] = useState<Record<string, any>>(config || {});
   const { resolvedColorScheme } = useTheme();
@@ -41,7 +57,11 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
     // enum dropdown (predefined options)
     if (schema.enum && Array.isArray(schema.enum)) {
       return (
-        <Select value={value} onChange={(e) => handleChange(key, e.target.value)} sx={{ width: "100%" }}>
+        <Select
+          value={value}
+          onChange={(e) => handleChange(key, e.target.value)}
+          sx={{ width: "100%" }}
+        >
           {schema.enum.map((option: string) => (
             <Select.Option key={option} value={option}>
               {option}
@@ -61,7 +81,9 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
             value={value}
             onChange={(e) => handleChange(key, e.target.value)}
             list={datalistId}
-            placeholder={availableFields.length > 0 ? "Select or type field name" : "Type field name"}
+            placeholder={
+              availableFields.length > 0 ? "Select or type field name" : "Type field name"
+            }
             sx={{ width: "100%" }}
           />
           {availableFields.length > 0 && (
@@ -132,7 +154,8 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
               overviewRulerBorder: false,
               wordWrap: wordWrap ? "on" : "off",
               fontSize: 13,
-              fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
+              fontFamily:
+                "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
               tabSize: 2,
               padding: { top: 8, bottom: 8 },
             }}
@@ -188,7 +211,8 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
               overviewRulerBorder: false,
               wordWrap: wordWrap ? "on" : "off",
               fontSize: 13,
-              fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
+              fontFamily:
+                "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
               tabSize: 2,
               padding: { top: 8, bottom: 8 },
             }}
@@ -290,7 +314,14 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     {hasDescription && (
                       <Tooltip aria-label="Important setting" direction="l">
-                        <Box sx={{ color: "attention.fg", display: "flex", alignItems: "center", cursor: "help" }}>
+                        <Box
+                          sx={{
+                            color: "attention.fg",
+                            display: "flex",
+                            alignItems: "center",
+                            cursor: "help",
+                          }}
+                        >
                           <StarFillIcon size={14} />
                         </Box>
                       </Tooltip>
@@ -309,14 +340,19 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
                         </Text>
                       )}
                       {schema.default !== undefined && schema.default !== null && (
-                        <Text as="span" sx={{ fontSize: 0, color: "fg.muted", ml: 2, fontWeight: "normal" }}>
-                          (default: {
-                            typeof schema.default === "object"
-                              ? (Array.isArray(schema.default) && schema.default.length === 0
-                                  ? "[]"
-                                  : (Object.keys(schema.default).length === 0 ? "{}" : "see editor"))
-                              : String(schema.default)
-                          })
+                        <Text
+                          as="span"
+                          sx={{ fontSize: 0, color: "fg.muted", ml: 2, fontWeight: "normal" }}
+                        >
+                          (default:{" "}
+                          {typeof schema.default === "object"
+                            ? Array.isArray(schema.default) && schema.default.length === 0
+                              ? "[]"
+                              : Object.keys(schema.default).length === 0
+                                ? "{}"
+                                : "see editor"
+                            : String(schema.default)}
+                          )
                         </Text>
                       )}
                     </Text>

@@ -18,5 +18,7 @@
 
 /* ReactFlow edge transitions - theme agnostic */
 .react-flow__edge-path {
-  transition: stroke-width var(--transition-normal), opacity var(--transition-normal);
+  transition:
+    stroke-width var(--transition-normal),
+    opacity var(--transition-normal);
 }

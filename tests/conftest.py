@@ -76,7 +76,7 @@ def sample_pipeline_def():
     return {
         "name": "Test Pipeline",
         "blocks": [
-            {"type": "LLMBlock", "config": {"temperature": 0.7}},
+            {"type": "TextGenerator", "config": {"temperature": 0.7}},
             {"type": "ValidatorBlock", "config": {"min_length": 10}},
         ],
     }

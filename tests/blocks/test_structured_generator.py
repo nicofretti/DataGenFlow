@@ -1,10 +1,12 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
+
 from lib.blocks.builtin.structured_generator import StructuredGenerator
-from unittest.mock import AsyncMock, patch, MagicMock
 
 
 @pytest.mark.asyncio
-@patch('litellm.acompletion')
+@patch("litellm.acompletion")
 async def test_structured_generator(mock_completion):
     # mock response with JSON
     mock_completion.return_value = MagicMock(
@@ -13,11 +15,8 @@ async def test_structured_generator(mock_completion):
 
     schema = {
         "type": "object",
-        "properties": {
-            "name": {"type": "string"},
-            "age": {"type": "number"}
-        },
-        "required": ["name", "age"]
+        "properties": {"name": {"type": "string"}, "age": {"type": "number"}},
+        "required": ["name", "age"],
     }
 
     block = StructuredGenerator(json_schema=schema)
@@ -29,23 +28,15 @@ async def test_structured_generator(mock_completion):
 
 
 @pytest.mark.asyncio
-@patch('litellm.acompletion')
+@patch("litellm.acompletion")
 async def test_structured_generator_with_prompt(mock_completion):
     mock_completion.return_value = MagicMock(
         choices=[MagicMock(message=MagicMock(content='{"result": "test"}'))]
     )
 
-    schema = {
-        "type": "object",
-        "properties": {
-            "result": {"type": "string"}
-        }
-    }
+    schema = {"type": "object", "properties": {"result": {"type": "string"}}}
 
-    block = StructuredGenerator(
-        json_schema=schema,
-        prompt="Generate a test result"
-    )
+    block = StructuredGenerator(json_schema=schema, prompt="Generate a test result")
     result = await block.execute({})
 
     assert result["generated"]["result"] == "test"
@@ -53,9 +44,6 @@ async def test_structured_generator_with_prompt(mock_completion):
 
 @pytest.mark.asyncio
 async def test_structured_generator_schema():
-    schema = {"type": "object"}
-    block = StructuredGenerator(json_schema=schema)
-
     schema_result = StructuredGenerator.get_schema()
     assert schema_result["name"] == "Structured Generator"
     assert "json_schema" in schema_result["config_schema"]["properties"]
@@ -63,7 +51,7 @@ async def test_structured_generator_schema():
 
 
 @pytest.mark.asyncio
-@patch('litellm.acompletion')
+@patch("litellm.acompletion")
 async def test_structured_generator_with_enum_enforcement(mock_completion):
     """test that structured generator enforces enum values in schema"""
     # mock response with category from enum
@@ -74,19 +62,14 @@ async def test_structured_generator_with_enum_enforcement(mock_completion):
     schema = {
         "type": "object",
         "properties": {
-            "category": {
-                "type": "string",
-                "enum": ["positive", "negative", "neutral"]
-            },
-            "score": {"type": "number"}
+            "category": {"type": "string", "enum": ["positive", "negative", "neutral"]},
+            "score": {"type": "number"},
         },
-        "required": ["category", "score"]
+        "required": ["category", "score"],
     }
 
     block = StructuredGenerator(
-        json_schema=schema,
-        prompt="Classify sentiment: Great product!",
-        temperature=0.7
+        json_schema=schema, prompt="Classify sentiment: Great product!", temperature=0.7
     )
 
     result = await block.execute({})

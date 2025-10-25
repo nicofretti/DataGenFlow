@@ -9,9 +9,7 @@ class ValidatorBlock(BaseBlock):
     inputs = ["text", "assistant"]
     outputs = ["text", "valid", "assistant"]
 
-    _config_descriptions = {
-        "forbidden_words": "List of words that should not appear in the text"
-    }
+    _config_descriptions = {"forbidden_words": "List of words that should not appear in the text"}
 
     def __init__(
         self,

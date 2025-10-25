@@ -54,59 +54,63 @@ function Navigation() {
             overflowY: "auto",
           }}
         >
-        {/* brand */}
-        <Box sx={{ p: 4, borderBottom: "1px solid", borderColor: "border.default" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-            <img src="/logo.png" alt="DataGenFlow Logo" style={{ width: "40px", height: "40px" }} />
-            <Heading sx={{ fontSize: 3, color: "fg.default" }}>DataGenFlow</Heading>
+          {/* brand */}
+          <Box sx={{ p: 4, borderBottom: "1px solid", borderColor: "border.default" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+              <img
+                src="/logo.png"
+                alt="DataGenFlow Logo"
+                style={{ width: "40px", height: "40px" }}
+              />
+              <Heading sx={{ fontSize: 3, color: "fg.default" }}>DataGenFlow</Heading>
+            </Box>
+            <GlobalJobIndicator />
           </Box>
-          <GlobalJobIndicator />
-        </Box>
 
-        {/* navigation links */}
-        <Box sx={{ flex: 1, p: 3 }}>
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Box
-                key={item.path}
-                as={Link}
-                to={item.path}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  p: 2,
-                  mb: 1,
-                  borderRadius: 2,
-                  textDecoration: "none",
-                  color: isActive ? "fg.default" : "fg.muted",
-                  bg: isActive ? "accent.subtle" : "transparent",
-                  fontWeight: isActive ? "bold" : "normal",
-                  "&:hover": {
-                    bg: isActive ? "accent.subtle" : "neutral.subtle",
-                  },
-                  transition: "all 0.2s",
-                }}
-              >
-                <item.icon size={20} />
-                <Text sx={{ fontSize: 2 }}>{item.label}</Text>
-              </Box>
-            );
-          })}
-        </Box>
+          {/* navigation links */}
+          <Box sx={{ flex: 1, p: 3 }}>
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Box
+                  key={item.path}
+                  as={Link}
+                  to={item.path}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                    p: 2,
+                    mb: 1,
+                    borderRadius: 2,
+                    textDecoration: "none",
+                    color: isActive ? "fg.default" : "fg.muted",
+                    bg: isActive ? "accent.subtle" : "transparent",
+                    fontWeight: isActive ? "bold" : "normal",
+                    "&:hover": {
+                      bg: isActive ? "accent.subtle" : "neutral.subtle",
+                    },
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <item.icon size={20} />
+                  <Text sx={{ fontSize: 2 }}>{item.label}</Text>
+                </Box>
+              );
+            })}
+          </Box>
 
-        {/* theme toggle at bottom */}
-        <Box sx={{ p: 3, borderTop: "1px solid", borderColor: "border.default" }}>
-          <IconButton
-            icon={isDark ? SunIcon : MoonIcon}
-            aria-label="Toggle theme"
-            onClick={handleToggleTheme}
-            variant="invisible"
-            size="large"
-            sx={{ width: "100%" }}
-          />
-        </Box>
+          {/* theme toggle at bottom */}
+          <Box sx={{ p: 3, borderTop: "1px solid", borderColor: "border.default" }}>
+            <IconButton
+              icon={isDark ? SunIcon : MoonIcon}
+              aria-label="Toggle theme"
+              onClick={handleToggleTheme}
+              variant="invisible"
+              size="large"
+              sx={{ width: "100%" }}
+            />
+          </Box>
         </Box>
       )}
 

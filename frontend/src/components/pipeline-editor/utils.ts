@@ -173,8 +173,12 @@ export function convertFromPipelineFormat(
   pipeline.blocks.forEach((blockDef, index) => {
     const block = allBlocks.find((b) => b.type === blockDef.type);
     if (!block) {
-      console.error(`Block type '${blockDef.type}' not found in available blocks. Available: ${allBlocks.map(b => b.type).join(', ')}`);
-      throw new Error(`Block type '${blockDef.type}' not found. This pipeline may use deprecated blocks.`);
+      console.error(
+        `Block type '${blockDef.type}' not found in available blocks. Available: ${allBlocks.map((b) => b.type).join(", ")}`
+      );
+      throw new Error(
+        `Block type '${blockDef.type}' not found. This pipeline may use deprecated blocks.`
+      );
     }
 
     // create node

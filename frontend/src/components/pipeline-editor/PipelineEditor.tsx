@@ -170,11 +170,7 @@ export default function PipelineEditor({
   const handleAutoLayout = useCallback(() => {
     if (nodes.length === 0) return;
 
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-      nodes,
-      edges,
-      "TB"
-    );
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, "TB");
 
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
@@ -295,7 +291,9 @@ export default function PipelineEditor({
 
     // check if callbacks are missing on any node
     const callbacksChanged = updatedNodes.some((node, i) => {
-      return !nodes[i]?.data?.onConfigClick || !nodes[i]?.data?.onDelete || !nodes[i]?.data?.onDuplicate;
+      return (
+        !nodes[i]?.data?.onConfigClick || !nodes[i]?.data?.onDelete || !nodes[i]?.data?.onDuplicate
+      );
     });
 
     // check if configuration status changed
@@ -311,7 +309,15 @@ export default function PipelineEditor({
     if (stateChanged || callbacksChanged || configStatusChanged || connectionStatusChanged) {
       setNodes(updatedNodes);
     }
-  }, [nodes, edges, setNodes, isNodeConfigured, isNodeConnected, handleDeleteNode, handleDuplicateNode]);
+  }, [
+    nodes,
+    edges,
+    setNodes,
+    isNodeConfigured,
+    isNodeConnected,
+    handleDeleteNode,
+    handleDuplicateNode,
+  ]);
 
   // handle new edge connection
   const onConnect = useCallback(
@@ -360,43 +366,46 @@ export default function PipelineEditor({
   }, []);
 
   // compute available fields from previous blocks
-  const getAvailableFields = useCallback((currentNode: Node | null): string[] => {
-    if (!currentNode) return [];
+  const getAvailableFields = useCallback(
+    (currentNode: Node | null): string[] => {
+      if (!currentNode) return [];
 
-    // find all nodes that come before this node in the pipeline
-    const predecessors = new Set<string>();
-    const visited = new Set<string>();
+      // find all nodes that come before this node in the pipeline
+      const predecessors = new Set<string>();
+      const visited = new Set<string>();
 
-    const findPredecessors = (nodeId: string) => {
-      if (visited.has(nodeId)) return;
-      visited.add(nodeId);
+      const findPredecessors = (nodeId: string) => {
+        if (visited.has(nodeId)) return;
+        visited.add(nodeId);
 
-      edges.forEach((edge) => {
-        if (edge.target === nodeId) {
-          predecessors.add(edge.source);
-          findPredecessors(edge.source);
-        }
-      });
-    };
-
-    findPredecessors(currentNode.id);
-
-    // collect all outputs from predecessor nodes
-    const availableFields = new Set<string>();
-
-    nodes.forEach((node) => {
-      if (predecessors.has(node.id)) {
-        const outputs = node.data.block.outputs || [];
-        outputs.forEach((output: string) => {
-          if (output !== "*") {
-            availableFields.add(output);
+        edges.forEach((edge) => {
+          if (edge.target === nodeId) {
+            predecessors.add(edge.source);
+            findPredecessors(edge.source);
           }
         });
-      }
-    });
+      };
 
-    return Array.from(availableFields).sort();
-  }, [nodes, edges]);
+      findPredecessors(currentNode.id);
+
+      // collect all outputs from predecessor nodes
+      const availableFields = new Set<string>();
+
+      nodes.forEach((node) => {
+        if (predecessors.has(node.id)) {
+          const outputs = node.data.block.outputs || [];
+          outputs.forEach((output: string) => {
+            if (output !== "*") {
+              availableFields.add(output);
+            }
+          });
+        }
+      });
+
+      return Array.from(availableFields).sort();
+    },
+    [nodes, edges]
+  );
 
   // handle config update
   const handleConfigUpdate = useCallback(
@@ -499,7 +508,7 @@ export default function PipelineEditor({
       const isConnected = isNodeConnected(node.id);
       return isConfigured && isConnected;
     });
-  }, [nodes, edges, isNodeConfigured, isNodeConnected]);
+  }, [nodes, isNodeConfigured, isNodeConnected]);
 
   return (
     <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>

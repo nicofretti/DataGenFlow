@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Heading, Text, Button, Flash, Label, IconButton } from "@primer/react";
+import { Box, Heading, Text, Button, Flash, Label } from "@primer/react";
 import {
   PencilIcon,
   TrashIcon,
@@ -9,7 +9,6 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CopyIcon,
-  ToolsIcon,
 } from "@primer/octicons-react";
 import PipelineEditor from "../components/pipeline-editor/PipelineEditor";
 import { useNavigation } from "../App";
@@ -336,7 +335,7 @@ export default function Pipelines() {
                 </Box>
               </Box>
 
-              <Box sx={{ mt: 3, pt: 3}}>
+              <Box sx={{ mt: 3, pt: 3 }}>
                 <Box
                   sx={{
                     display: "flex",

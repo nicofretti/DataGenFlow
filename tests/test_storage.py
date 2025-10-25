@@ -113,7 +113,7 @@ class TestPipelineCRUD:
     @pytest.mark.asyncio
     async def test_save_and_get_pipeline(self, storage):
         """saving pipeline returns id and allows retrieval"""
-        pipeline_def = {"blocks": [{"type": "LLMBlock", "config": {"temperature": 0.7}}]}
+        pipeline_def = {"blocks": [{"type": "TextGenerator", "config": {"temperature": 0.7}}]}
 
         pipeline_id = await storage.save_pipeline("Test Pipeline", pipeline_def)
         assert pipeline_id > 0
@@ -138,7 +138,7 @@ class TestPipelineCRUD:
     @pytest.mark.asyncio
     async def test_update_pipeline(self, storage):
         """updating pipeline modifies name and definition"""
-        pipeline_def = {"blocks": [{"type": "LLMBlock", "config": {"temperature": 0.7}}]}
+        pipeline_def = {"blocks": [{"type": "TextGenerator", "config": {"temperature": 0.7}}]}
         pipeline_id = await storage.save_pipeline("Original Name", pipeline_def)
 
         # update pipeline
@@ -291,7 +291,7 @@ class TestEdgeCases:
         """records with trace data are stored correctly"""
         trace = [
             {
-                "block_type": "LLMBlock",
+                "block_type": "TextGenerator",
                 "input": {"system": "test", "user": "test"},
                 "output": {"assistant": "response"},
                 "execution_time": 1.5,
@@ -304,7 +304,7 @@ class TestEdgeCases:
         retrieved = await storage.get_by_id(record_id)
         assert retrieved.trace is not None
         assert len(retrieved.trace) == 1
-        assert retrieved.trace[0]["block_type"] == "LLMBlock"
+        assert retrieved.trace[0]["block_type"] == "TextGenerator"
         assert retrieved.trace[0]["execution_time"] == 1.5
 
     @pytest.mark.asyncio

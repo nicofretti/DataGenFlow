@@ -1,18 +1,18 @@
 import inspect
-from typing import get_type_hints, get_origin, get_args, Any, Union
+from typing import Any, Type, Union, get_args, get_origin, get_type_hints
 
 
 class BlockConfigSchema:
     @staticmethod
-    def get_config_schema(block_class) -> dict:
+    def get_config_schema(block_class: Type[Any]) -> dict[str, Any]:
         """extract config schema from __init__ signature"""
         sig = inspect.signature(block_class.__init__)
         type_hints = get_type_hints(block_class.__init__)
 
         # check for class-level enum and field reference definitions
-        enum_values = getattr(block_class, '_config_enums', {})
-        field_refs = getattr(block_class, '_field_references', [])
-        field_descriptions = getattr(block_class, '_config_descriptions', {})
+        enum_values = getattr(block_class, "_config_enums", {})
+        field_refs = getattr(block_class, "_field_references", [])
+        field_descriptions = getattr(block_class, "_config_descriptions", {})
 
         properties = {}
         required = []
@@ -44,14 +44,10 @@ class BlockConfigSchema:
 
             properties[param_name] = property_def
 
-        return {
-            "type": "object",
-            "properties": properties,
-            "required": required
-        }
+        return {"type": "object", "properties": properties, "required": required}
 
     @staticmethod
-    def _get_property_def(param_type) -> dict:
+    def _get_property_def(param_type: Any) -> dict[str, Any]:
         """convert Python type to JSON schema"""
         # handle union types (e.g., str | None, list[str] | None)
         origin = get_origin(param_type)
@@ -74,21 +70,18 @@ class BlockConfigSchema:
         if origin is list:
             args = get_args(param_type)
             item_type = args[0] if args else str
-            return {
-                "type": "array",
-                "items": BlockConfigSchema._get_property_def(item_type)
-            }
+            return {"type": "array", "items": BlockConfigSchema._get_property_def(item_type)}
 
         # handle basic types
-        if param_type == int:
+        if param_type is int:
             return {"type": "integer"}
-        elif param_type == float:
+        elif param_type is float:
             return {"type": "number"}
-        elif param_type == bool:
+        elif param_type is bool:
             return {"type": "boolean"}
-        elif param_type == str:
+        elif param_type is str:
             return {"type": "string"}
-        elif param_type == dict:
+        elif param_type is dict:
             return {"type": "object"}
         else:
             return {"type": "string"}

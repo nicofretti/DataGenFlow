@@ -10,7 +10,7 @@ async def test_pipeline_execution_with_trace():
     pipeline_def = {
         "name": "Test Pipeline",
         "blocks": [
-            {"type": "LLMBlock", "config": {"temperature": 0.7}},
+            {"type": "TextGenerator", "config": {"temperature": 0.7}},
         ],
     }
 
@@ -22,8 +22,12 @@ async def test_pipeline_execution_with_trace():
     # mock the llm call to avoid actual api requests
     from unittest.mock import AsyncMock, patch
 
-    with patch("lib.generator.Generator.generate", new_callable=AsyncMock) as mock_gen:
-        mock_gen.return_value = "Hello! How can I help you today?"
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_gen:
+        from unittest.mock import MagicMock
+
+        mock_gen.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Hello! How can I help you today?"))]
+        )
 
         result, trace, trace_id = await pipeline.execute(input_data)
 
@@ -35,7 +39,7 @@ async def test_pipeline_execution_with_trace():
 
         # verify trace structure
         assert len(trace) == 1
-        assert trace[0]["block_type"] == "LLMBlock"
+        assert trace[0]["block_type"] == "TextGenerator"
 
         # verify trace has accumulated_state
         assert "accumulated_state" in trace[0]
@@ -53,7 +57,7 @@ async def test_storage_saves_trace(storage):
 
     trace = [
         {
-            "block_type": "LLMBlock",
+            "block_type": "TextGenerator",
             "input": {"system": "test", "user": "test"},
             "output": {"assistant": "response"},
         }
@@ -72,7 +76,7 @@ async def test_storage_saves_trace(storage):
     assert saved_record is not None
     assert saved_record.trace is not None
     assert len(saved_record.trace) == 1
-    assert saved_record.trace[0]["block_type"] == "LLMBlock"
+    assert saved_record.trace[0]["block_type"] == "TextGenerator"
 
 
 @pytest.mark.asyncio

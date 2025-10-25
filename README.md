@@ -41,7 +41,7 @@ Get started in under 2 minutes:
 make setup
 make dev
 
-# Launch application (backend + frontend)
+# Launch application (backend + frontend), make sure to have .env configured
 make run-dev
 
 # Open http://localhost:8000

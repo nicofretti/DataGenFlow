@@ -1,18 +1,16 @@
 import pytest
+
 from lib.blocks.builtin.rouge_score import RougeScore
 
 
 @pytest.mark.asyncio
 async def test_rouge_score_perfect_match():
     block = RougeScore(
-        generated_field="assistant",
-        reference_field="reference",
-        rouge_type="rouge1"
+        generated_field="assistant", reference_field="reference", rouge_type="rouge1"
     )
-    result = await block.execute({
-        "assistant": "The quick brown fox",
-        "reference": "The quick brown fox"
-    })
+    result = await block.execute(
+        {"assistant": "The quick brown fox", "reference": "The quick brown fox"}
+    )
 
     assert "rouge_score" in result
     assert result["rouge_score"] == 1.0
@@ -21,14 +19,11 @@ async def test_rouge_score_perfect_match():
 @pytest.mark.asyncio
 async def test_rouge_score_partial_match():
     block = RougeScore(
-        generated_field="assistant",
-        reference_field="reference",
-        rouge_type="rouge1"
+        generated_field="assistant", reference_field="reference", rouge_type="rouge1"
     )
-    result = await block.execute({
-        "assistant": "The quick brown dog",
-        "reference": "The quick brown fox"
-    })
+    result = await block.execute(
+        {"assistant": "The quick brown dog", "reference": "The quick brown fox"}
+    )
 
     assert "rouge_score" in result
     assert 0 < result["rouge_score"] < 1.0

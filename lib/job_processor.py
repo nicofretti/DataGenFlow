@@ -168,6 +168,7 @@ async def _process_job(
                         # ensure output is a string (might be dict from metrics)
                         if isinstance(pipeline_output, dict):
                             import json
+
                             pipeline_output = json.dumps(pipeline_output)
                         elif not isinstance(pipeline_output, str):
                             pipeline_output = str(pipeline_output)

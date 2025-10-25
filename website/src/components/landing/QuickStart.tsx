@@ -7,9 +7,9 @@ export default function QuickStart() {
 
   const installCommand = `make setup
 make dev
-make run-dev
+make run
 
-# Open http://localhost:8000`
+# Open http://localhost:8000, make sure to have .env configured`
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(installCommand)

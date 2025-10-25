@@ -1,4 +1,5 @@
-import pytest
+from typing import Any
+
 from lib.blocks.base import BaseBlock
 
 
@@ -12,7 +13,7 @@ class TestBlockConfig(BaseBlock):
         self.param1 = param1
         self.param2 = param2
 
-    async def execute(self, data: dict):
+    async def execute(self, data: dict[str, Any]):
         return {"result": f"{self.param1}_{self.param2}"}
 
 

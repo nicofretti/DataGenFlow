@@ -1,17 +1,20 @@
-from lib.blocks.base import BaseBlock
-from rouge_score import rouge_scorer
 from typing import Any
+
+from rouge_score import rouge_scorer  # type: ignore[import-untyped]
+
+from lib.blocks.base import BaseBlock
 
 
 class RougeScore(BaseBlock):
     name = "ROUGE Score"
-    description = "Calculate ROUGE score comparing generated text against reference text. Configurable via 'generated_field' and 'reference_field' parameters."
+    description = (
+        "Calculate ROUGE score comparing generated text against reference text. "
+        "Configurable via 'generated_field' and 'reference_field' parameters."
+    )
     inputs = []
     outputs = ["rouge_score"]
 
-    _config_enums = {
-        "rouge_type": ["rouge1", "rouge2", "rougeL"]
-    }
+    _config_enums = {"rouge_type": ["rouge1", "rouge2", "rougeL"]}
 
     _field_references = ["generated_field", "reference_field"]
 
@@ -19,7 +22,7 @@ class RougeScore(BaseBlock):
         self,
         generated_field: str = "assistant",
         reference_field: str = "reference",
-        rouge_type: str = "rouge1"
+        rouge_type: str = "rouge1",
     ):
         """
         Args:

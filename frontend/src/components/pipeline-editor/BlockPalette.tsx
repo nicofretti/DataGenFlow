@@ -163,11 +163,7 @@ export default function BlockPalette({ blocks }: BlockPaletteProps) {
                   },
                 }}
               >
-                {isCollapsed ? (
-                  <ChevronRightIcon size={12} />
-                ) : (
-                  <ChevronDownIcon size={12} />
-                )}
+                {isCollapsed ? <ChevronRightIcon size={12} /> : <ChevronDownIcon size={12} />}
                 <Text sx={{ fontSize: "14px" }}>{info.icon}</Text>
                 <Text
                   sx={{
@@ -243,19 +239,18 @@ export default function BlockPalette({ blocks }: BlockPaletteProps) {
         })}
 
         {/* Empty state */}
-        {search &&
-          Object.values(categorizedBlocks).every((blocks) => blocks.length === 0) && (
-            <Text
-              sx={{
-                color: "fg.muted",
-                fontSize: 1,
-                textAlign: "center",
-                py: 4,
-              }}
-            >
-              No blocks found
-            </Text>
-          )}
+        {search && Object.values(categorizedBlocks).every((blocks) => blocks.length === 0) && (
+          <Text
+            sx={{
+              color: "fg.muted",
+              fontSize: 1,
+              textAlign: "center",
+              py: 4,
+            }}
+          >
+            No blocks found
+          </Text>
+        )}
       </Box>
     </Box>
   );

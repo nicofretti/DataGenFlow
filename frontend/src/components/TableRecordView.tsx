@@ -25,7 +25,7 @@ export default function TableRecordView({
   totalRecords,
   onAccept,
   onReject,
-  onSetPending,
+  onSetPending: _onSetPending,
   onViewDetails,
   onPageChange,
   onRecordsPerPageChange,

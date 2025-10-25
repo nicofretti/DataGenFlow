@@ -1,11 +1,15 @@
-from lib.blocks.base import BaseBlock
 from difflib import SequenceMatcher
 from typing import Any
+
+from lib.blocks.base import BaseBlock
 
 
 class DiversityScore(BaseBlock):
     name = "Diversity Score"
-    description = "Calculate lexical diversity score for text variations. Configurable via 'field_name' parameter to specify which field to analyze."
+    description = (
+        "Calculate lexical diversity score for text variations. "
+        "Configurable via 'field_name' parameter to specify which field to analyze."
+    )
     inputs = []
     outputs = ["diversity_score"]
 
