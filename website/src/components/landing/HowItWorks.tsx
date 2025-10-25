@@ -38,7 +38,7 @@ E → Edit    |  N → Next    |  P → Previous
 Field Configuration:
 Primary:   [parsed_json, valid]
 Secondary: [metadata.content]
-Hidden:    [... all other fieldss]`,
+Hidden:    [... all other fields]`,
     language: 'text'
   },
   {

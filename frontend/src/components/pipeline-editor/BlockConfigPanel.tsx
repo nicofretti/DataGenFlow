@@ -181,13 +181,6 @@ export default function BlockConfigPanel({
             defaultLanguage="json"
             value={jsonValue}
             onChange={(newValue) => {
-              // try {
-              //   const parsed = JSON.parse(newValue || "{}");
-              //   handleChange(key, parsed);
-              // } catch {
-              //   // keep as string if invalid JSON
-              //   handleChange(key, newValue || "");
-              // }
               handleChange(key, newValue);
             }}
             theme={resolvedColorScheme === "dark" ? "vs-dark" : "light"}
