@@ -30,8 +30,9 @@ def client():
     """create test client with lifespan handling"""
     from app import app
 
-    with TestClient(app) as client:
-        yield client
+    client = TestClient(app)
+    yield client
+    client.close()
 
 
 @pytest.fixture
@@ -67,7 +68,9 @@ async def storage():
     await storage.init_db()
     yield storage
 
-    # cleanup handled by session fixture
+    # close database connection
+    if hasattr(storage, 'conn') and storage.conn:
+        await storage.conn.close()
 
 
 @pytest.fixture
