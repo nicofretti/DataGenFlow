@@ -2,6 +2,7 @@
 Test configuration and fixtures
 """
 
+import asyncio
 import os
 from pathlib import Path
 
@@ -23,6 +24,23 @@ def cleanup_test_db():
     yield
     if test_db.exists():
         test_db.unlink()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """cleanup asyncio resources after test session"""
+    # close all pending asyncio tasks
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.stop()
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+        loop.close()
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="function")

@@ -66,3 +66,5 @@ markers = [
     "integration: integration tests requiring external services (ollama, etc) - only run when explicitly called",
 ]
 addopts = "-m 'not integration'"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
