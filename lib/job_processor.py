@@ -1,6 +1,9 @@
 import asyncio
+import json
 import threading
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from loguru import logger
 
@@ -8,6 +11,14 @@ from lib.job_queue import JobQueue
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
 from models import Record
+
+
+async def _update_job_status(
+    job_queue: JobQueue, storage: Storage, job_id: int, **kwargs: Any
+) -> None:
+    """update job in both memory and database"""
+    job_queue.update_job(job_id, **kwargs)
+    await storage.update_job(job_id, **kwargs)
 
 
 def process_job_in_thread(
@@ -55,20 +66,13 @@ async def _process_job(
     storage: Storage,
 ) -> None:
     """execute pipeline for seeds from file with progress tracking"""
-    import json
-    from pathlib import Path
-
     try:
         # load pipeline
         pipeline_data = await storage.get_pipeline(pipeline_id)
         if not pipeline_data:
-            job_queue.update_job(
-                job_id,
-                status="failed",
-                error="Pipeline not found",
-                completed_at=datetime.now().isoformat(),
-            )
-            await storage.update_job(
+            await _update_job_status(
+                job_queue,
+                storage,
                 job_id,
                 status="failed",
                 error="Pipeline not found",
@@ -138,14 +142,9 @@ async def _process_job(
 
                 # update progress
                 progress = execution_index / total_executions
-                job_queue.update_job(
-                    job_id,
-                    current_seed=execution_index,
-                    progress=progress,
-                    current_block=None,
-                    current_step=f"Processing execution {execution_index}/{total_executions}",
-                )
-                await storage.update_job(
+                await _update_job_status(
+                    job_queue,
+                    storage,
                     job_id,
                     current_seed=execution_index,
                     progress=progress,
@@ -167,8 +166,6 @@ async def _process_job(
 
                         # ensure output is a string (might be dict from metrics)
                         if isinstance(pipeline_output, dict):
-                            import json
-
                             pipeline_output = json.dumps(pipeline_output)
                         elif not isinstance(pipeline_output, str):
                             pipeline_output = str(pipeline_output)
@@ -185,13 +182,9 @@ async def _process_job(
                     records_generated += 1
 
                     # update count and clear block info
-                    job_queue.update_job(
-                        job_id,
-                        records_generated=records_generated,
-                        current_block=None,
-                        current_step=f"Processing execution {execution_index}/{total_executions}",
-                    )
-                    await storage.update_job(
+                    await _update_job_status(
+                        job_queue,
+                        storage,
                         job_id,
                         records_generated=records_generated,
                         current_block=None,
@@ -203,8 +196,9 @@ async def _process_job(
                     logger.error(f"[Job {job_id}] Execution {execution_index} failed: {e}")
 
                     # update failed count
-                    job_queue.update_job(job_id, records_failed=records_failed)
-                    await storage.update_job(job_id, records_failed=records_failed)
+                    await _update_job_status(
+                        job_queue, storage, job_id, records_failed=records_failed
+                    )
 
                     # skip and continue
                     continue
@@ -219,13 +213,9 @@ async def _process_job(
         final_status = job_queue.get_job(job_id)
         if final_status and final_status.get("status") != "cancelled":
             completed_at = datetime.now().isoformat()
-            job_queue.update_job(
-                job_id,
-                status="completed",
-                progress=1.0,
-                completed_at=completed_at,
-            )
-            await storage.update_job(
+            await _update_job_status(
+                job_queue,
+                storage,
                 job_id,
                 status="completed",
                 progress=1.0,
@@ -241,13 +231,9 @@ async def _process_job(
 
         # mark as failed
         completed_at = datetime.now().isoformat()
-        job_queue.update_job(
-            job_id,
-            status="failed",
-            error=error_msg,
-            completed_at=completed_at,
-        )
-        await storage.update_job(
+        await _update_job_status(
+            job_queue,
+            storage,
             job_id,
             status="failed",
             error=error_msg,
