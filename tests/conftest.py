@@ -2,6 +2,7 @@
 Test configuration and fixtures
 """
 
+import asyncio
 import os
 from pathlib import Path
 
@@ -23,6 +24,12 @@ def cleanup_test_db():
     yield
     if test_db.exists():
         test_db.unlink()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def event_loop_policy():
+    """set event loop policy to avoid hanging"""
+    asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
 
 @pytest.fixture(scope="function")
@@ -67,7 +74,9 @@ async def storage():
     await storage.init_db()
     yield storage
 
-    # cleanup handled by session fixture
+    # close database connection
+    if hasattr(storage, "conn") and storage.conn:
+        await storage.conn.close()
 
 
 @pytest.fixture
@@ -76,7 +85,7 @@ def sample_pipeline_def():
     return {
         "name": "Test Pipeline",
         "blocks": [
-            {"type": "LLMBlock", "config": {"temperature": 0.7}},
+            {"type": "TextGenerator", "config": {"temperature": 0.7}},
             {"type": "ValidatorBlock", "config": {"min_length": 10}},
         ],
     }

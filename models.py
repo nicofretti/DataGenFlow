@@ -29,7 +29,7 @@ class SeedInput(BaseModel):
 
 class Record(BaseModel):
     id: int | None = None
-    output: str
+    output: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     status: RecordStatus = RecordStatus.PENDING
     trace: list[dict[str, Any]] | None = None

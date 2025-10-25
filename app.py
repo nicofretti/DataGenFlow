@@ -72,22 +72,8 @@ async def generate_from_file(
                 # execute pipeline with metadata as input
                 result, trace, trace_id = await pipeline.execute(seed.metadata)
 
-                # extract pipeline_output from final accumulated state
-                pipeline_output = ""
-                if trace and len(trace) > 0:
-                    final_state = trace[-1].get("accumulated_state", {})
-                    pipeline_output = final_state.get("pipeline_output", "")
-
-                    # ensure output is a string (might be dict from metrics)
-                    if isinstance(pipeline_output, dict):
-                        import json
-                        pipeline_output = json.dumps(pipeline_output)
-                    elif not isinstance(pipeline_output, str):
-                        pipeline_output = str(pipeline_output)
-
-                # create record from pipeline output
+                # create record from pipeline execution
                 record = Record(
-                    output=pipeline_output,
                     metadata=seed.metadata,
                     trace=trace,
                 )

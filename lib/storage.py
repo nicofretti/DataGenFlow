@@ -140,7 +140,7 @@ class Storage:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    record.output,
+                    record.output or "",
                     json.dumps(record.metadata),
                     record.status.value,
                     pipeline_id,
@@ -253,11 +253,20 @@ class Storage:
         records = await self.get_all(status=status, limit=999999, job_id=job_id)
         lines = []
         for record in records:
+            # extract accumulated_state from the last trace entry
+            accumulated_state = {}
+            if record.trace and len(record.trace) > 0:
+                full_state = record.trace[-1].get("accumulated_state", {})
+                # exclude metadata keys to avoid duplication
+                accumulated_state = {
+                    k: v for k, v in full_state.items() if k not in record.metadata
+                }
+
             obj = {
                 "id": record.id,
-                "output": record.output,
                 "metadata": record.metadata,
                 "status": record.status.value,
+                "accumulated_state": accumulated_state,
                 "created_at": (record.created_at.isoformat() if record.created_at else None),
                 "updated_at": (record.updated_at.isoformat() if record.updated_at else None),
             }

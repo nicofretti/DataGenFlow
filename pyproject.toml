@@ -44,6 +44,9 @@ target-version = "py310"
 select = ["E", "F", "I", "N", "W"]
 ignore = []
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.10"
 strict = true
@@ -62,4 +65,5 @@ disable_error_code = ["no-any-return"]
 markers = [
     "integration: integration tests requiring external services (ollama, etc) - only run when explicitly called",
 ]
-addopts = "-m 'not integration'"
+addopts = "-m 'not integration' --tb=short"
+asyncio_mode = "strict"

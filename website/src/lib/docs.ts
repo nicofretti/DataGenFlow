@@ -65,6 +65,7 @@ export async function fetchDoc(slug: string): Promise<DocFile | null> {
 export const VALID_DOC_SLUGS = [
   'overview',
   'how_to_use',
+  'templates',
   'how_to_create_blocks',
   'DEVELOPERS',
   'CONTRIBUTING',
@@ -81,10 +82,11 @@ export async function getDocsNav(): Promise<DocNav[]> {
   const docs = [
     { slug: 'overview', title: 'Overview', order: 0 },
     { slug: 'how_to_use', title: 'How to Use', order: 1 },
-    { slug: 'how_to_create_blocks', title: 'Create Custom Blocks', order: 2 },
-    { slug: 'DEVELOPERS', title: 'Developer Guide', order: 3 },
-    { slug: 'CONTRIBUTING', title: 'Contributing', order: 4 },
-    { slug: 'MARKDOWN_STYLE_GUIDE', title: 'Markdown Style Guide', order: 5 },
+    { slug: 'templates', title: 'Pipeline Templates', order: 2 },
+    { slug: 'how_to_create_blocks', title: 'Create Custom Blocks', order: 3 },
+    { slug: 'DEVELOPERS', title: 'Developer Guide', order: 4 },
+    { slug: 'CONTRIBUTING', title: 'Contributing', order: 5 },
+    { slug: 'MARKDOWN_STYLE_GUIDE', title: 'Markdown Style Guide', order: 6 },
   ]
 
   return docs

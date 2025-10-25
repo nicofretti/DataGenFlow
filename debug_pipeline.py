@@ -1,11 +1,21 @@
 import asyncio
+
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
 
-PIPELINE_ID = 1
-SEED_DATA = {"metadata": {"system": "You are helpful", "user": "Test question"}}
+PIPELINE_ID = 33
+SEED_DATA = {
+    "repetitions": 1,
+    "metadata": {
+        "content": (
+            "Electric cars reduce emissions but require extensive charging "
+            "infrastructure and have higher upfront costs compared to traditional vehicles."
+        )
+    },
+}
 
-async def main():
+
+async def main() -> None:
     storage = Storage()
     await storage.init_db()
 
@@ -15,13 +25,13 @@ async def main():
         return
 
     workflow = WorkflowPipeline(
-        name=pipeline_data["name"],
-        blocks=pipeline_data["definition"]["blocks"]
+        name=pipeline_data["name"], blocks=pipeline_data["definition"]["blocks"]
     )
-    
-    result, trace, trace_id = await workflow.execute(SEED_DATA["metadata"])
+
+    result, trace, trace_id = await workflow.execute(SEED_DATA["metadata"])  # type: ignore[arg-type]
     print(f"trace_id: {trace_id}")
     print(f"result: {result}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

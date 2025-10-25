@@ -26,50 +26,25 @@ async def test_pipeline_output_validation():
 
 
 @pytest.mark.asyncio
-async def test_pipeline_output_with_formatter():
-    # test output block sets pipeline_output
-    pipeline_def = {
-        "name": "Formatted Pipeline",
-        "blocks": [
-            {"type": "LLMBlock", "config": {}},
-            {
-                "type": "OutputBlock",
-                "config": {"format_template": "Response: {{ assistant }}"},
-            },
-        ],
-    }
-
-    pipeline = WorkflowPipeline.load_from_dict(pipeline_def)
-
-    from unittest.mock import AsyncMock, patch
-
-    with patch("lib.generator.Generator.generate", new_callable=AsyncMock) as mock_gen:
-        mock_gen.return_value = "Hello"
-
-        result, trace, trace_id = await pipeline.execute({"system": "test", "user": "test"})
-
-        # pipeline_output should be from output block (last one wins)
-        assert result["pipeline_output"] == "Response: Hello"
-        assert trace[-1]["accumulated_state"]["pipeline_output"] == "Response: Hello"
-
-
-@pytest.mark.asyncio
-async def test_pipeline_output_default_to_assistant():
-    # test default pipeline_output when no block sets it
+async def test_pipeline_output_includes_assistant():
+    # test that assistant output is in result
     pipeline_def = {
         "name": "Test",
-        "blocks": [{"type": "LLMBlock", "config": {}}],
+        "blocks": [{"type": "TextGenerator", "config": {}}],
     }
 
     pipeline = WorkflowPipeline.load_from_dict(pipeline_def)
 
     from unittest.mock import AsyncMock, patch
 
-    with patch("lib.generator.Generator.generate", new_callable=AsyncMock) as mock_gen:
-        mock_gen.return_value = "Default output"
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_gen:
+        from unittest.mock import MagicMock
+
+        mock_gen.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Default output"))]
+        )
 
         result, trace, trace_id = await pipeline.execute({"system": "test", "user": "test"})
 
-        # pipeline_output should default to assistant
-        assert result["pipeline_output"] == "Default output"
+        # result should include assistant output
         assert result["assistant"] == "Default output"

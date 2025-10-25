@@ -1,7 +1,18 @@
-import { useState } from "react";
-import { Box, Heading, Button, TextInput, Textarea, Checkbox, Text, useTheme, FormControl, Select } from "@primer/react";
-import { XIcon } from "@primer/octicons-react";
-import { Background, Node } from "reactflow";
+import { useState, useCallback, useEffect } from "react";
+import {
+  Box,
+  Heading,
+  Button,
+  TextInput,
+  Textarea,
+  Checkbox,
+  Text,
+  useTheme,
+  Select,
+  Tooltip,
+} from "@primer/react";
+import { XIcon, StarFillIcon } from "@primer/octicons-react";
+import { Node } from "reactflow";
 import Editor from "@monaco-editor/react";
 
 interface BlockConfigPanelProps {
@@ -11,19 +22,29 @@ interface BlockConfigPanelProps {
   availableFields?: string[];
 }
 
-export default function BlockConfigPanel({ node, onUpdate, onClose, availableFields = [] }: BlockConfigPanelProps) {
+export default function BlockConfigPanel({
+  node,
+  onUpdate,
+  onClose,
+  availableFields = [],
+}: BlockConfigPanelProps) {
   const { block, config } = node.data;
   const [formData, setFormData] = useState<Record<string, any>>(config || {});
   const { resolvedColorScheme } = useTheme();
   const [wordWrap, setWordWrap] = useState(false);
 
-  const handleChange = (key: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
-  };
+  // sync formData when node config changes
+  useEffect(() => {
+    setFormData(config || {});
+  }, [node.id, config]);
 
-  const handleSave = () => {
+  const handleChange = useCallback((key: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const handleSave = useCallback(() => {
     onUpdate(node.id, formData);
-  };
+  }, [node.id, formData, onUpdate]);
 
   const renderField = (key: string, schema: any) => {
     const value = formData[key] ?? schema.default ?? "";
@@ -36,7 +57,11 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
     // enum dropdown (predefined options)
     if (schema.enum && Array.isArray(schema.enum)) {
       return (
-        <Select value={value} onChange={(e) => handleChange(key, e.target.value)} sx={{ width: "100%" }}>
+        <Select
+          value={value}
+          onChange={(e) => handleChange(key, e.target.value)}
+          sx={{ width: "100%" }}
+        >
           {schema.enum.map((option: string) => (
             <Select.Option key={option} value={option}>
               {option}
@@ -56,7 +81,9 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
             value={value}
             onChange={(e) => handleChange(key, e.target.value)}
             list={datalistId}
-            placeholder={availableFields.length > 0 ? "Select or type field name" : "Type field name"}
+            placeholder={
+              availableFields.length > 0 ? "Select or type field name" : "Type field name"
+            }
             sx={{ width: "100%" }}
           />
           {availableFields.length > 0 && (
@@ -127,16 +154,10 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
               overviewRulerBorder: false,
               wordWrap: wordWrap ? "on" : "off",
               fontSize: 13,
-              fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
+              fontFamily:
+                "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
               tabSize: 2,
               padding: { top: 8, bottom: 8 },
-              suggest: {
-                showKeywords: false,
-                showSnippets: false,
-              },
-              quickSuggestions: false,
-              parameterHints: { enabled: false },
-              contextmenu: false,
             }}
           />
         </Box>
@@ -160,13 +181,7 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
             defaultLanguage="json"
             value={jsonValue}
             onChange={(newValue) => {
-              try {
-                const parsed = JSON.parse(newValue || "{}");
-                handleChange(key, parsed);
-              } catch {
-                // keep as string if invalid JSON
-                handleChange(key, newValue || "");
-              }
+              handleChange(key, newValue);
             }}
             theme={resolvedColorScheme === "dark" ? "vs-dark" : "light"}
             options={{
@@ -189,11 +204,10 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
               overviewRulerBorder: false,
               wordWrap: wordWrap ? "on" : "off",
               fontSize: 13,
-              fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
+              fontFamily:
+                "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
               tabSize: 2,
               padding: { top: 8, bottom: 8 },
-              formatOnPaste: true,
-              formatOnType: true,
             }}
           />
         </Box>
@@ -231,7 +245,7 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
   return (
     <Box
       sx={{
-        width: "300px",
+        width: "400px",
         borderLeft: "1px solid",
         borderColor: "border.default",
         p: 3,
@@ -261,81 +275,115 @@ export default function BlockConfigPanel({ node, onUpdate, onClose, availableFie
         <Text sx={{ fontWeight: "bold", display: "block", mb: 2, color: "fg.default" }}>
           {block.name}
         </Text>
-        <Text sx={{ fontSize: 0, color: "fg.muted" }}>{block.type}</Text>
+        {block.description && (
+          <Text sx={{ fontSize: 0, color: "fg.muted" }}>{block.description}</Text>
+        )}
       </Box>
 
       {/* Config fields */}
       <Box sx={{ flex: 1, mb: 3 }}>
-        {Object.entries(block.config_schema?.properties || {}).map(([key, schema]: [string, any]) => {
-          const isTemplateField =
-            schema.format === "jinja2" ||
-            schema.format === "template" ||
-            key.toLowerCase().includes("prompt") ||
-            key.toLowerCase().includes("template") ||
-            key.toLowerCase().includes("instruction");
+        {Object.entries(block.config_schema?.properties || {})
+          .sort(([, schemaA]: [string, any], [, schemaB]: [string, any]) => {
+            // fields with descriptions come first
+            const hasDescA = !!schemaA.description;
+            const hasDescB = !!schemaB.description;
+            if (hasDescA && !hasDescB) return -1;
+            if (!hasDescA && hasDescB) return 1;
+            return 0;
+          })
+          .map(([key, schema]: [string, any]) => {
+            const isTemplateField =
+              schema.format === "jinja2" ||
+              schema.format === "template" ||
+              key.toLowerCase().includes("prompt") ||
+              key.toLowerCase().includes("template") ||
+              key.toLowerCase().includes("instruction");
 
-          return (
-            <Box key={key} sx={{ mb: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", mb: 1, gap: 2 }}>
-                <Text
-                  sx={{
-                    fontSize: 1,
-                    fontWeight: "bold",
-                    color: "fg.default",
-                  }}
-                >
-                  {key}
-                  {schema.required && (
-                    <Text as="span" sx={{ color: "danger.fg", ml: 1 }}>
-                      *
-                    </Text>
-                  )}
-                  {schema.default !== undefined && schema.default !== null && (
-                    <Text as="span" sx={{ fontSize: 0, color: "fg.muted", ml: 2, fontWeight: "normal" }}>
-                      (default: {
-                        typeof schema.default === "object"
-                          ? (Array.isArray(schema.default) && schema.default.length === 0
-                              ? "[]"
-                              : (Object.keys(schema.default).length === 0 ? "{}" : "see editor"))
-                          : String(schema.default)
-                      })
-                    </Text>
-                  )}
-                </Text>
-                {isTemplateField && (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto" }}>
-                    <Checkbox
-                      checked={wordWrap}
-                      onChange={(e) => setWordWrap(e.target.checked)}
-                      id={`wordwrap-${key}`}
-                      sx={{ m: 0 }}
-                    />
+            const hasDescription = !!schema.description;
+
+            return (
+              <Box key={key} sx={{ mb: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", mb: 1, gap: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {hasDescription && (
+                      <Tooltip aria-label="Important setting" direction="l">
+                        <Box
+                          sx={{
+                            color: "attention.fg",
+                            display: "flex",
+                            alignItems: "center",
+                            cursor: "help",
+                          }}
+                        >
+                          <StarFillIcon size={14} />
+                        </Box>
+                      </Tooltip>
+                    )}
                     <Text
-                      as="label"
-                      htmlFor={`wordwrap-${key}`}
-                      sx={{ fontSize: 0, color: "fg.muted", cursor: "pointer" }}
+                      sx={{
+                        fontSize: 1,
+                        fontWeight: "bold",
+                        color: "fg.default",
+                      }}
                     >
-                      Wrap
+                      {key}
+                      {schema.required && (
+                        <Text as="span" sx={{ color: "danger.fg", ml: 1 }}>
+                          *
+                        </Text>
+                      )}
+                      {schema.default !== undefined && schema.default !== null && (
+                        <Text
+                          as="span"
+                          sx={{ fontSize: 0, color: "fg.muted", ml: 2, fontWeight: "normal" }}
+                        >
+                          (default:{" "}
+                          {typeof schema.default === "object"
+                            ? Array.isArray(schema.default) && schema.default.length === 0
+                              ? "[]"
+                              : Object.keys(schema.default).length === 0
+                                ? "{}"
+                                : "see editor"
+                            : String(schema.default)}
+                          )
+                        </Text>
+                      )}
                     </Text>
                   </Box>
+                  {isTemplateField && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto" }}>
+                      <Checkbox
+                        checked={wordWrap}
+                        onChange={(e) => setWordWrap(e.target.checked)}
+                        id={`wordwrap-${key}`}
+                        sx={{ m: 0 }}
+                      />
+                      <Text
+                        as="label"
+                        htmlFor={`wordwrap-${key}`}
+                        sx={{ fontSize: 0, color: "fg.muted", cursor: "pointer" }}
+                      >
+                        Wrap
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
+                {schema.description && (
+                  <Text
+                    sx={{
+                      fontSize: 0,
+                      color: "fg.muted",
+                      display: "block",
+                      mb: 1,
+                    }}
+                  >
+                    {schema.description}
+                  </Text>
                 )}
+                {renderField(key, schema)}
               </Box>
-              {schema.description && (
-                <Text
-                  sx={{
-                    fontSize: 0,
-                    color: "fg.muted",
-                    display: "block",
-                    mb: 1,
-                  }}
-                >
-                  {schema.description}
-                </Text>
-              )}
-              {renderField(key, schema)}
-            </Box>
-          );
-        })}
+            );
+          })}
       </Box>
 
       <Box sx={{ display: "flex", gap: 2 }}>

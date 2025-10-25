@@ -11,21 +11,11 @@ async def test_pipeline_definition_with_block_configs():
         "name": "My Pipeline",
         "blocks": [
             {
-                "type": "LLMBlock",
-                "config": {
-                    "model": "llama2",
-                    "temperature": 0.8,
-                    "max_tokens": 1000
-                }
+                "type": "TextGenerator",
+                "config": {"model": "llama2", "temperature": 0.8, "max_tokens": 1000},
             },
-            {
-                "type": "ValidatorBlock",
-                "config": {
-                    "min_length": 10,
-                    "max_length": 5000
-                }
-            }
-        ]
+            {"type": "ValidatorBlock", "config": {"min_length": 10, "max_length": 5000}},
+        ],
     }
 
     # should be storable and retrievable
@@ -47,18 +37,14 @@ async def test_workflow_uses_block_configs():
         "name": "Test Pipeline",
         "blocks": [
             {
-                "type": "LLMBlock",
-                "config": {
-                    "model": "llama2",
-                    "temperature": 0.9,
-                    "max_tokens": 500
-                }
+                "type": "TextGenerator",
+                "config": {"model": "llama2", "temperature": 0.9, "max_tokens": 500},
             }
-        ]
+        ],
     }
 
     # create pipeline from definition
-    pipeline = Pipeline(name=pipeline_def["name"], blocks=pipeline_def["blocks"])
+    pipeline = Pipeline(name=str(pipeline_def["name"]), blocks=list(pipeline_def["blocks"]))  # type: ignore[arg-type]
 
     # verify block was initialized with config
     assert len(pipeline._block_instances) == 1

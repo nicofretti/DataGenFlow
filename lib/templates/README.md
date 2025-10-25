@@ -4,42 +4,26 @@ Pre-configured pipeline templates for common use cases.
 
 ## Available Templates
 
-### complete_qa_generation.yaml
-Full QA generation pipeline with LLM, validation, and conditional formatting.
-- **Blocks:** LLMBlock → ValidatorBlock → OutputBlock
-- **Use case:** General Q&A generation with text validation
-- **Input:** system, user prompts with variables
+### qa_generation.yaml
+Generate question-answer pairs from source text content.
+- **Blocks:** TextGenerator → StructuredGenerator → JSONValidatorBlock
+- **Use case:** Create comprehension questions and answers from text
+- **Input:** content variable with source text
+- **Output:** JSON with qa_pairs array
 
 ### json_generation.yaml
-Generate structured JSON from a topic with validation.
-- **Blocks:** LLMBlock → JSONValidatorBlock → OutputBlock
-- **Use case:** Structured data generation from topics
-- **Input:** topic variable, system prompt instructs JSON format
-- **Output:** Validated JSON or error message
-- **JSONValidator config:** `field_name: "assistant"` - validates the LLM output
+Extract structured information from text as JSON.
+- **Blocks:** StructuredGenerator → JSONValidatorBlock
+- **Use case:** Structure unstructured text into JSON format
+- **Input:** content variable
+- **Output:** Validated JSON with title and description
 
-### structured_data_generation.yaml
-Advanced JSON generation with required field validation and formatted output.
-- **Blocks:** LLMBlock → JSONValidatorBlock → OutputBlock
-- **Use case:** Complex structured data with field requirements
-- **Required fields:** title, description, key_points, category
-- **JSONValidator config:** `field_name: "assistant"`, `required_fields: [...]`
-- **Output:** Formatted markdown with parsed fields or validation error
-
-### text_generation.yaml
-Simple text generation using LLM.
-- **Blocks:** LLMBlock
-- **Use case:** Basic text generation without validation
-
-### validated_generation.yaml
-Text generation with content validation.
-- **Blocks:** LLMBlock → ValidatorBlock
-- **Use case:** Text generation with length constraints
-
-### text_transformation.yaml
-Text transformation pipeline for cleaning and formatting.
-- **Blocks:** TransformerBlock (strip → lowercase → trim)
-- **Use case:** Text preprocessing and normalization
+### text_classification.yaml
+Classify text into predefined categories with confidence scores.
+- **Blocks:** StructuredGenerator → JSONValidatorBlock
+- **Use case:** Categorize text into environment, technology, health, finance, or sports
+- **Input:** content variable
+- **Output:** JSON with category and confidence score
 
 ## Using Templates
 
@@ -84,23 +68,23 @@ blocks:
 
   - type: JSONValidatorBlock
     config:
-      field_name: "assistant"  # or any field from accumulated state
+      field_name: "generated"  # or any field from accumulated state
       required_fields: ["title", "description"]
       strict: false
-
-  - type: OutputBlock
-    config:
-      format_template: |
-        Jinja2 template with {{ variables }}
-        {% if condition %}...{% endif %}
 ```
 
 ## Creating Custom Templates
 
 1. Create a new `.yaml` file in this directory
 2. Define name, description, and blocks
-3. Use Jinja2 syntax in format_template for dynamic output
-4. Template will be auto-discovered on server restart
+3. Template will be auto-discovered on server restart
+
+## Pipeline Output
+
+The `pipeline_output` field is automatically set by the workflow:
+- If the last block outputs `assistant`, `pipeline_output` defaults to `assistant`
+- Otherwise, it defaults to the first output field of the last block
+- This is what gets displayed in the review system
 
 ## JSONValidatorBlock Usage
 
@@ -127,25 +111,18 @@ The JSONValidatorBlock can validate JSON from any field in the accumulated state
     strict: true  # fail pipeline on invalid JSON
 ```
 
-## Jinja2 Features in Templates
+## Jinja2 Features in Block Prompts
 
-Templates support full Jinja2 syntax:
+TextGenerator and StructuredGenerator blocks support Jinja2 templates in their prompts:
 
 - **Variables:** `{{ variable }}`
 - **Conditionals:** `{% if valid %}...{% else %}...{% endif %}`
 - **Loops:** `{% for item in list %}{{ item }}{% endfor %}`
-- **Filters:** `{{ data | tojson }}`, `{{ text | truncate(100) }}`
-- **Nested access:** `{{ parsed_json.field.nested }}`
+- **Nested access:** `{{ metadata.field }}`
 
-### Example: Conditional Output Based on Validation
-
+Example:
 ```yaml
-format_template: |
-  {% if valid %}
-  ✓ Success: {{ parsed_json.title }}
-  {{ parsed_json | tojson }}
-  {% else %}
-  ✗ Validation failed
-  {{ assistant }}
-  {% endif %}
+- type: TextGenerator
+  config:
+    user_prompt: "Generate text about {{ topic }}"
 ```

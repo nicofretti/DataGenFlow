@@ -1,4 +1,3 @@
-import inspect
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -16,7 +15,7 @@ class BaseBlock(ABC):
         pass
 
     @classmethod
-    def get_config_schema(cls) -> dict:
+    def get_config_schema(cls) -> dict[str, Any]:
         """returns JSON schema for block configuration parameters"""
         return BlockConfigSchema.get_config_schema(cls)
 
@@ -29,5 +28,5 @@ class BaseBlock(ABC):
             "description": cls.description,
             "inputs": cls.inputs,
             "outputs": cls.outputs,
-            "config_schema": cls.get_config_schema()
+            "config_schema": cls.get_config_schema(),
         }

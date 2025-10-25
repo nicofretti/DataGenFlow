@@ -1,0 +1,27 @@
+name: Text Classification
+description: Classify text into predefined categories with confidence scores
+blocks:
+  - type: StructuredGenerator
+    config:
+      prompt: "Classify this text into one of these categories: environment, technology, health, finance, sports. Text: {{ content }}"
+      json_schema:
+        type: object
+        properties:
+          category:
+            type: string
+            enum: ["environment", "technology", "health", "finance", "sports"]
+            description: The predicted category
+          confidence:
+            type: number
+            minimum: 0
+            maximum: 1
+            description: Confidence score from the model
+        required: ["category", "confidence"]
+      temperature: 0.3
+      max_tokens: 100
+
+  - type: JSONValidatorBlock
+    config:
+      field_name: "generated"
+      required_fields: ["category", "confidence"]
+      strict: true

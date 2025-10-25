@@ -113,7 +113,7 @@ class TestPipelineCRUD:
     @pytest.mark.asyncio
     async def test_save_and_get_pipeline(self, storage):
         """saving pipeline returns id and allows retrieval"""
-        pipeline_def = {"blocks": [{"type": "LLMBlock", "config": {"temperature": 0.7}}]}
+        pipeline_def = {"blocks": [{"type": "TextGenerator", "config": {"temperature": 0.7}}]}
 
         pipeline_id = await storage.save_pipeline("Test Pipeline", pipeline_def)
         assert pipeline_id > 0
@@ -138,7 +138,7 @@ class TestPipelineCRUD:
     @pytest.mark.asyncio
     async def test_update_pipeline(self, storage):
         """updating pipeline modifies name and definition"""
-        pipeline_def = {"blocks": [{"type": "LLMBlock", "config": {"temperature": 0.7}}]}
+        pipeline_def = {"blocks": [{"type": "TextGenerator", "config": {"temperature": 0.7}}]}
         pipeline_id = await storage.save_pipeline("Original Name", pipeline_def)
 
         # update pipeline
@@ -237,9 +237,12 @@ class TestExport:
 
         for line in lines:
             data = json.loads(line)
-            assert "output" in data
+            assert "id" in data
             assert "metadata" in data
             assert "status" in data
+            assert "accumulated_state" in data
+            assert "created_at" in data
+            assert "updated_at" in data
 
     @pytest.mark.asyncio
     async def test_export_jsonl_by_status(self, storage):
@@ -262,6 +265,8 @@ class TestExport:
     @pytest.mark.asyncio
     async def test_export_jsonl_by_job(self, storage):
         """export_jsonl filters by job_id"""
+        import json
+
         pipeline_id = await storage.save_pipeline("Test", {"blocks": []})
         job_id = await storage.create_job(pipeline_id, 1, "completed")
 
@@ -269,7 +274,12 @@ class TestExport:
         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
 
         job_jsonl = await storage.export_jsonl(job_id=job_id)
-        assert "test" in job_jsonl
+        # verify the export contains a record with the expected structure
+        data = json.loads(job_jsonl)
+        assert "id" in data
+        assert "metadata" in data
+        assert "status" in data
+        assert "accumulated_state" in data
 
 
 class TestEdgeCases:
@@ -291,7 +301,7 @@ class TestEdgeCases:
         """records with trace data are stored correctly"""
         trace = [
             {
-                "block_type": "LLMBlock",
+                "block_type": "TextGenerator",
                 "input": {"system": "test", "user": "test"},
                 "output": {"assistant": "response"},
                 "execution_time": 1.5,
@@ -304,7 +314,7 @@ class TestEdgeCases:
         retrieved = await storage.get_by_id(record_id)
         assert retrieved.trace is not None
         assert len(retrieved.trace) == 1
-        assert retrieved.trace[0]["block_type"] == "LLMBlock"
+        assert retrieved.trace[0]["block_type"] == "TextGenerator"
         assert retrieved.trace[0]["execution_time"] == 1.5
 
     @pytest.mark.asyncio

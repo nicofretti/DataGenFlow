@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -9,15 +9,20 @@ import ReactFlow, {
   Connection,
   Node,
   NodeTypes,
+  EdgeTypes,
+  ReactFlowInstance,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Box, Button, Flash, TextInput, useTheme } from "@primer/react";
-import { XIcon } from "@primer/octicons-react";
+import "../../styles/pipeline-editor.css";
+import { Box, Button, Flash, Text, TextInput, useTheme } from "@primer/react";
+import { XIcon, ZapIcon } from "@primer/octicons-react";
 
 import BlockPalette from "./BlockPalette";
 import BlockNode from "./BlockNode";
 import StartEndNode from "./StartEndNode";
 import BlockConfigPanel from "./BlockConfigPanel";
+import CustomEdge from "./CustomEdge";
+import { getLayoutedElements } from "./layoutUtils";
 import {
   calculateAccumulatedState,
   convertToPipelineFormat,
@@ -36,6 +41,11 @@ const nodeTypes: NodeTypes = {
 
     return <BlockNode {...props} />;
   },
+};
+
+// define edge types
+const edgeTypes: EdgeTypes = {
+  custom: CustomEdge,
 };
 
 interface Block {
@@ -70,6 +80,8 @@ export default function PipelineEditor({
   const [pipelineName, setPipelineName] = useState(initialPipelineName);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const { theme } = useTheme();
+  const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
 
   // minimap adjusted for light/dark mode using primer theme colors
   function MinimapWithTheme() {
@@ -102,8 +114,6 @@ export default function PipelineEditor({
   // check if node is connected
   const isNodeConnected = useCallback(
     (nodeId: string) => {
-      if (nodes.length <= 1) return true;
-
       const node = nodes.find((n) => n.id === nodeId);
       if (!node) return false;
 
@@ -134,6 +144,42 @@ export default function PipelineEditor({
     },
     [setNodes, setEdges]
   );
+
+  // handle node duplication
+  const handleDuplicateNode = useCallback(
+    (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node) return;
+
+      // create new node with same data but new ID and offset position
+      const newNode: Node = {
+        ...node,
+        id: `${Date.now()}`,
+        position: {
+          x: node.position.x + 50,
+          y: node.position.y + 50,
+        },
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+    },
+    [nodes, setNodes]
+  );
+
+  // handle auto-layout
+  const handleAutoLayout = useCallback(() => {
+    if (nodes.length === 0) return;
+
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, "TB");
+
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+
+    // fit view after layout with a small delay to ensure nodes are positioned
+    setTimeout(() => {
+      reactFlowInstance.current?.fitView({ padding: 0.2, duration: 300 });
+    }, 50);
+  }, [nodes, edges, setNodes, setEdges]);
 
   // fetch blocks on mount and initialize Start/End nodes
   useEffect(() => {
@@ -168,8 +214,21 @@ export default function PipelineEditor({
         if (initialPipeline && data.length > 0) {
           const { nodes, edges } = convertFromPipelineFormat(initialPipeline, data);
           const nodesWithState = calculateAccumulatedState(nodes, edges);
-          setNodes(nodesWithState);
-          setEdges(edges);
+
+          // apply auto-layout on initial load
+          const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+            nodesWithState,
+            edges,
+            "TB"
+          );
+
+          setNodes(layoutedNodes);
+          setEdges(layoutedEdges);
+
+          // fit view after initial layout
+          setTimeout(() => {
+            reactFlowInstance.current?.fitView({ padding: 0.2, duration: 300 });
+          }, 100);
         } else {
           // auto-add Start and End nodes for new pipelines
           const startNode = {
@@ -226,23 +285,44 @@ export default function PipelineEditor({
         isConnected: isNodeConnected(node.id),
         onConfigClick: () => setSelectedNode(node),
         onDelete: () => handleDeleteNode(node.id),
+        onDuplicate: () => handleDuplicateNode(node.id),
       },
     }));
 
     // check if callbacks are missing on any node
     const callbacksChanged = updatedNodes.some((node, i) => {
-      return !nodes[i]?.data?.onConfigClick || !nodes[i]?.data?.onDelete;
+      return (
+        !nodes[i]?.data?.onConfigClick || !nodes[i]?.data?.onDelete || !nodes[i]?.data?.onDuplicate
+      );
     });
 
-    if (stateChanged || callbacksChanged) {
+    // check if configuration status changed
+    const configStatusChanged = updatedNodes.some((node, i) => {
+      return nodes[i]?.data?.isConfigured !== node.data.isConfigured;
+    });
+
+    // check if connection status changed
+    const connectionStatusChanged = updatedNodes.some((node, i) => {
+      return nodes[i]?.data?.isConnected !== node.data.isConnected;
+    });
+
+    if (stateChanged || callbacksChanged || configStatusChanged || connectionStatusChanged) {
       setNodes(updatedNodes);
     }
-  }, [nodes, edges, setNodes, isNodeConfigured, isNodeConnected, handleDeleteNode]);
+  }, [
+    nodes,
+    edges,
+    setNodes,
+    isNodeConfigured,
+    isNodeConnected,
+    handleDeleteNode,
+    handleDuplicateNode,
+  ]);
 
   // handle new edge connection
   const onConnect = useCallback(
     (connection: Connection) => {
-      setEdges((eds) => addEdge({ ...connection, type: "smoothstep" }, eds));
+      setEdges((eds) => addEdge({ ...connection, type: "custom" }, eds));
     },
     [setEdges]
   );
@@ -286,50 +366,59 @@ export default function PipelineEditor({
   }, []);
 
   // compute available fields from previous blocks
-  const getAvailableFields = useCallback((currentNode: Node | null): string[] => {
-    if (!currentNode) return [];
+  const getAvailableFields = useCallback(
+    (currentNode: Node | null): string[] => {
+      if (!currentNode) return [];
 
-    // find all nodes that come before this node in the pipeline
-    const predecessors = new Set<string>();
-    const visited = new Set<string>();
+      // find all nodes that come before this node in the pipeline
+      const predecessors = new Set<string>();
+      const visited = new Set<string>();
 
-    const findPredecessors = (nodeId: string) => {
-      if (visited.has(nodeId)) return;
-      visited.add(nodeId);
+      const findPredecessors = (nodeId: string) => {
+        if (visited.has(nodeId)) return;
+        visited.add(nodeId);
 
-      edges.forEach((edge) => {
-        if (edge.target === nodeId) {
-          predecessors.add(edge.source);
-          findPredecessors(edge.source);
-        }
-      });
-    };
-
-    findPredecessors(currentNode.id);
-
-    // collect all outputs from predecessor nodes
-    const availableFields = new Set<string>();
-
-    nodes.forEach((node) => {
-      if (predecessors.has(node.id)) {
-        const outputs = node.data.block.outputs || [];
-        outputs.forEach((output) => {
-          if (output !== "*") {
-            availableFields.add(output);
+        edges.forEach((edge) => {
+          if (edge.target === nodeId) {
+            predecessors.add(edge.source);
+            findPredecessors(edge.source);
           }
         });
-      }
-    });
+      };
 
-    return Array.from(availableFields).sort();
-  }, [nodes, edges]);
+      findPredecessors(currentNode.id);
+
+      // collect all outputs from predecessor nodes
+      const availableFields = new Set<string>();
+
+      nodes.forEach((node) => {
+        if (predecessors.has(node.id)) {
+          const outputs = node.data.block.outputs || [];
+          outputs.forEach((output: string) => {
+            if (output !== "*") {
+              availableFields.add(output);
+            }
+          });
+        }
+      });
+
+      return Array.from(availableFields).sort();
+    },
+    [nodes, edges]
+  );
 
   // handle config update
   const handleConfigUpdate = useCallback(
     (nodeId: string, config: Record<string, any>) => {
       setNodes((nds) =>
-        nds.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, config } } : node))
+        nds.map((node) => {
+          if (node.id === nodeId) {
+            return { ...node, data: { ...node.data, config } };
+          }
+          return node;
+        })
       );
+      // close the panel after updating
       setSelectedNode(null);
     },
     [setNodes]
@@ -409,6 +498,18 @@ export default function PipelineEditor({
     }
   };
 
+  // calculate pipeline validity
+  const isPipelineValid = useMemo(() => {
+    if (nodes.length === 0) return false;
+
+    // check all nodes are configured and connected
+    return nodes.every((node) => {
+      const isConfigured = isNodeConfigured(node);
+      const isConnected = isNodeConnected(node.id);
+      return isConfigured && isConnected;
+    });
+  }, [nodes, isNodeConfigured, isNodeConnected]);
+
   return (
     <Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Header */}
@@ -421,6 +522,7 @@ export default function PipelineEditor({
           justifyContent: "space-between",
           alignItems: "center",
           gap: 3,
+          height: "60px",
         }}
       >
         <Box sx={{ flex: 1, maxWidth: "400px" }}>
@@ -432,7 +534,57 @@ export default function PipelineEditor({
             sx={{ width: "100%", fontSize: 2, fontWeight: "bold" }}
           />
         </Box>
-        <Box sx={{ display: "flex", gap: 2 }}>
+
+        {/* Status indicator */}
+        {nodes.length > 0 && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              border: "1px solid",
+              borderColor: isPipelineValid ? "success.emphasis" : "danger.emphasis",
+              bg: isPipelineValid ? "success.subtle" : "danger.subtle",
+            }}
+          >
+            <Box
+              sx={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                bg: isPipelineValid ? "success.fg" : "danger.fg",
+              }}
+            />
+            <Text
+              sx={{
+                fontSize: 1,
+                fontWeight: "bold",
+                color: isPipelineValid ? "success.fg" : "danger.fg",
+              }}
+            >
+              {isPipelineValid ? "Valid" : "Invalid"}
+            </Text>
+          </Box>
+        )}
+
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+          {/* Auto-layout button */}
+          <Button
+            onClick={handleAutoLayout}
+            disabled={nodes.length < 2}
+            variant="invisible"
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <ZapIcon size={16} />
+            Auto-layout
+          </Button>
           <Button onClick={handleSave} disabled={saving} variant="primary">
             {saving ? "Saving..." : "Save Pipeline"}
           </Button>
@@ -455,7 +607,7 @@ export default function PipelineEditor({
         <BlockPalette blocks={blocks} />
 
         {/* ReactFlow Canvas */}
-        <Box sx={{ flex: 1, position: "relative" }}>
+        <Box sx={{ flex: 1, position: "relative", bg: "canvas.inset" }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -464,15 +616,20 @@ export default function PipelineEditor({
             onConnect={onConnect}
             onDrop={onDrop}
             onDragOver={onDragOver}
+            onInit={(instance) => {
+              reactFlowInstance.current = instance;
+            }}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             edgesFocusable={true}
             nodesDraggable={true}
             nodesConnectable={true}
             nodesFocusable={true}
             elementsSelectable={true}
             deleteKeyCode="Delete"
+            fitView
           >
-            <Background />
+            <Background color={theme?.colors?.border.muted || "#e1e4e8"} gap={20} size={2} />
             <Controls />
             <MinimapWithTheme />
           </ReactFlow>

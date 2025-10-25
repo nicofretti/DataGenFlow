@@ -13,41 +13,20 @@ Choose the appropriate issue template for detailed sections:
 - 📚 Documentation (doc updates)
 -->
 
-## Description
+### Description
 <!-- Brief description of what this PR does -->
 
 
-## Motivation
-<!-- Why is this change needed? What problem does it solve? -->
-
-
-## Changes
-<!-- List the main changes -->
--
--
--
-
-
-## Related Issue
-<!-- Link to related issue if applicable -->
+### Related Issue
+<!-- Link to related issue if applicable type #n where n is the issue number -->
 Closes #
 
-
-## Testing
-<!-- How was this tested? -->
-- [ ] Manual testing completed
-- [ ] All existing tests passing
-
-**Details:**
-
-
-## Checklist
+### Checklist
 - [ ] Code follows project style guidelines
 - [ ] Comments explain "why" not "what"
 - [ ] Documentation updated (if needed)
 - [ ] No debug code or console statements
-- [ ] Copilot review run and addressed
 - [ ] `make format` passes
-- [ ] `make lint` passes
-- [ ] `make typecheck` passes
-- [ ] `make test` passes
+- [ ] `make pre-merge` passes
+- [ ] PR update from develop branch
+- [ ] Copilot review run and addressed

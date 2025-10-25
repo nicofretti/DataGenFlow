@@ -1,10 +1,14 @@
-from lib.blocks.base import BaseBlock
 from typing import Any
+
+from lib.blocks.base import BaseBlock
 
 
 class CoherenceScore(BaseBlock):
     name = "Coherence Score"
-    description = "Calculate text coherence based on sentence structure. Configurable via 'field_name' parameter to specify which field to analyze."
+    description = (
+        "Calculate text coherence based on sentence structure. "
+        "Configurable via 'field_name' parameter to specify which field to analyze."
+    )
     inputs = []
     outputs = ["coherence_score"]
 

@@ -90,14 +90,20 @@ export default function Generator() {
       // check not empty
       const seeds = Array.isArray(data) ? data : [data];
       if (seeds.length === 0) {
-        setMessage({ type: "error", text: "Empty file: The file contains no seeds. Please add at least one seed with metadata." });
+        setMessage({
+          type: "error",
+          text: "Empty file: The file contains no seeds. Please add at least one seed with metadata.",
+        });
         return;
       }
 
       // check basic structure
       for (let i = 0; i < seeds.length; i++) {
         if (!seeds[i].metadata) {
-          setMessage({ type: "error", text: `Invalid seed: Seed ${i + 1} is missing the required 'metadata' field.` });
+          setMessage({
+            type: "error",
+            text: `Invalid seed: Seed ${i + 1} is missing the required 'metadata' field.`,
+          });
           return;
         }
       }
@@ -108,7 +114,10 @@ export default function Generator() {
     } catch (e) {
       setMessage({
         type: "error",
-        text: e instanceof Error ? `Invalid JSON: ${e.message}` : "The file is not valid JSON. Please check your file syntax.",
+        text:
+          e instanceof Error
+            ? `Invalid JSON: ${e.message}`
+            : "The file is not valid JSON. Please check your file syntax.",
       });
     }
   };
@@ -117,7 +126,10 @@ export default function Generator() {
     if (!file || !selectedPipeline) return;
 
     if (generating) {
-      setMessage({ type: "error", text: "Job already running: A generation job is already in progress. Cancel it first or wait for completion." });
+      setMessage({
+        type: "error",
+        text: "Job already running: A generation job is already in progress. Cancel it first or wait for completion.",
+      });
       return;
     }
 
@@ -136,7 +148,10 @@ export default function Generator() {
 
       if (!res.ok) {
         const error = await res.json();
-        setMessage({ type: "error", text: `Generation failed: ${error.detail || "Failed to start generation. Please try again."}` });
+        setMessage({
+          type: "error",
+          text: `Generation failed: ${error.detail || "Failed to start generation. Please try again."}`,
+        });
         return;
       }
 
@@ -149,7 +164,10 @@ export default function Generator() {
     } catch (error) {
       setMessage({
         type: "error",
-        text: error instanceof Error ? `Network error: ${error.message}` : "Failed to connect to server. Please check your connection.",
+        text:
+          error instanceof Error
+            ? `Network error: ${error.message}`
+            : "Failed to connect to server. Please check your connection.",
       });
     } finally {
       // always reset generating if there's no active job

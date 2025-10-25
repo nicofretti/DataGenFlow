@@ -50,9 +50,8 @@ class TestAPIBlocks:
 
         # check for expected core blocks
         block_types = [block["type"] for block in blocks]
-        assert "LLMBlock" in block_types
+        assert "TextGenerator" in block_types
         assert "ValidatorBlock" in block_types
-        assert "OutputBlock" in block_types
 
         # check block structure
         for block in blocks:

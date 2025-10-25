@@ -13,7 +13,6 @@ export default function ConfigureFieldsModal({
   onClose,
   onSave,
 }: ConfigureFieldsModalProps) {
-  const [availableFields, setAvailableFields] = useState<string[]>([]);
   const [primaryFields, setPrimaryFields] = useState<string[]>([]);
   const [secondaryFields, setSecondaryFields] = useState<string[]>([]);
   const [hiddenFields, setHiddenFields] = useState<string[]>([]);
@@ -24,6 +23,7 @@ export default function ConfigureFieldsModal({
 
   useEffect(() => {
     loadAvailableFields();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pipelineId]);
 
   const loadAvailableFields = async () => {
@@ -32,7 +32,6 @@ export default function ConfigureFieldsModal({
       const schemaRes = await fetch(`/api/pipelines/${pipelineId}/accumulated_state_schema`);
       const schemaData = await schemaRes.json();
       const fields = schemaData.fields || [];
-      setAvailableFields(fields);
 
       // load existing validation_config from pipeline
       const pipelineRes = await fetch(`/api/pipelines/${pipelineId}`);
@@ -53,7 +52,7 @@ export default function ConfigureFieldsModal({
       }
 
       setLoading(false);
-    } catch (err) {
+    } catch {
       setError("Failed to load available fields");
       setLoading(false);
     }
@@ -133,7 +132,10 @@ export default function ConfigureFieldsModal({
       const targetFields = getFieldsArray(targetSection);
       const targetIndex = targetFields.indexOf(targetField);
 
-      setFieldsArray(draggedFrom, sourceFields.filter((f) => f !== draggedField));
+      setFieldsArray(
+        draggedFrom,
+        sourceFields.filter((f) => f !== draggedField)
+      );
 
       const newTargetFields = [...targetFields];
       newTargetFields.splice(targetIndex, 0, draggedField);

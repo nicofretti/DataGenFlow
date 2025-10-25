@@ -35,16 +35,17 @@ export default function SingleRecordView({
   onReject,
   onSetPending,
   onEdit,
-  isPending,
+  isPending: _isPending,
 }: SingleRecordViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [isExpanded, setIsExpanded] = useState(false);
 
   // get final accumulated state from trace
-  const finalState = record.trace && record.trace.length > 0
-    ? record.trace[record.trace.length - 1].accumulated_state || {}
-    : {};
+  const finalState =
+    record.trace && record.trace.length > 0
+      ? record.trace[record.trace.length - 1].accumulated_state || {}
+      : {};
 
   // determine field order
   const primaryFields = validationConfig?.field_order.primary || ["assistant"];
@@ -179,13 +180,16 @@ export default function SingleRecordView({
               mb: 3,
             }}
           >
-            <Text
-              as="div"
-              sx={{ fontSize: 1, fontWeight: "semibold", mb: 2, color: "fg.default" }}
-            >
+            <Text as="div" sx={{ fontSize: 1, fontWeight: "semibold", mb: 2, color: "fg.default" }}>
               Quality Metrics
             </Text>
-            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 2 }}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: 2,
+              }}
+            >
               {Object.entries(record.metrics).map(([key, value]) => (
                 <Box
                   key={key}
@@ -203,10 +207,7 @@ export default function SingleRecordView({
                   >
                     {key}
                   </Text>
-                  <Text
-                    as="div"
-                    sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default" }}
-                  >
+                  <Text as="div" sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default" }}>
                     {value.toFixed(2)}
                   </Text>
                 </Box>
@@ -219,7 +220,10 @@ export default function SingleRecordView({
         {record.algorithm && (
           <Box sx={{ mb: 3 }}>
             <Text sx={{ fontSize: 1, color: "fg.muted" }}>
-              Generated using: <Label variant="accent" size="small">{record.algorithm}</Label>
+              Generated using:{" "}
+              <Label variant="accent" size="small">
+                {record.algorithm}
+              </Label>
             </Text>
           </Box>
         )}
@@ -270,10 +274,7 @@ export default function SingleRecordView({
         {/* secondary fields - smaller and less prominent */}
         {secondaryFields.length > 0 && !isEditing && (
           <Box sx={{ mb: 3 }}>
-            <Text
-              as="div"
-              sx={{ fontSize: 1, fontWeight: "semibold", mb: 2, color: "fg.muted" }}
-            >
+            <Text as="div" sx={{ fontSize: 1, fontWeight: "semibold", mb: 2, color: "fg.muted" }}>
               Additional Fields
             </Text>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -468,12 +469,7 @@ export default function SingleRecordView({
             >
               Accept <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>A</kbd>
             </Button>
-            <Button
-              variant="danger"
-              size="medium"
-              leadingVisual={XCircleIcon}
-              onClick={onReject}
-            >
+            <Button variant="danger" size="medium" leadingVisual={XCircleIcon} onClick={onReject}>
               Reject <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>R</kbd>
             </Button>
             <Button size="medium" onClick={startEditing}>
@@ -482,19 +478,10 @@ export default function SingleRecordView({
           </Box>
         ) : record.status === "accepted" ? (
           <Box sx={{ display: "flex", gap: 2, mt: 4 }}>
-            <Button
-              size="medium"
-              leadingVisual={ArrowLeftIcon}
-              onClick={onSetPending}
-            >
+            <Button size="medium" leadingVisual={ArrowLeftIcon} onClick={onSetPending}>
               Set Pending <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>U</kbd>
             </Button>
-            <Button
-              variant="danger"
-              size="medium"
-              leadingVisual={XCircleIcon}
-              onClick={onReject}
-            >
+            <Button variant="danger" size="medium" leadingVisual={XCircleIcon} onClick={onReject}>
               Reject <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>R</kbd>
             </Button>
             <Button size="medium" onClick={startEditing}>
@@ -511,11 +498,7 @@ export default function SingleRecordView({
             >
               Accept <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>A</kbd>
             </Button>
-            <Button
-              size="medium"
-              leadingVisual={ArrowLeftIcon}
-              onClick={onSetPending}
-            >
+            <Button size="medium" leadingVisual={ArrowLeftIcon} onClick={onSetPending}>
               Set Pending <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>U</kbd>
             </Button>
             <Button size="medium" onClick={startEditing}>

@@ -10,12 +10,11 @@ const steps: Step[] = [
   {
     number: 1,
     title: 'Define Seed Data',
-    description: 'Start by creating a JSON seed file with the variables your pipeline will use.',
+    description: 'Start with text content that your pipeline will process.',
     code: `{
-  "repetitions": 2,
+  "repetitions": 3,
   "metadata": {
-    "topic": "AI",
-    "level": "basic"
+    "content": "Electric cars reduce emissions but require charging infrastructure."
   }
 }`,
     language: 'json'
@@ -24,9 +23,9 @@ const steps: Step[] = [
     number: 2,
     title: 'Build Pipeline',
     description: 'Design your workflow using drag-and-drop blocks. Each block adds data to the accumulated state.',
-    code: `LLM Block → Validator Block → Output Block
-    ↓            ↓                ↓
-  assistant  + is_valid    + formatted`
+    code: `StructuredGenerator      →        JSONValidatorBlock
+          ↓                               ↓
+      generated          +        valid, parsed_json`
   },
   {
     number: 3,
@@ -37,9 +36,9 @@ A → Accept  |  R → Reject  |  U → Pending
 E → Edit    |  N → Next    |  P → Previous
 
 Field Configuration:
-Primary: [output]
-Secondary: [metadata]
-Hidden: [created_at, updated_at]`,
+Primary:   [parsed_json, valid]
+Secondary: [metadata.content]
+Hidden:    [... all other fields]`,
     language: 'text'
   },
   {
@@ -48,9 +47,20 @@ Hidden: [created_at, updated_at]`,
     description: 'Export your data in JSONL format, filtered by status (accepted, rejected, pending).',
     code: `{
   "id": 71,
-  "output": "{"title": "..."}",
-  "metadata": {...},
-  "status": "accepted"
+  "metadata": {
+    "content": "Electric cars reduce emissions..."
+  },
+  "status": "accepted",
+  "accumulated_state": {
+    "generated": {
+      "title": "Electric Vehicles",
+      "description": "Analysis of EVs..."
+    },
+    "valid": true,
+    "parsed_json": {...}
+  },
+  "created_at": "2025-10-25T10:30:00",
+  "updated_at": "2025-10-25T10:31:15"
 }`,
     language: 'json'
   }

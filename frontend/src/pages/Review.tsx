@@ -31,7 +31,6 @@ export default function Review() {
   const [records, setRecords] = useState<RecordData[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"pending" | "accepted" | "rejected">("pending");
   const [stats, setStats] = useState({ pending: 0, accepted: 0, rejected: 0 });
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -48,6 +47,8 @@ export default function Review() {
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(10);
   const [selectedRecordForDetails, setSelectedRecordForDetails] = useState<RecordData | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_isExpanded, setIsExpanded] = useState(false);
 
   const currentRecord = records[currentIndex] || null;
 
@@ -257,9 +258,7 @@ export default function Review() {
   };
 
   const exportAll = () => {
-    const url = selectedJob
-      ? `/api/export/download?job_id=${selectedJob}`
-      : `/api/export/download`;
+    const url = selectedJob ? `/api/export/download?job_id=${selectedJob}` : `/api/export/download`;
     window.location.href = url;
   };
 
@@ -283,9 +282,7 @@ export default function Review() {
         <Box sx={{ display: "flex", gap: 2 }}>
           {selectedPipeline && (
             <>
-              <Button
-                onClick={() => setViewMode(viewMode === "single" ? "table" : "single")}
-              >
+              <Button onClick={() => setViewMode(viewMode === "single" ? "table" : "single")}>
                 {viewMode === "single" ? "Table View" : "Single View"}
               </Button>
               <ActionMenu>
@@ -407,7 +404,16 @@ export default function Review() {
 
       {/* keyboard shortcuts hint - only in single view */}
       {viewMode === "single" && selectedPipeline && records.length > 0 && (
-        <Box sx={{ my: 3, display: "flex", gap: 3, fontSize: 1, alignItems: "center", justifyContent: "center" }}>
+        <Box
+          sx={{
+            my: 3,
+            display: "flex",
+            gap: 3,
+            fontSize: 1,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Box
               as="kbd"
@@ -629,7 +635,6 @@ export default function Review() {
           }}
         />
       )}
-
     </Box>
   );
 }

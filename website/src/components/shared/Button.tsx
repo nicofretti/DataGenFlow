@@ -16,8 +16,8 @@ export default function Button({
   const baseStyles = 'font-medium rounded-lg transition-colors duration-200 inline-flex items-center justify-center'
 
   const variants = {
-    primary: 'bg-primary hover:bg-primary-dark text-white',
-    outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white',
+    primary: 'bg-primary hover:bg-primary-dark text-white border-2 border-transparent', 
+    outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white'
   }
 
   const sizes = {

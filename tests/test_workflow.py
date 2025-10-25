@@ -10,13 +10,17 @@ from lib.workflow import Pipeline
 async def test_pipeline_single_block():
     pipeline_def = {
         "name": "Simple Generation",
-        "blocks": [{"type": "LLMBlock", "config": {"temperature": 0.7}}],
+        "blocks": [{"type": "TextGenerator", "config": {"temperature": 0.7}}],
     }
 
     pipeline = Pipeline.load_from_dict(pipeline_def)
 
-    with patch("lib.generator.Generator.generate", new_callable=AsyncMock) as mock_gen:
-        mock_gen.return_value = "generated response"
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_gen:
+        from unittest.mock import MagicMock
+
+        mock_gen.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="generated response"))]
+        )
         result, trace, trace_id = await pipeline.execute({"system": "test", "user": "test"})
 
         assert result["assistant"] == "generated response"
@@ -28,15 +32,19 @@ async def test_pipeline_multiple_blocks():
     pipeline_def = {
         "name": "Generate and Validate",
         "blocks": [
-            {"type": "LLMBlock", "config": {"temperature": 0.7}},
+            {"type": "TextGenerator", "config": {"temperature": 0.7}},
             {"type": "ValidatorBlock", "config": {"min_length": 5}},
         ],
     }
 
     pipeline = Pipeline.load_from_dict(pipeline_def)
 
-    with patch("lib.generator.Generator.generate", new_callable=AsyncMock) as mock_gen:
-        mock_gen.return_value = "hello world"
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_gen:
+        from unittest.mock import MagicMock
+
+        mock_gen.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="hello world"))]
+        )
         result, trace, trace_id = await pipeline.execute({"system": "test", "user": "test"})
 
         assert result["assistant"] == "hello world"
@@ -59,7 +67,7 @@ async def test_pipeline_invalid_block():
 async def test_pipeline_to_dict():
     pipeline_def = {
         "name": "Test Pipeline",
-        "blocks": [{"type": "LLMBlock", "config": {"temperature": 0.7}}],
+        "blocks": [{"type": "TextGenerator", "config": {"temperature": 0.7}}],
     }
 
     pipeline = Pipeline.load_from_dict(pipeline_def)
@@ -67,4 +75,4 @@ async def test_pipeline_to_dict():
 
     assert serialized["name"] == "Test Pipeline"
     assert len(serialized["blocks"]) == 1
-    assert serialized["blocks"][0]["type"] == "LLMBlock"
+    assert serialized["blocks"][0]["type"] == "TextGenerator"

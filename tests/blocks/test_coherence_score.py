@@ -1,13 +1,14 @@
 import pytest
+
 from lib.blocks.builtin.coherence_score import CoherenceScore
 
 
 @pytest.mark.asyncio
 async def test_coherence_score():
     block = CoherenceScore(field_name="assistant")
-    result = await block.execute({
-        "assistant": "This is a sentence. This is another sentence. Final sentence here."
-    })
+    result = await block.execute(
+        {"assistant": "This is a sentence. This is another sentence. Final sentence here."}
+    )
 
     assert "coherence_score" in result
     assert 0 <= result["coherence_score"] <= 1

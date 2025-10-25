@@ -1,4 +1,4 @@
-.PHONY: check-deps install dev dev-ui dev-backend run-dev build-ui run mock-llm clean lint format lint-frontend format-frontend format-all lint-all typecheck typecheck-frontend typecheck-all test setup
+.PHONY: check-deps install dev dev-ui dev-backend run-dev build-ui run mock-llm clean lint format lint-frontend format-frontend format-all lint-all typecheck typecheck-frontend typecheck-all test test-integration pre-merge setup
 
 # check if required dependencies are installed
 check-deps:
@@ -7,7 +7,7 @@ check-deps:
 		echo "❌ uv is not installed"; \
 		echo ""; \
 		echo "Please install uv:"; \
-		echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"; \
+		echo " 	curl -LsSf https://astral.sh/uv/install.sh | sh"; \
 		echo ""; \
 		echo "Or visit: https://github.com/astral-sh/uv"; \
 		exit 1; \
@@ -16,7 +16,7 @@ check-deps:
 		echo "❌ yarn is not installed"; \
 		echo ""; \
 		echo "Please install yarn:"; \
-		echo "  npm install -g yarn"; \
+		echo " 	npm install -g yarn"; \
 		echo ""; \
 		echo "Or visit: https://yarnpkg.com/getting-started/install"; \
 		exit 1; \
@@ -87,6 +87,12 @@ typecheck-all: typecheck typecheck-frontend
 
 test:
 	uv run pytest
+
+test-integration:
+	uv run pytest -m integration -v
+
+pre-merge: format-all lint-all typecheck-all test
+	@echo "✅ Pre-merge checks completed successfully. Ready to merge!"
 
 setup:
 	cp .env.example .env
