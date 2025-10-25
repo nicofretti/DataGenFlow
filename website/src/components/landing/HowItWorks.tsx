@@ -23,9 +23,9 @@ const steps: Step[] = [
     number: 2,
     title: 'Build Pipeline',
     description: 'Design your workflow using drag-and-drop blocks. Each block adds data to the accumulated state.',
-    code: `StructuredGenerator → JSONValidatorBlock
-          ↓                      ↓
-      generated          +   valid, parsed_json`
+    code: `StructuredGenerator      →        JSONValidatorBlock
+          ↓                               ↓
+      generated          +        valid, parsed_json`
   },
   {
     number: 3,
@@ -36,9 +36,9 @@ A → Accept  |  R → Reject  |  U → Pending
 E → Edit    |  N → Next    |  P → Previous
 
 Field Configuration:
-Primary: [output]
-Secondary: [metadata]
-Hidden: [created_at, updated_at]`,
+Primary:   [parsed_json, valid]
+Secondary: [metadata.content]
+Hidden:    [... all other fieldss]`,
     language: 'text'
   },
   {
