@@ -45,5 +45,11 @@ jobs:
         working-directory: ./frontend
         run: yarn install
 
-      - name: Run pre-merge checks
-        run: make pre-merge
+      - name: Run linting checks
+        run: make lint-all
+
+      - name: Run type checks
+        run: make typecheck-all
+
+      - name: Run tests
+        run: make test
