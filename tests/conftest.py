@@ -26,21 +26,10 @@ def cleanup_test_db():
         test_db.unlink()
 
 
-def pytest_sessionfinish(session, exitstatus):
-    """cleanup asyncio resources after test session"""
-    # close all pending asyncio tasks
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.stop()
-        pending = asyncio.all_tasks(loop)
-        for task in pending:
-            task.cancel()
-        if pending:
-            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-        loop.close()
-    except Exception:
-        pass
+@pytest.fixture(scope="session", autouse=True)
+def event_loop_policy():
+    """set event loop policy to avoid hanging"""
+    asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
 
 @pytest.fixture(scope="function")

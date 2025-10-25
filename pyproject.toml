@@ -65,6 +65,5 @@ disable_error_code = ["no-any-return"]
 markers = [
     "integration: integration tests requiring external services (ollama, etc) - only run when explicitly called",
 ]
-addopts = "-m 'not integration'"
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
+addopts = "-m 'not integration' --tb=short"
+asyncio_mode = "strict"
