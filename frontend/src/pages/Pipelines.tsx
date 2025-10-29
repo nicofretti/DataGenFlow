@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Heading, Text, Button, Flash, Label } from "@primer/react";
+import { Box, Heading, Text, Button, Label } from "@primer/react";
 import {
   PencilIcon,
   TrashIcon,
@@ -13,11 +13,12 @@ import {
 import PipelineEditor from "../components/pipeline-editor/PipelineEditor";
 import { useNavigation } from "../App";
 import type { Pipeline, Template } from "../types";
+import { showToast } from "../utils/toast";
 
 export default function Pipelines() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const [editing, setEditing] = useState<{ mode: "new" | "edit"; pipeline?: Pipeline } | null>(
     null
   );
@@ -58,10 +59,10 @@ export default function Pipelines() {
 
       if (!res.ok) throw new Error("Failed to create pipeline from template");
 
-      setMessage({ type: "success", text: "Pipeline created from template" });
+      showToast({ type: "success", message: "Pipeline created from template" });
       loadPipelines();
     } catch (error) {
-      setMessage({ type: "error", text: `Error: ${error}` });
+      showToast({ type: "error", message: `Error: ${error}` });
     }
   };
 
@@ -76,7 +77,7 @@ export default function Pipelines() {
         });
 
         if (!res.ok) throw new Error("Failed to create pipeline");
-        setMessage({ type: "success", text: "Pipeline created successfully" });
+        showToast({ type: "success", message: "Pipeline created successfully" });
       } else if (editing?.mode === "edit" && editing.pipeline) {
         // update existing pipeline
         const res = await fetch(`/api/pipelines/${editing.pipeline.id}`, {
@@ -86,7 +87,7 @@ export default function Pipelines() {
         });
 
         if (!res.ok) throw new Error("Failed to update pipeline");
-        setMessage({ type: "success", text: "Pipeline updated successfully" });
+        showToast({ type: "success", message: "Pipeline updated successfully" });
       }
 
       setEditing(null);
@@ -103,10 +104,10 @@ export default function Pipelines() {
       const res = await fetch(`/api/pipelines/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
 
-      setMessage({ type: "success", text: "Pipeline deleted" });
+      showToast({ type: "success", message: "Pipeline deleted" });
       loadPipelines();
     } catch (error) {
-      setMessage({ type: "error", text: `Error: ${error}` });
+      showToast({ type: "error", message: `Error: ${error}` });
     }
   };
 
@@ -119,10 +120,10 @@ export default function Pipelines() {
         pipelines.map((pipeline) => fetch(`/api/pipelines/${pipeline.id}`, { method: "DELETE" }))
       );
 
-      setMessage({ type: "success", text: "All pipelines deleted" });
+      showToast({ type: "success", message: "All pipelines deleted" });
       loadPipelines();
     } catch (error) {
-      setMessage({ type: "error", text: `Error: ${error}` });
+      showToast({ type: "error", message: `Error: ${error}` });
     }
   };
 
@@ -144,8 +145,7 @@ export default function Pipelines() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    setMessage({ type: "success", text: "Copied to clipboard" });
-    setTimeout(() => setMessage(null), 2000);
+    showToast({ type: "success", message: "Copied to clipboard" });
   };
 
   // show editor if editing
@@ -183,12 +183,6 @@ export default function Pipelines() {
           </Button>
         </Box>
       </Box>
-
-      {message && (
-        <Flash variant={message.type === "error" ? "danger" : "success"} sx={{ mb: 3 }}>
-          {message.text}
-        </Flash>
-      )}
 
       {/* Templates Section */}
       {templates.length > 0 && (

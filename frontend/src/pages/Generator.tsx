@@ -5,7 +5,6 @@ import {
   Heading,
   FormControl,
   Button,
-  Flash,
   Text,
   Select,
   Spinner,
@@ -17,6 +16,7 @@ import { useJob } from "../contexts/JobContext";
 import type { Pipeline } from "../types";
 import { getElapsedTime } from "../utils/format";
 import { getStatusColor } from "../utils/status";
+import { showToast } from "../utils/toast";
 
 export default function Generator() {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ export default function Generator() {
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
 
@@ -41,6 +41,15 @@ export default function Generator() {
       setGenerating(false);
     }
   }, [currentJob]);
+
+  useEffect(() => {
+    if (currentJob?.error) {
+      showToast({
+        type: "error",
+        message: currentJob.error,
+      });
+    }
+  }, [currentJob?.error]);
 
   const fetchPipelines = async () => {
     try {
@@ -72,7 +81,7 @@ export default function Generator() {
       if (droppedFile.type === "application/json") {
         setFile(droppedFile);
       } else {
-        setMessage({ type: "error", text: "Please drop a JSON file" });
+        showToast({ type: "error", message: "Please drop a JSON file" });
       }
     }
   };
@@ -90,9 +99,10 @@ export default function Generator() {
       // check not empty
       const seeds = Array.isArray(data) ? data : [data];
       if (seeds.length === 0) {
-        setMessage({
+        showToast({
           type: "error",
-          text: "Empty file: The file contains no seeds. Please add at least one seed with metadata.",
+          message:
+            "Empty file: The file contains no seeds. Please add at least one seed with metadata.",
         });
         return;
       }
@@ -100,9 +110,9 @@ export default function Generator() {
       // check basic structure
       for (let i = 0; i < seeds.length; i++) {
         if (!seeds[i].metadata) {
-          setMessage({
+          showToast({
             type: "error",
-            text: `Invalid seed: Seed ${i + 1} is missing the required 'metadata' field.`,
+            message: `Invalid seed: Seed ${i + 1} is missing the required 'metadata' field.`,
           });
           return;
         }
@@ -110,11 +120,10 @@ export default function Generator() {
 
       // validation passed
       setFile(selectedFile);
-      setMessage(null);
     } catch (e) {
-      setMessage({
+      showToast({
         type: "error",
-        text:
+        message:
           e instanceof Error
             ? `Invalid JSON: ${e.message}`
             : "The file is not valid JSON. Please check your file syntax.",
@@ -126,15 +135,15 @@ export default function Generator() {
     if (!file || !selectedPipeline) return;
 
     if (generating) {
-      setMessage({
+      showToast({
         type: "error",
-        text: "Job already running: A generation job is already in progress. Cancel it first or wait for completion.",
+        message:
+          "Job already running: A generation job is already in progress. Cancel it first or wait for completion.",
       });
       return;
     }
 
     setGenerating(true);
-    setMessage(null);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -148,9 +157,9 @@ export default function Generator() {
 
       if (!res.ok) {
         const error = await res.json();
-        setMessage({
+        showToast({
           type: "error",
-          text: `Generation failed: ${error.detail || "Failed to start generation. Please try again."}`,
+          message: `Generation failed: ${error.detail || "Failed to start generation. Please try again."}`,
         });
         return;
       }
@@ -162,9 +171,9 @@ export default function Generator() {
       const job = await jobRes.json();
       setCurrentJob(job);
     } catch (error) {
-      setMessage({
+      showToast({
         type: "error",
-        text:
+        message:
           error instanceof Error
             ? `Network error: ${error.message}`
             : "Failed to connect to server. Please check your connection.",
@@ -184,9 +193,9 @@ export default function Generator() {
       await fetch(`/api/jobs/${currentJob.id}`, { method: "DELETE" });
       setCurrentJob(null);
       setGenerating(false);
-      setMessage({ type: "success", text: "Job cancelled" });
+      showToast({ type: "success", message: "Job cancelled" });
     } catch (error) {
-      setMessage({ type: "error", text: `Failed to cancel: ${error}` });
+      showToast({ type: "error", message: `Failed to cancel: ${error}` });
     }
   };
 
@@ -199,12 +208,6 @@ export default function Generator() {
           multiple times based on repetitions.
         </Text>
       </Box>
-
-      {message && (
-        <Flash variant={message.type === "error" ? "danger" : "success"} sx={{ mb: 3 }}>
-          {message.text}
-        </Flash>
-      )}
 
       {/* Job Progress Section */}
       {currentJob && (
@@ -277,12 +280,6 @@ export default function Generator() {
             <Text sx={{ fontSize: 1, color: "fg.muted", mb: 2, display: "block" }}>
               Running for {getElapsedTime(currentJob.started_at)}
             </Text>
-          )}
-
-          {currentJob.error && (
-            <Flash variant="danger" sx={{ mb: 2 }}>
-              {currentJob.error}
-            </Flash>
           )}
 
           <Box sx={{ display: "flex", gap: 2 }}>

@@ -14,7 +14,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import "../../styles/pipeline-editor.css";
-import { Box, Button, Flash, Text, TextInput, useTheme } from "@primer/react";
+import { Box, Button, Text, TextInput, useTheme } from "@primer/react";
 import { XIcon, ZapIcon } from "@primer/octicons-react";
 
 import BlockPalette from "./BlockPalette";
@@ -28,6 +28,7 @@ import {
   convertToPipelineFormat,
   convertFromPipelineFormat,
 } from "./utils";
+import { showToast } from "../../utils/toast";
 
 // define node types outside component to prevent recreation
 const nodeTypes: NodeTypes = {
@@ -79,7 +80,7 @@ export default function PipelineEditor({
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [pipelineName, setPipelineName] = useState(initialPipelineName);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const { theme } = useTheme();
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
 
@@ -89,7 +90,8 @@ export default function PipelineEditor({
       const updatedNode = nodes.find((n) => n.id === selectedNode.id);
       if (updatedNode) {
         // check if config actually changed (deep comparison)
-        const configChanged = JSON.stringify(updatedNode.data.config) !== JSON.stringify(selectedNode.data?.config);
+        const configChanged =
+          JSON.stringify(updatedNode.data.config) !== JSON.stringify(selectedNode.data?.config);
         if (updatedNode !== selectedNode || configChanged) {
           setSelectedNode(updatedNode);
         }
@@ -270,7 +272,7 @@ export default function PipelineEditor({
           setNodes([startNode, endNode]);
         }
       } catch (error) {
-        setMessage({ type: "error", text: `Failed to load blocks: ${error}` });
+        showToast({ type: "error", message: `Failed to load blocks: ${error}` });
       }
     }
     fetchBlocks();
@@ -440,7 +442,6 @@ export default function PipelineEditor({
   // handle save
   const handleSave = async () => {
     setSaving(true);
-    setMessage(null);
 
     try {
       // validation: check pipeline name
@@ -503,9 +504,9 @@ export default function PipelineEditor({
 
       const pipeline = convertToPipelineFormat(nodes, edges);
       await onSave({ name: pipelineName, ...pipeline });
-      setMessage({ type: "success", text: "Pipeline saved successfully!" });
+      showToast({ type: "success", message: "Pipeline saved successfully!" });
     } catch (error) {
-      setMessage({ type: "error", text: `Failed to save: ${error}` });
+      showToast({ type: "error", message: `Failed to save: ${error}` });
     } finally {
       setSaving(false);
     }
@@ -606,13 +607,6 @@ export default function PipelineEditor({
           </Button>
         </Box>
       </Box>
-
-      {/* Message */}
-      {message && (
-        <Box sx={{ p: 2 }}>
-          <Flash variant={message.type === "error" ? "danger" : "success"}>{message.text}</Flash>
-        </Box>
-      )}
 
       {/* Main content */}
       <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
