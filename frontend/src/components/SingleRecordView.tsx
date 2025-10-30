@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Box, Text, Button, Label, Textarea, Flash } from "@primer/react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CheckCircleIcon,
   XCircleIcon,
+  SquareCircleIcon,
   ArrowLeftIcon,
 } from "@primer/octicons-react";
 import type { RecordData, ValidationConfig } from "../types";
@@ -21,6 +22,7 @@ interface SingleRecordViewProps {
   onReject: () => void;
   onSetPending: () => void;
   onEdit: (updates: Record<string, any>) => void;
+  onRegisterStartEditing?: (fn: () => void) => void;
   isPending: boolean;
 }
 
@@ -35,6 +37,7 @@ export default function SingleRecordView({
   onReject,
   onSetPending,
   onEdit,
+  onRegisterStartEditing,
   isPending: _isPending,
 }: SingleRecordViewProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -42,16 +45,25 @@ export default function SingleRecordView({
   const [isExpanded, setIsExpanded] = useState(false);
 
   // get final accumulated state from trace
-  const finalState =
-    record.trace && record.trace.length > 0
-      ? record.trace[record.trace.length - 1].accumulated_state || {}
-      : {};
+  const finalState = useMemo(
+    () =>
+      record.trace && record.trace.length > 0
+        ? record.trace[record.trace.length - 1].accumulated_state || {}
+        : {},
+    [record.trace]
+  );
 
   // determine field order
-  const primaryFields = validationConfig?.field_order.primary || ["assistant"];
-  const secondaryFields = validationConfig?.field_order.secondary || [];
+  const primaryFields = useMemo(
+    () => validationConfig?.field_order.primary || ["assistant"],
+    [validationConfig?.field_order.primary]
+  );
+  const secondaryFields = useMemo(
+    () => validationConfig?.field_order.secondary || [],
+    [validationConfig?.field_order.secondary]
+  );
 
-  const startEditing = () => {
+  const startEditing = useCallback(() => {
     // initialize edit values with primary fields
     const initial: Record<string, string> = {};
     primaryFields.forEach((field) => {
@@ -61,10 +73,15 @@ export default function SingleRecordView({
     setEditValues(initial);
     setIsEditing(true);
     setIsExpanded(true);
-  };
+  }, [primaryFields, finalState]);
 
-  const saveEdit = () => {
-    onEdit(editValues);
+  // register startEditing function with parent
+  useEffect(() => {
+    onRegisterStartEditing?.(startEditing);
+  }, [startEditing, onRegisterStartEditing]);
+
+  const saveEdit = async () => {
+    await onEdit(editValues);
     setIsEditing(false);
   };
 
@@ -472,7 +489,7 @@ export default function SingleRecordView({
             <Button variant="danger" size="medium" leadingVisual={XCircleIcon} onClick={onReject}>
               Reject <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>R</kbd>
             </Button>
-            <Button size="medium" onClick={startEditing}>
+            <Button size="medium" leadingVisual={SquareCircleIcon} onClick={startEditing}>
               Edit <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>E</kbd>
             </Button>
           </Box>
@@ -484,8 +501,8 @@ export default function SingleRecordView({
             <Button variant="danger" size="medium" leadingVisual={XCircleIcon} onClick={onReject}>
               Reject <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>R</kbd>
             </Button>
-            <Button size="medium" onClick={startEditing}>
-              Edit <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>E</kbd>
+            <Button size="medium" leadingVisual={SquareCircleIcon} onClick={startEditing}>
+              Edit
             </Button>
           </Box>
         ) : record.status === "rejected" ? (
@@ -502,7 +519,7 @@ export default function SingleRecordView({
               Set Pending <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>U</kbd>
             </Button>
             <Button size="medium" onClick={startEditing}>
-              Edit <kbd style={{ marginLeft: "8px", opacity: 0.6 }}>E</kbd>
+              Edit
             </Button>
           </Box>
         ) : null}

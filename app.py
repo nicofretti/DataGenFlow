@@ -216,9 +216,15 @@ async def list_jobs(pipeline_id: int | None = None) -> list[dict[str, Any]]:
 
 @api.get("/records")
 async def get_records(
-    status: RecordStatus | None = None, limit: int = 100, offset: int = 0, job_id: int | None = None
+    status: RecordStatus | None = None,
+    limit: int = 100,
+    offset: int = 0,
+    job_id: int | None = None,
+    pipeline_id: int | None = None,
 ) -> list[dict[str, Any]]:
-    records = await storage.get_all(status=status, limit=limit, offset=offset, job_id=job_id)
+    records = await storage.get_all(
+        status=status, limit=limit, offset=offset, job_id=job_id, pipeline_id=pipeline_id
+    )
     return [record.model_dump() for record in records]
 
 
@@ -233,7 +239,20 @@ async def get_record(record_id: int) -> dict[str, Any]:
 @api.put("/records/{record_id}")
 async def update_record(record_id: int, update: RecordUpdate) -> dict[str, bool]:
     updates = update.model_dump(exclude_unset=True)
-    success = await storage.update_record(record_id, **updates)
+
+    # separate standard fields from accumulated_state field updates
+    standard_fields = {"output", "status", "metadata"}
+    standard_updates = {k: v for k, v in updates.items() if k in standard_fields}
+    accumulated_state_updates = {k: v for k, v in updates.items() if k not in standard_fields}
+
+    # if there are accumulated_state field updates, handle them specially
+    if accumulated_state_updates:
+        success = await storage.update_record_accumulated_state(
+            record_id, accumulated_state_updates, **standard_updates
+        )
+    else:
+        success = await storage.update_record(record_id, **standard_updates)
+
     if not success:
         raise HTTPException(status_code=404, detail="record not found")
     return {"success": True}

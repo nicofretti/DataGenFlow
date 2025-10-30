@@ -97,7 +97,7 @@ export default function PipelineEditor({
         }
       }
     }
-  }, [nodes]);
+  }, [nodes, selectedNode]);
 
   // minimap adjusted for light/dark mode using primer theme colors
   function MinimapWithTheme() {

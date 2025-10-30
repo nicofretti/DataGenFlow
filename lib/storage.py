@@ -161,6 +161,7 @@ class Storage:
         limit: int = 100,
         offset: int = 0,
         job_id: int | None = None,
+        pipeline_id: int | None = None,
     ) -> list[Record]:
         async def _get_all(db: Connection) -> list[Record]:
             db.row_factory = aiosqlite.Row
@@ -176,6 +177,10 @@ class Storage:
             if job_id:
                 where_clauses.append("job_id = ?")
                 params.append(job_id)
+
+            if pipeline_id:
+                where_clauses.append("pipeline_id = ?")
+                params.append(pipeline_id)
 
             where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
             params.extend([limit, offset])
@@ -220,6 +225,51 @@ class Storage:
             update_fields["metadata"] = json.dumps(update_fields["metadata"])
 
         update_fields["updated_at"] = datetime.now()
+
+        set_clause = ", ".join(f"{k} = ?" for k in update_fields.keys())
+        values: list[Any] = list(update_fields.values()) + [record_id]
+
+        async def _update(db: Connection) -> bool:
+            cursor = await db.execute(f"UPDATE records SET {set_clause} WHERE id = ?", values)
+            await db.commit()
+            return cursor.rowcount > 0
+
+        return await self._execute_with_connection(_update)
+
+    async def update_record_accumulated_state(
+        self, record_id: int, accumulated_state_updates: dict[str, Any], **standard_updates: Any
+    ) -> bool:
+        # first get the record to access its trace
+        record = await self.get_by_id(record_id)
+        if not record or not record.trace:
+            return False
+
+        # update the last step's accumulated_state in the trace
+        trace = record.trace
+        if trace and len(trace) > 0:
+            last_step = trace[-1]
+            if "accumulated_state" in last_step:
+                # update the accumulated_state with new values
+                last_step["accumulated_state"].update(accumulated_state_updates)
+
+        # prepare updates including the modified trace
+        update_fields: dict[str, Any] = {}
+
+        # add standard field updates
+        valid_fields = {"output", "status", "metadata"}
+        for k, v in standard_updates.items():
+            if k in valid_fields:
+                update_fields[k] = v
+
+        # add the updated trace
+        update_fields["trace"] = json.dumps(trace)
+        update_fields["updated_at"] = datetime.now()
+
+        if "status" in update_fields and isinstance(update_fields["status"], RecordStatus):
+            update_fields["status"] = update_fields["status"].value
+
+        if "metadata" in update_fields:
+            update_fields["metadata"] = json.dumps(update_fields["metadata"])
 
         set_clause = ", ".join(f"{k} = ?" for k in update_fields.keys())
         values: list[Any] = list(update_fields.values()) + [record_id]

@@ -11,8 +11,8 @@ export default function Hero() {
       {/* content */}
       <div className="relative z-10 container-custom text-center pt-20">
         <h1 className="text-5xl md:text-7xl font-bold mb-6">
-          Transform Data Generation<br />
-          Into <span className="gradient-text">Visual Pipelines</span>
+          Data Generation<br />
+          From <span className="gradient-text">Visual Pipelines</span>
         </h1>
 
         <p className="text-xl md:text-2xl text-gray-400 mb-12 max-w-3xl mx-auto">
@@ -51,9 +51,10 @@ export default function Hero() {
               controls
               poster={`${import.meta.env.BASE_URL}images/logo/banner.png`}
             >
-              <source src={`${import.meta.env.BASE_URL}images/video/full_video.mp4`} type="video/mp4" />
+              <source src={`${import.meta.env.BASE_URL}images/video/minimal.mp4`} type="video/mp4" />
               Your browser does not support the video tag.
             </video>
+            Check at the repo for the full video showcasing more features!
           </div>
         </div>
       </div>

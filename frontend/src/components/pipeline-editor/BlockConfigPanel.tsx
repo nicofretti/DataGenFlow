@@ -58,11 +58,14 @@ export default function BlockConfigPanel({
 
     Object.entries(schema).forEach(([key, fieldSchema]: [string, any]) => {
       const value = processedData[key];
-      if ((fieldSchema.type === "array" || fieldSchema.type === "object") && typeof value === "string") {
+      if (
+        (fieldSchema.type === "array" || fieldSchema.type === "object") &&
+        typeof value === "string"
+      ) {
         try {
           processedData[key] = JSON.parse(value);
         } catch (e) {
-          validationErrors[key] = `Invalid JSON: ${e instanceof Error ? e.message : 'parse error'}`;
+          validationErrors[key] = `Invalid JSON: ${e instanceof Error ? e.message : "parse error"}`;
         }
       }
     });
@@ -108,9 +111,8 @@ export default function BlockConfigPanel({
     if (schema.isFieldReference) {
       if (availableFields.length > 0) {
         // include current value if not in available fields
-        const allOptions = value && !availableFields.includes(value)
-          ? [value, ...availableFields]
-          : availableFields;
+        const allOptions =
+          value && !availableFields.includes(value) ? [value, ...availableFields] : availableFields;
 
         return (
           <Select

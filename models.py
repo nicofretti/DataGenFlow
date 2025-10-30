@@ -45,6 +45,8 @@ class GenerationConfig(BaseModel):
 
 
 class RecordUpdate(BaseModel):
+    model_config = {"extra": "allow"}
+
     output: str | None = None
     status: RecordStatus | None = None
     metadata: dict[str, Any] | None = None
