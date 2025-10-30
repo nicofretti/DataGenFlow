@@ -42,13 +42,18 @@ export default function Generator() {
     }
   }, [currentJob]);
 
+  const prevErrorRef = useRef<string | null>(null);
   useEffect(() => {
-    if (currentJob?.error) {
+    if (
+      currentJob?.error &&
+      currentJob.error !== prevErrorRef.current
+    ) {
       showToast({
         type: "error",
         message: currentJob.error,
       });
     }
+    prevErrorRef.current = currentJob?.error ?? null;
   }, [currentJob?.error]);
 
   const fetchPipelines = async () => {
