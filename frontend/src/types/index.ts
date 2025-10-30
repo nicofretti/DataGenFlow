@@ -68,7 +68,7 @@ export interface BlockSchema {
   config_schema?: any;
 }
 
-export type ToastType = 'success' | 'error';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 export interface ToastInput {
   type: ToastType;
