@@ -82,11 +82,11 @@ export default function HowItWorks() {
           {steps.map((step, index) => (
             <div
               key={index}
-              className="flex flex-col lg:flex-row gap-8 items-center"
+              className="flex flex-col lg:flex-row gap-8"
             >
-              <div className={`flex-1 ${index % 2 === 1 ? 'lg:order-2' : ''}`}>
+              <div className={`flex-1 max-w-full ${index % 2 === 1 ? 'lg:order-2' : ''}`}>
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-2xl font-bold text-primary">
+                  <div className="w-12 h-12 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-2xl font-bold text-primary shrink-0">
                     {step.number}
                   </div>
                   <h3 className="text-2xl font-semibold">{step.title}</h3>
