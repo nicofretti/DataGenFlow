@@ -35,10 +35,22 @@ def event_loop_policy():
 @pytest.fixture(scope="function")
 def client():
     """create test client with lifespan handling"""
-    from app import app
+    from app import app, storage
 
     with TestClient(app) as client:
         yield client
+
+    # close storage connection to prevent hanging
+    if storage._conn:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        if not loop.is_closed():
+            loop.run_until_complete(storage._conn.close())
+        storage._conn = None
 
 
 @pytest.fixture
@@ -75,8 +87,8 @@ async def storage():
     yield storage
 
     # close database connection
-    if hasattr(storage, "conn") and storage.conn:
-        await storage.conn.close()
+    if storage._conn:
+        await storage._conn.close()
 
 
 @pytest.fixture
@@ -89,3 +101,24 @@ def sample_pipeline_def():
             {"type": "ValidatorBlock", "config": {"min_length": 10}},
         ],
     }
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """cleanup http clients to prevent hanging threads"""
+    import gc
+
+    try:
+        import httpx
+
+        # close all httpx clients to stop background threads
+        for obj in gc.get_objects():
+            if isinstance(obj, (httpx.Client, httpx.AsyncClient)):
+                try:
+                    if isinstance(obj, httpx.Client):
+                        obj.close()
+                    else:
+                        asyncio.run(obj.aclose())
+                except Exception:
+                    pass
+    except Exception:
+        pass

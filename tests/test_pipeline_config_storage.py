@@ -22,12 +22,17 @@ async def test_pipeline_definition_with_block_configs():
     storage = Storage(":memory:")
     await storage.init_db()
 
-    pipeline_id = await storage.save_pipeline("test", pipeline_def)
-    retrieved = await storage.get_pipeline(pipeline_id)
+    try:
+        pipeline_id = await storage.save_pipeline("test", pipeline_def)
+        retrieved = await storage.get_pipeline(pipeline_id)
 
-    assert retrieved is not None
-    assert retrieved["definition"]["blocks"][0]["config"]["temperature"] == 0.8
-    assert retrieved["definition"]["blocks"][1]["config"]["min_length"] == 10
+        assert retrieved is not None
+        assert retrieved["definition"]["blocks"][0]["config"]["temperature"] == 0.8
+        assert retrieved["definition"]["blocks"][1]["config"]["min_length"] == 10
+    finally:
+        # close the storage connection
+        if storage._conn:
+            await storage._conn.close()
 
 
 @pytest.mark.asyncio
