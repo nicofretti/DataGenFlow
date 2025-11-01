@@ -1,6 +1,6 @@
-# DataGenFlow Marketing Website
+# DataGenFlow Website
 
-Marketing website and documentation for DataGenFlow.
+Website and documentation for DataGenFlow.
 
 ## Development
 
@@ -21,11 +21,7 @@ Output in `dist/` directory.
 
 ## Deployment
 
-Deploy the `dist/` folder to any static hosting:
-
-- **GitHub Pages**: Push dist to gh-pages branch
-- **Netlify**: Connect repo, build command `yarn build`, publish directory `dist`
-- **Vercel**: Connect repo, framework preset `Vite`, output directory `dist`
+Deploy the `dist/` on every merge into the `main` branch a GitHub Action is triggered to handle this. Currently it deploys to GitHub Pages.
 
 ## Project Structure
 
@@ -38,5 +34,3 @@ Deploy the `dist/` folder to any static hosting:
 ## Styling
 
 - Tailwind CSS with custom green/black theme
-- Some Primer React components for consistency with main app
-- Responsive design (mobile-first)
