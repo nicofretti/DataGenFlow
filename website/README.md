@@ -2,6 +2,11 @@
 
 Website and documentation for DataGenFlow.
 
+## Requirements
+
+- Node.js >= 20.0.0
+- Yarn
+
 ## Development
 
 ```bash

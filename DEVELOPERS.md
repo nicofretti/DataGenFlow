@@ -70,7 +70,7 @@ tests/
 
 ### Prerequisites
 - Python 3.10+
-- Node.js 16+ and Yarn
+- Node.js 20+ and Yarn
 - uv (Python package manager)
 
 ### Installation
