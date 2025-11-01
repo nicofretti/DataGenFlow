@@ -45,12 +45,18 @@ jobs:
         working-directory: ./frontend
         run: yarn install
 
+      - name: Install website dependencies
+        working-directory: ./website
+        run: yarn install
+
       - name: Run linting checks
         run: make lint-all
 
       - name: Run type checks
         run: make typecheck-all
 
+      - name: Run website checks
+        run: make typecheck-website
+
       - name: Run tests
-        timeout-minutes: 2
-        run: timeout 30 make test || if [ $? -eq 124 ]; then echo "Tests passed (forced timeout)"; exit 0; else exit $?; fi
+        run: make test
