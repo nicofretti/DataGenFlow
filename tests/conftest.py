@@ -41,16 +41,14 @@ def client():
         yield client
 
     # close storage connection to prevent hanging
-    if storage._conn:
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-        if not loop.is_closed():
-            loop.run_until_complete(storage._conn.close())
-        storage._conn = None
+    if not loop.is_closed():
+        loop.run_until_complete(storage.close())
 
 
 @pytest.fixture
@@ -87,8 +85,7 @@ async def storage():
     yield storage
 
     # close database connection
-    if storage._conn:
-        await storage._conn.close()
+    await storage.close()
 
 
 @pytest.fixture
@@ -119,6 +116,8 @@ def pytest_sessionfinish(session, exitstatus):
                     else:
                         asyncio.run(obj.aclose())
                 except Exception:
+                    # ignore errors during cleanup - client may already be closed
                     pass
-    except Exception:
+    except ImportError:
+        # httpx not installed, skip cleanup
         pass

@@ -31,8 +31,7 @@ async def test_pipeline_definition_with_block_configs():
         assert retrieved["definition"]["blocks"][1]["config"]["min_length"] == 10
     finally:
         # close the storage connection
-        if storage._conn:
-            await storage._conn.close()
+        await storage.close()
 
 
 @pytest.mark.asyncio

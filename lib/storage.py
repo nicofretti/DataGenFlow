@@ -504,6 +504,12 @@ class Storage:
 
         return await self._execute_with_connection(_update)
 
+    async def close(self) -> None:
+        """close the database connection if one is open"""
+        if self._conn:
+            await self._conn.close()
+            self._conn = None
+
     def _row_to_record(self, row: aiosqlite.Row) -> Record:
         return Record(
             id=row["id"],

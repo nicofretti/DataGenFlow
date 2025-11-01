@@ -29,8 +29,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await storage.init_db()
     yield
     # close storage connection on shutdown
-    if storage._conn:
-        await storage._conn.close()
+    await storage.close()
 
 
 app = FastAPI(title="DataGenFlow", version="0.1.0", lifespan=lifespan)
