@@ -1,21 +1,21 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import Button from '../shared/Button'
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import Button from "../shared/Button";
 
 export default function QuickStart() {
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState(false);
 
   const installCommand = `make setup
 make dev
 make run
 
-# Open http://localhost:8000, make sure to have .env configured`
+# Open http://localhost:8000, make sure to have .env configured`;
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(installCommand)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+    await navigator.clipboard.writeText(installCommand);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <section id="quick-start" className="section-padding bg-background-dark">
@@ -34,7 +34,7 @@ make run
               onClick={handleCopy}
               className="absolute top-4 right-4 px-3 py-1 text-sm bg-primary/20 hover:bg-primary/30 text-primary rounded transition-colors"
             >
-              {copied ? 'Copied!' : 'Copy'}
+              {copied ? "Copied!" : "Copy"}
             </button>
 
             <pre className="text-sm text-gray-300 overflow-x-auto pt-8">
@@ -43,9 +43,7 @@ make run
           </div>
 
           <div className="mt-8 text-center">
-            <p className="text-gray-400 mb-6">
-              That's it! No complex configuration required.
-            </p>
+            <p className="text-gray-400 mb-6">That&apos;s it! No complex configuration required.</p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
@@ -68,5 +66,5 @@ make run
         </div>
       </div>
     </section>
-  )
+  );
 }
