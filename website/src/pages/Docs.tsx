@@ -34,7 +34,7 @@ export default function Docs() {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
 
-      <main className="flex-1 w-full">
+      <main className="flex-1 w-full mt-16 lg:mt-0">
         <div className="max-w-5xl mx-auto px-6 py-12 md:px-12 lg:px-16">
           {loading ? (
             <div className="flex items-center justify-center h-64">
@@ -46,7 +46,7 @@ export default function Docs() {
 
               <div className="mt-16 pt-8 border-t border-gray-800">
                 <a
-                  href={`https://github.com/nicofretti/DataGenFlow/edit/main/${slug === 'README' || slug === 'DEVELOPERS' || slug === 'CONTRIBUTING' ? slug + '.md' : 'docs/' + slug + '.md'}`}
+                  href={`https://github.com/nicofretti/DataGenFlow/edit/main/${slug === 'README' || slug === 'DEVELOPERS' || slug === 'CONTRIBUTING' || slug === 'CHANGELOG' ? slug + '.md' : 'docs/' + slug + '.md'}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-primary transition-colors group"

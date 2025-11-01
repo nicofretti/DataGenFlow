@@ -36,6 +36,11 @@ export default function Footer() {
                   Developer Guide
                 </Link>
               </li>
+              <li>
+                <Link to="/docs/CHANGELOG" className="text-gray-400 hover:text-primary transition-colors text-sm">
+                  Changelog
+                </Link>
+              </li>
             </ul>
           </div>
 

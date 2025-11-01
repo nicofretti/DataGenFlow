@@ -47,7 +47,7 @@ if (fs.existsSync(docsSource)) {
 }
 
 // copy specific markdown files (excluding README.md - website has custom overview.md)
-const markdownFiles = ['CONTRIBUTING.md', 'DEVELOPERS.md'];
+const markdownFiles = ['CONTRIBUTING.md', 'DEVELOPERS.md', 'CHANGELOG.md'];
 markdownFiles.forEach(file => {
   const source = path.join(rootDir, file);
   const dest = path.join(publicDir, 'docs', file);

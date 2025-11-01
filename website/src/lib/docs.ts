@@ -29,24 +29,19 @@ function parseFrontmatter(text: string): { data: Record<string, any>; content: s
 export async function fetchDoc(slug: string): Promise<DocFile | null> {
   // validate slug against whitelist
   if (!isValidSlug(slug)) {
-    console.warn(`Invalid doc slug: ${slug}`)
     return null
   }
 
   try {
     const base = import.meta.env.BASE_URL
     const url = `${base}docs/${slug}.md`
-    console.log('Fetching doc from:', url)
     const response = await fetch(url)
-    console.log('Response status:', response.status, response.statusText)
 
     if (!response.ok) {
-      console.error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`)
       return null
     }
 
     const text = await response.text()
-    console.log('Fetched text length:', text.length)
     const { data, content } = parseFrontmatter(text)
 
     return {
@@ -56,7 +51,6 @@ export async function fetchDoc(slug: string): Promise<DocFile | null> {
       metadata: data as DocMetadata
     }
   } catch (error) {
-    console.error(`Error fetching doc: ${slug}`, error)
     return null
   }
 }
@@ -69,6 +63,7 @@ export const VALID_DOC_SLUGS = [
   'how_to_create_blocks',
   'DEVELOPERS',
   'CONTRIBUTING',
+  'CHANGELOG',
   'MARKDOWN_STYLE_GUIDE',
 ]
 
@@ -86,7 +81,8 @@ export async function getDocsNav(): Promise<DocNav[]> {
     { slug: 'how_to_create_blocks', title: 'Create Custom Blocks', order: 3 },
     { slug: 'DEVELOPERS', title: 'Developer Guide', order: 4 },
     { slug: 'CONTRIBUTING', title: 'Contributing', order: 5 },
-    { slug: 'MARKDOWN_STYLE_GUIDE', title: 'Markdown Style Guide', order: 6 },
+    { slug: 'CHANGELOG', title: 'Changelog', order: 6 },
+    { slug: 'MARKDOWN_STYLE_GUIDE', title: 'Markdown Style Guide', order: 7 },
   ]
 
   return docs
