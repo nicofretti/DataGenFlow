@@ -31,7 +31,6 @@ uv.lock
 # frontend
 frontend/node_modules/
 frontend/build/
-frontend/.svelte-kit/
 frontend/package-lock.json
 
 # project notes (not for commits)

@@ -1,6 +1,5 @@
 node_modules
 dist
 build
-.svelte-kit
 *.log
 coverage

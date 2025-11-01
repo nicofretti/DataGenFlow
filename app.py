@@ -28,6 +28,9 @@ job_queue = JobQueue()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await storage.init_db()
     yield
+    # close storage connection on shutdown
+    if storage._conn:
+        await storage._conn.close()
 
 
 app = FastAPI(title="DataGenFlow", version="0.1.0", lifespan=lifespan)
@@ -441,7 +444,7 @@ async def create_pipeline_from_template(template_id: str) -> dict[str, Any]:
 # mount api routes
 app.mount("/api", api)
 
-# serve frontend (built svelte app)
+# serve frontend (built react app)
 frontend_dir = Path("frontend/build")
 if frontend_dir.exists():
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
