@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import litellm
+from jinja2 import Environment, meta
 
 from config import settings
 from lib.blocks.base import BaseBlock
@@ -87,3 +88,23 @@ class TextGenerator(BaseBlock):
         assistant = response.choices[0].message.content
 
         return {"assistant": assistant, "system": system, "user": user}
+
+    @classmethod
+    def get_required_fields(cls, config: dict[str, Any]) -> list[str]:
+        """extract required fields from jinja2 templates in prompts"""
+        env = Environment()
+        required = set()
+
+        system_prompt = config.get("system_prompt", "")
+        user_prompt = config.get("user_prompt", "")
+
+        for prompt in [system_prompt, user_prompt]:
+            if prompt:
+                try:
+                    ast = env.parse(prompt)
+                    variables = meta.find_undeclared_variables(ast)
+                    required.update(variables)
+                except Exception:
+                    pass
+
+        return sorted(list(required))

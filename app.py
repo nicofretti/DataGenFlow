@@ -18,7 +18,7 @@ from lib.schema_utils import compute_accumulated_state_schema
 from lib.storage import Storage
 from lib.templates import template_registry
 from lib.workflow import Pipeline as WorkflowPipeline
-from models import Record, RecordStatus, RecordUpdate, SeedInput
+from models import Record, RecordStatus, RecordUpdate, SeedInput, SeedValidationRequest
 
 storage = Storage()
 job_queue = JobQueue()
@@ -33,6 +33,72 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="DataGenFlow", version="0.1.0", lifespan=lifespan)
+
+
+@app.post("/api/seeds/validate")
+async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
+    """validate seeds against pipeline's first block requirements"""
+    pipeline_data = await storage.get_pipeline(request.pipeline_id)
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="pipeline not found")
+
+    blocks = pipeline_data["definition"]["blocks"]
+    if not blocks:
+        raise HTTPException(status_code=400, detail="pipeline has no blocks")
+
+    first_block_def = blocks[0]
+    block_class = registry.get_block_class(first_block_def["type"])
+    if not block_class:
+        raise HTTPException(status_code=400, detail=f"block type '{first_block_def['type']}' not found")
+
+    required_inputs = block_class.get_required_fields(first_block_def.get("config", {}))
+
+    has_structure_errors = False
+    has_repetition_errors = False
+    zero_repetition_count = 0
+    all_missing_fields = set()
+
+    for seed in request.seeds:
+        if not isinstance(seed, dict):
+            has_structure_errors = True
+            continue
+
+        if "metadata" not in seed:
+            has_structure_errors = True
+            continue
+
+        metadata = seed["metadata"]
+        if not isinstance(metadata, dict):
+            has_structure_errors = True
+            continue
+
+        repetitions = seed.get("repetitions", 1)
+        if repetitions == 0:
+            zero_repetition_count += 1
+        elif not isinstance(repetitions, int) or repetitions < 0:
+            has_repetition_errors = True
+
+        missing_fields = [field for field in required_inputs if field not in metadata]
+        if missing_fields:
+            all_missing_fields.update(missing_fields)
+
+    errors = []
+    warnings = []
+
+    if has_structure_errors:
+        errors.append("Some seeds are not well structured (missing 'metadata' or invalid format)")
+
+    if has_repetition_errors:
+        errors.append("Some seeds have invalid repetitions (must be positive integer)")
+
+    if all_missing_fields:
+        fields_str = ", ".join(f"'{field}'" for field in sorted(all_missing_fields))
+        errors.append(f"Some seeds missing required field(s): {fields_str} (needed by {block_class.name} block)")
+
+    if zero_repetition_count > 0:
+        warnings.append(f"{zero_repetition_count} seed(s) have repetitions=0 (will not generate records)")
+
+    return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
 
 
 @app.post("/generate_from_file")

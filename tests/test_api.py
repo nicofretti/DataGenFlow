@@ -234,6 +234,174 @@ class TestAPIPipelines:
         assert result["result"]["valid"] is True
 
 
+class TestAPISeedValidation:
+    """Test seed validation endpoint"""
+
+    def test_validate_seeds_success(self, client):
+        pipeline_data = {
+            "name": "Test Pipeline",
+            "blocks": [{"type": "ValidatorBlock", "config": {"min_length": 1}}],
+        }
+        create_response = client.post("/api/pipelines", json=pipeline_data)
+        pipeline_id = create_response.json()["id"]
+
+        seeds = [
+            {"repetitions": 2, "metadata": {"text": "hello world", "assistant": "response"}},
+            {"repetitions": 1, "metadata": {"text": "another seed", "assistant": "response"}},
+        ]
+
+        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        assert response.status_code == 200
+
+        result = response.json()
+        assert result["valid"] is True
+        assert result["errors"] == []
+        assert result["warnings"] == []
+
+    def test_validate_seeds_missing_required_field(self, client):
+        pipeline_data = {
+            "name": "Test Pipeline",
+            "blocks": [{"type": "ValidatorBlock", "config": {"min_length": 1}}],
+        }
+        create_response = client.post("/api/pipelines", json=pipeline_data)
+        pipeline_id = create_response.json()["id"]
+
+        seeds = [{"repetitions": 1, "metadata": {"wrong_field": "value"}}]
+
+        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        assert response.status_code == 200
+
+        result = response.json()
+        assert result["valid"] is False
+        assert len(result["errors"]) >= 1
+        assert any("missing required field" in error.lower() for error in result["errors"])
+        assert any("text" in error for error in result["errors"])
+
+    def test_validate_seeds_missing_metadata(self, client):
+        pipeline_data = {
+            "name": "Test Pipeline",
+            "blocks": [{"type": "ValidatorBlock", "config": {"min_length": 1}}],
+        }
+        create_response = client.post("/api/pipelines", json=pipeline_data)
+        pipeline_id = create_response.json()["id"]
+
+        seeds = [{"repetitions": 1}]
+
+        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        assert response.status_code == 200
+
+        result = response.json()
+        assert result["valid"] is False
+        assert len(result["errors"]) >= 1
+        assert any("not well structured" in error.lower() for error in result["errors"])
+
+    def test_validate_seeds_zero_repetitions_warning(self, client):
+        pipeline_data = {
+            "name": "Test Pipeline",
+            "blocks": [{"type": "ValidatorBlock", "config": {"min_length": 1}}],
+        }
+        create_response = client.post("/api/pipelines", json=pipeline_data)
+        pipeline_id = create_response.json()["id"]
+
+        seeds = [{"repetitions": 0, "metadata": {"text": "hello", "assistant": "response"}}]
+
+        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        assert response.status_code == 200
+
+        result = response.json()
+        assert result["valid"] is True
+        assert result["errors"] == []
+        assert len(result["warnings"]) == 1
+        assert "repetitions=0" in result["warnings"][0]
+        assert "1 seed(s)" in result["warnings"][0]
+
+    def test_validate_seeds_invalid_repetitions(self, client):
+        pipeline_data = {
+            "name": "Test Pipeline",
+            "blocks": [{"type": "ValidatorBlock", "config": {"min_length": 1}}],
+        }
+        create_response = client.post("/api/pipelines", json=pipeline_data)
+        pipeline_id = create_response.json()["id"]
+
+        seeds = [{"repetitions": -5, "metadata": {"text": "hello", "assistant": "response"}}]
+
+        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        assert response.status_code == 200
+
+        result = response.json()
+        assert result["valid"] is False
+        assert len(result["errors"]) >= 1
+        assert any("invalid repetitions" in error.lower() for error in result["errors"])
+
+    def test_validate_seeds_nonexistent_pipeline(self, client):
+        seeds = [{"repetitions": 1, "metadata": {"text": "hello", "assistant": "response"}}]
+
+        response = client.post("/api/seeds/validate", json={"pipeline_id": 999999, "seeds": seeds})
+        assert response.status_code == 404
+
+    def test_validate_seeds_with_template_variables(self, client):
+        pipeline_data = {
+            "name": "Test Pipeline with Templates",
+            "blocks": [
+                {
+                    "type": "TextGenerator",
+                    "config": {
+                        "system_prompt": "You are a {{ role }}",
+                        "user_prompt": "Write about {{ topic }} for {{ audience }}",
+                    },
+                }
+            ],
+        }
+        create_response = client.post("/api/pipelines", json=pipeline_data)
+        pipeline_id = create_response.json()["id"]
+
+        seeds_valid = [{"repetitions": 1, "metadata": {"role": "teacher", "topic": "math", "audience": "kids"}}]
+        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds_valid})
+        assert response.status_code == 200
+        result = response.json()
+        assert result["valid"] is True
+
+        seeds_missing = [{"repetitions": 1, "metadata": {"role": "teacher"}}]
+        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds_missing})
+        assert response.status_code == 200
+        result = response.json()
+        assert result["valid"] is False
+        assert len(result["errors"]) == 1
+        error_msg = result["errors"][0]
+        assert "missing required field" in error_msg.lower()
+        assert "topic" in error_msg
+        assert "audience" in error_msg
+
+    def test_validate_multiple_seeds_aggregated_errors(self, client):
+        pipeline_data = {
+            "name": "Test Pipeline",
+            "blocks": [
+                {
+                    "type": "TextGenerator",
+                    "config": {
+                        "user_prompt": "Write about {{ topic }}",
+                    },
+                }
+            ],
+        }
+        create_response = client.post("/api/pipelines", json=pipeline_data)
+        pipeline_id = create_response.json()["id"]
+
+        seeds = [
+            {"repetitions": 1, "metadata": {}},
+            {"repetitions": 1, "metadata": {}},
+            {"repetitions": 1, "metadata": {}},
+        ]
+
+        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        assert response.status_code == 200
+        result = response.json()
+        assert result["valid"] is False
+        assert len(result["errors"]) == 1
+        assert "some seeds missing required field" in result["errors"][0].lower()
+        assert "topic" in result["errors"][0]
+
+
 class TestAPIGeneration:
     """Test generation-related API endpoints"""
 

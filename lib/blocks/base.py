@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -20,6 +21,13 @@ class BaseBlock(ABC):
         return BlockConfigSchema.get_config_schema(cls)
 
     @classmethod
+    def get_required_fields(cls, config: dict[str, Any]) -> list[str]:
+        """returns list of required fields for this block instance based on config"""
+        if "*" in cls.inputs:
+            return []
+        return cls.inputs
+
+    @classmethod
     def get_schema(cls) -> dict[str, Any]:
         """returns full block schema (inputs, outputs, config)"""
         return {
@@ -30,3 +38,8 @@ class BaseBlock(ABC):
             "outputs": cls.outputs,
             "config_schema": cls.get_config_schema(),
         }
+
+    @staticmethod
+    def extract_template_vars(text: str) -> list[str]:
+        """extract {variable} placeholders from text"""
+        return list(set(re.findall(r"\{(\w+)\}", text)))

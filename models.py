@@ -50,3 +50,8 @@ class RecordUpdate(BaseModel):
     output: str | None = None
     status: RecordStatus | None = None
     metadata: dict[str, Any] | None = None
+
+
+class SeedValidationRequest(BaseModel):
+    pipeline_id: int
+    seeds: list[dict[str, Any]]

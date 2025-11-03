@@ -28,10 +28,35 @@ export default function Generator() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
+  const [validationResult, setValidationResult] = useState<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+  } | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   useEffect(() => {
     fetchPipelines();
   }, []);
+
+  // re-validate when pipeline selection changes
+  useEffect(() => {
+    const revalidate = async () => {
+      if (file && selectedPipeline) {
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          const seeds = Array.isArray(data) ? data : [data];
+          await validateSeeds(seeds);
+        } catch {
+          setValidationResult(null);
+        }
+      } else {
+        setValidationResult(null);
+      }
+    };
+    revalidate();
+  }, [selectedPipeline]);
 
   // update generating state based on job status
   useEffect(() => {
@@ -49,6 +74,36 @@ export default function Generator() {
       setPipelines(data);
     } catch {
       // silent fail - will show empty pipeline list
+    }
+  };
+
+  const validateSeeds = async (seedsData: any[]) => {
+    if (!selectedPipeline) {
+      return;
+    }
+
+    setIsValidating(true);
+    try {
+      const res = await fetch("/api/seeds/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pipeline_id: selectedPipeline,
+          seeds: seedsData,
+        }),
+      });
+
+      if (!res.ok) {
+        setValidationResult(null);
+        return;
+      }
+
+      const result = await res.json();
+      setValidationResult(result);
+    } catch {
+      setValidationResult(null);
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -111,6 +166,13 @@ export default function Generator() {
       // validation passed
       setFile(selectedFile);
       setMessage(null);
+
+      // validate against pipeline if one is selected
+      if (selectedPipeline) {
+        await validateSeeds(seeds);
+      } else {
+        setValidationResult(null);
+      }
     } catch (e) {
       setMessage({
         type: "error",
@@ -119,6 +181,7 @@ export default function Generator() {
             ? `Invalid JSON: ${e.message}`
             : "The file is not valid JSON. Please check your file syntax.",
       });
+      setValidationResult(null);
     }
   };
 
@@ -361,6 +424,58 @@ export default function Generator() {
               </Button>
             )}
           </Box>
+
+          {/* Validation Results */}
+          {file && selectedPipeline && (
+            <Box sx={{ mt: 3 }}>
+              {isValidating && (
+                <Box
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    bg: "canvas.subtle",
+                    border: "1px solid",
+                    borderColor: "border.default",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Spinner size="small" />
+                  <Text sx={{ color: "fg.default" }}>Validating seeds...</Text>
+                </Box>
+              )}
+
+              {!isValidating && validationResult && validationResult.valid && (
+                <Flash variant="success">
+                  ✅ All seeds are valid. Ready to generate!
+                </Flash>
+              )}
+
+              {!isValidating && validationResult && !validationResult.valid && (
+                <Box>
+                  <Flash variant="danger" sx={{ mb: 2 }}>
+                    ❌ Seed validation failed
+                  </Flash>
+                  {validationResult.errors.map((error, i) => (
+                    <Text key={i} sx={{ fontSize: 1, color: "danger.fg", display: "block", mb: 1 }}>
+                      • {error}
+                    </Text>
+                  ))}
+                </Box>
+              )}
+
+              {!isValidating && validationResult && validationResult.warnings.length > 0 && (
+                <Flash variant="warning" sx={{ mt: validationResult.valid ? 2 : 0 }}>
+                  {validationResult.warnings.map((warning, i) => (
+                    <Text key={i} sx={{ fontSize: 1, display: "block", mb: 1 }}>
+                      ⚠️ {warning}
+                    </Text>
+                  ))}
+                </Flash>
+              )}
+            </Box>
+          )}
         </Box>
 
         {/* Configuration Panel */}
@@ -400,7 +515,13 @@ export default function Generator() {
             block
             leadingVisual={generating ? undefined : PlayIcon}
             onClick={handleGenerate}
-            disabled={!file || !selectedPipeline || generating}
+            disabled={
+              !file ||
+              !selectedPipeline ||
+              generating ||
+              isValidating ||
+              (validationResult !== null && !validationResult.valid)
+            }
           >
             {generating ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>

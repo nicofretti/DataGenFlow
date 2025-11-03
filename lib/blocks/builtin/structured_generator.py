@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 import litellm
+from jinja2 import Environment, meta
 
 from config import settings
 from lib.blocks.base import BaseBlock
@@ -134,3 +135,19 @@ class StructuredGenerator(BaseBlock):
                 generated = {"raw_response": content}
 
         return {"generated": generated}
+
+    @classmethod
+    def get_required_fields(cls, config: dict[str, Any]) -> list[str]:
+        """extract required fields from jinja2 template in prompt"""
+        env = Environment()
+        prompt = config.get("prompt", "")
+
+        if not prompt:
+            return []
+
+        try:
+            ast = env.parse(prompt)
+            variables = meta.find_undeclared_variables(ast)
+            return sorted(list(variables))
+        except Exception:
+            return []
