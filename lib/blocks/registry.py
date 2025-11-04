@@ -3,7 +3,7 @@ import inspect
 from pathlib import Path
 from typing import Any
 
-from lib.blocks.base import BaseBlock
+from lib.blocks.base import BaseBlock, BaseMultiplierBlock
 
 
 class BlockRegistry:
@@ -32,8 +32,8 @@ class BlockRegistry:
                 try:
                     module = importlib.import_module(module_name)
                     for name, obj in inspect.getmembers(module, inspect.isclass):
-                        # only register classes inheriting from BaseBlock
-                        if issubclass(obj, BaseBlock) and obj != BaseBlock:
+                        # only register classes inheriting from BaseBlock, excluding base classes
+                        if issubclass(obj, BaseBlock) and obj not in (BaseBlock, BaseMultiplierBlock):
                             self._blocks[obj.__name__] = obj
                 except Exception:
                     # skip modules that fail to import

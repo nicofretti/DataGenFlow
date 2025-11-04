@@ -10,6 +10,7 @@ class DiversityScore(BaseBlock):
         "Calculate lexical diversity score for text variations. "
         "Configurable via 'field_name' parameter to specify which field to analyze."
     )
+    category = "metrics"
     inputs = []
     outputs = ["diversity_score"]
 

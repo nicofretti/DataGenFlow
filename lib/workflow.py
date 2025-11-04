@@ -15,6 +15,7 @@ class Pipeline:
         self.blocks = blocks
         self._block_instances: list[Any] = []
         self._initialize_blocks()
+        self._validate_multiplier_placement()
 
     def _initialize_blocks(self) -> None:
         for block_def in self.blocks:
@@ -30,6 +31,19 @@ class Pipeline:
                 )
 
             self._block_instances.append(block_class(**block_config))
+
+    def _validate_multiplier_placement(self) -> None:
+        multiplier_indices = [
+            i
+            for i, block in enumerate(self._block_instances)
+            if getattr(block, "is_multiplier", False)
+        ]
+
+        if len(multiplier_indices) > 1:
+            raise ValidationError("Only one multiplier block allowed per pipeline")
+
+        if multiplier_indices and multiplier_indices[0] != 0:
+            raise ValidationError("Multiplier block must be first in pipeline")
 
     @classmethod
     def load_from_dict(cls, data: dict[str, Any]) -> "Pipeline":
@@ -52,6 +66,29 @@ class Pipeline:
             )
 
     async def execute(
+        self,
+        initial_data: dict[str, Any],
+        job_id: int | None = None,
+        job_queue: Any = None,
+        storage: Any = None,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]], str] | list[
+        tuple[dict[str, Any], list[dict[str, Any]], str]
+    ]:
+        if not self._block_instances:
+            trace_id = str(uuid.uuid4())
+            return initial_data, [], trace_id
+
+        first_block = self._block_instances[0]
+        is_multiplier = getattr(first_block, "is_multiplier", False)
+
+        if is_multiplier:
+            return await self._execute_multiplier_pipeline(
+                initial_data, job_id, job_queue, storage
+            )
+        else:
+            return await self._execute_normal_pipeline(initial_data, job_id, job_queue, storage)
+
+    async def _execute_normal_pipeline(
         self,
         initial_data: dict[str, Any],
         job_id: int | None = None,
@@ -129,6 +166,85 @@ class Pipeline:
 
         logger.info(f"[{trace_id}] Pipeline '{self.name}' completed successfully")
         return accumulated_data, trace, trace_id
+
+    async def _execute_multiplier_pipeline(
+        self,
+        initial_data: dict[str, Any],
+        job_id: int | None = None,
+        job_queue: Any = None,
+        storage: Any = None,
+    ) -> list[tuple[dict[str, Any], list[dict[str, Any]], str]]:
+        """execute pipeline with multiplier first block that generates multiple seeds"""
+        first_block = self._block_instances[0]
+        remaining_blocks = self._block_instances[1:]
+
+        logger.info(f"Starting multiplier pipeline '{self.name}' with fan-out")
+
+        start_time = time.time()
+        seeds = await first_block.execute(initial_data)
+        execution_time = time.time() - start_time
+
+        logger.info(f"Multiplier block generated {len(seeds)} seeds in {execution_time:.3f}s")
+
+        results = []
+        for seed_idx, seed_data in enumerate(seeds):
+            trace_id = str(uuid.uuid4())
+            accumulated_data = seed_data.copy()
+            trace = []
+
+            for i, block in enumerate(remaining_blocks, start=1):
+                block_name = block.__class__.__name__
+
+                if job_id and job_queue:
+                    job_queue.update_job(
+                        job_id,
+                        current_block=block_name,
+                        current_step=f"Seed {seed_idx + 1}/{len(seeds)}, Block {i}/{len(remaining_blocks)}",
+                    )
+                    if storage:
+                        await storage.update_job(
+                            job_id,
+                            current_block=block_name,
+                            current_step=f"Seed {seed_idx + 1}/{len(seeds)}, Block {i}/{len(remaining_blocks)}",
+                        )
+
+                block_start_time = time.time()
+                try:
+                    block_input = accumulated_data.copy()
+                    result = await block.execute(accumulated_data)
+                    block_execution_time = time.time() - block_start_time
+
+                    self._validate_output(block, result)
+                    accumulated_data.update(result)
+
+                    trace.append(
+                        {
+                            "block_type": block_name,
+                            "input": block_input,
+                            "output": result,
+                            "accumulated_state": accumulated_data.copy(),
+                            "execution_time": block_execution_time,
+                        }
+                    )
+                except ValidationError:
+                    logger.error(f"[{trace_id}] {block_name} validation error at seed {seed_idx + 1}")
+                    raise
+                except Exception as e:
+                    logger.error(f"[{trace_id}] {block_name} failed at seed {seed_idx + 1}: {str(e)}")
+                    raise BlockExecutionError(
+                        f"Block '{block_name}' failed for seed {seed_idx + 1}: {str(e)}",
+                        detail={
+                            "block_type": block_name,
+                            "seed_index": seed_idx,
+                            "error": str(e),
+                            "input": block_input,
+                        },
+                    )
+
+            results.append((accumulated_data, trace, trace_id))
+
+        logger.info(f"Multiplier pipeline '{self.name}' completed with {len(results)} results")
+        return results
 
     def to_dict(self) -> dict[str, Any]:
         return {"name": self.name, "blocks": self.blocks}

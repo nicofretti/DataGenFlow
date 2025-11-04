@@ -82,6 +82,12 @@ async def _process_job(
 
         pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
 
+        # check if pipeline has multiplier
+        has_multiplier = (
+            len(pipeline._block_instances) > 0
+            and getattr(pipeline._block_instances[0], "is_multiplier", False)
+        )
+
         # load seed file
         seed_path = Path(seed_file_path)
         if not seed_path.exists():
@@ -153,30 +159,55 @@ async def _process_job(
                 )
 
                 try:
-                    # execute pipeline with metadata as input and job tracking
-                    result, trace, trace_id = await pipeline.execute(
-                        metadata, job_id=job_id, job_queue=job_queue, storage=storage
-                    )
+                    if has_multiplier:
+                        # multiplier pipeline returns list of results
+                        results = await pipeline.execute(
+                            metadata, job_id=job_id, job_queue=job_queue, storage=storage
+                        )
 
-                    # create record from pipeline execution
-                    record = Record(
-                        metadata=metadata,
-                        trace=trace,
-                    )
+                        # save all generated records
+                        for result_data, trace, trace_id in results:
+                            record = Record(
+                                metadata=metadata,
+                                trace=trace,
+                            )
+                            await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
+                            records_generated += 1
 
-                    # save record with job_id
-                    await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
-                    records_generated += 1
+                        # update count
+                        await _update_job_status(
+                            job_queue,
+                            storage,
+                            job_id,
+                            records_generated=records_generated,
+                            current_block=None,
+                            current_step=f"Processing execution {execution_index}/{total_executions}",
+                        )
+                    else:
+                        # normal pipeline returns single result
+                        result, trace, trace_id = await pipeline.execute(
+                            metadata, job_id=job_id, job_queue=job_queue, storage=storage
+                        )
 
-                    # update count and clear block info
-                    await _update_job_status(
-                        job_queue,
-                        storage,
-                        job_id,
-                        records_generated=records_generated,
-                        current_block=None,
-                        current_step=f"Processing execution {execution_index}/{total_executions}",
-                    )
+                        # create record from pipeline execution
+                        record = Record(
+                            metadata=metadata,
+                            trace=trace,
+                        )
+
+                        # save record with job_id
+                        await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
+                        records_generated += 1
+
+                        # update count and clear block info
+                        await _update_job_status(
+                            job_queue,
+                            storage,
+                            job_id,
+                            records_generated=records_generated,
+                            current_block=None,
+                            current_step=f"Processing execution {execution_index}/{total_executions}",
+                        )
 
                 except Exception as e:
                     records_failed += 1

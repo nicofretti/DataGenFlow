@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 class StructuredGenerator(BaseBlock):
     name = "Structured Generator"
     description = "Generate structured JSON data using LLM with schema validation"
+    category = "generators"
     inputs = []
     outputs = ["generated"]
 

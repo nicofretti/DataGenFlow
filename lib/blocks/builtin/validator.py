@@ -6,6 +6,7 @@ from lib.blocks.base import BaseBlock
 class ValidatorBlock(BaseBlock):
     name = "Validator"
     description = "Validate text against rules"
+    category = "validators"
     inputs = ["text", "assistant"]
     outputs = ["text", "valid", "assistant"]
 

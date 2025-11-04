@@ -8,6 +8,7 @@ from lib.blocks.base import BaseBlock
 class JSONValidatorBlock(BaseBlock):
     name = "JSON Validator"
     description = "Parse and validate JSON from any field in accumulated state"
+    category = "validators"
     inputs = ["*"]
     outputs = ["valid", "parsed_json"]
 

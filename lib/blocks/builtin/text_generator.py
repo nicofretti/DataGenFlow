@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 class TextGenerator(BaseBlock):
     name = "Text Generator"
     description = "Generate text using LLM with configurable parameters"
+    category = "generators"
     inputs = []
     outputs = ["assistant", "system", "user"]
 

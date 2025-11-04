@@ -11,6 +11,7 @@ class RougeScore(BaseBlock):
         "Calculate ROUGE score comparing generated text against reference text. "
         "Configurable via 'generated_field' and 'reference_field' parameters."
     )
+    category = "metrics"
     inputs = []
     outputs = ["rouge_score"]
 

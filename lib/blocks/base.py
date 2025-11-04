@@ -8,6 +8,7 @@ from lib.blocks.config import BlockConfigSchema
 class BaseBlock(ABC):
     name: str = "Base Block"
     description: str = "Base block description"
+    category: str = "general"
     inputs: list[str] = []
     outputs: list[str] = []
 
@@ -34,12 +35,26 @@ class BaseBlock(ABC):
             "type": cls.__name__,
             "name": cls.name,
             "description": cls.description,
+            "category": cls.category,
             "inputs": cls.inputs,
             "outputs": cls.outputs,
             "config_schema": cls.get_config_schema(),
+            "is_multiplier": getattr(cls, "is_multiplier", False),
         }
 
     @staticmethod
     def extract_template_vars(text: str) -> list[str]:
         """extract {variable} placeholders from text"""
         return list(set(re.findall(r"\{(\w+)\}", text)))
+
+
+class BaseMultiplierBlock(BaseBlock):
+    """base class for blocks that generate multiple outputs from single input"""
+
+    category: str = "seeders"
+    is_multiplier: bool = True
+
+    @abstractmethod
+    async def execute(self, data: dict[str, Any]) -> list[dict[str, Any]]:
+        """multiplier blocks return list of dicts instead of single dict"""
+        pass

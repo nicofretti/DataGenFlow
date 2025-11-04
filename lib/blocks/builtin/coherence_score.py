@@ -9,6 +9,7 @@ class CoherenceScore(BaseBlock):
         "Calculate text coherence based on sentence structure. "
         "Configurable via 'field_name' parameter to specify which field to analyze."
     )
+    category = "metrics"
     inputs = []
     outputs = ["coherence_score"]
 
