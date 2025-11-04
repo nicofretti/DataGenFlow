@@ -9,41 +9,34 @@ interface Block {
   inputs: string[];
   outputs: string[];
   config_schema: Record<string, any>;
+  category: string;
 }
 
 interface BlockPaletteProps {
   blocks: Block[];
 }
 
-type BlockCategory = "generator" | "validator" | "score" | "output";
+type BlockCategory = "seeders" | "generators" | "validators" | "metrics";
 
 interface CategorizedBlocks {
   [key: string]: Block[];
 }
 
-// categorize blocks based on type
+// categorize blocks using backend category field
 function categorizeBlocks(blocks: Block[]): CategorizedBlocks {
   const categorized: CategorizedBlocks = {
-    generator: [],
-    validator: [],
-    score: [],
-    output: [],
+    seeders: [],
+    generators: [],
+    validators: [],
+    metrics: [],
   };
 
   blocks.forEach((block) => {
-    const type = block.type.toLowerCase();
-
-    if (type.includes("generator") || type.includes("formatter")) {
-      categorized.generator.push(block);
-    } else if (type.includes("validator")) {
-      categorized.validator.push(block);
-    } else if (type.includes("score") || type.includes("metric")) {
-      categorized.score.push(block);
-    } else if (type.includes("output") || type.includes("pipeline")) {
-      categorized.output.push(block);
+    const category = block.category || "generators";
+    if (category in categorized) {
+      categorized[category].push(block);
     } else {
-      // default to generator
-      categorized.generator.push(block);
+      categorized.generators.push(block);
     }
   });
 
@@ -52,19 +45,19 @@ function categorizeBlocks(blocks: Block[]): CategorizedBlocks {
 
 // category metadata
 const CATEGORY_INFO: Record<BlockCategory, { icon: string; label: string; color: string }> = {
-  generator: { icon: "🤖", label: "Generators", color: "#3B82F6" },
-  validator: { icon: "✅", label: "Validators", color: "#10B981" },
-  score: { icon: "📊", label: "Scores", color: "#8B5CF6" },
-  output: { icon: "📤", label: "Output", color: "#F59E0B" },
+  seeders: { icon: "🌱", label: "Seeders", color: "#10B981" },
+  generators: { icon: "🤖", label: "Generators", color: "#3B82F6" },
+  validators: { icon: "✅", label: "Validators", color: "#F59E0B" },
+  metrics: { icon: "📊", label: "Metrics", color: "#8B5CF6" },
 };
 
 export default function BlockPalette({ blocks }: BlockPaletteProps) {
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
-    generator: false,
-    validator: false,
-    score: false,
-    output: false,
+    seeders: false,
+    generators: false,
+    validators: false,
+    metrics: false,
   });
 
   const onDragStart = (event: React.DragEvent, blockType: string) => {
@@ -81,10 +74,10 @@ export default function BlockPalette({ blocks }: BlockPaletteProps) {
     // filter by search term
     const searchLower = search.toLowerCase();
     const filtered: CategorizedBlocks = {
-      generator: [],
-      validator: [],
-      score: [],
-      output: [],
+      seeders: [],
+      generators: [],
+      validators: [],
+      metrics: [],
     };
 
     Object.entries(categorized).forEach(([category, categoryBlocks]) => {

@@ -11,6 +11,7 @@ interface BlockData {
     inputs: string[];
     outputs: string[];
     config_schema?: Record<string, any>;
+    category?: string;
   };
   config: Record<string, any>;
   accumulatedState: string[];
@@ -21,47 +22,35 @@ interface BlockData {
   onDuplicate?: () => void;
 }
 
-type BlockCategory = "generator" | "validator" | "score" | "output";
+type BlockCategory = "seeders" | "generators" | "validators" | "metrics";
 
 // category color mapping
 const CATEGORY_COLORS: Record<BlockCategory, string> = {
-  generator: "#3B82F6", // blue
-  validator: "#10B981", // green
-  score: "#8B5CF6", // purple
-  output: "#F59E0B", // orange
+  seeders: "#10B981", // green
+  generators: "#3B82F6", // blue
+  validators: "#F59E0B", // orange
+  metrics: "#8B5CF6", // purple
 };
 
-// block type to category mapping
-function getBlockCategory(blockType: string): BlockCategory {
-  const type = blockType.toLowerCase();
-
-  if (type.includes("generator") || type.includes("formatter")) {
-    return "generator";
+// get category from block data
+function getBlockCategory(category?: string): BlockCategory {
+  if (category && category in CATEGORY_COLORS) {
+    return category as BlockCategory;
   }
-  if (type.includes("validator")) {
-    return "validator";
-  }
-  if (type.includes("score") || type.includes("metric")) {
-    return "score";
-  }
-  if (type.includes("output") || type.includes("pipeline")) {
-    return "output";
-  }
-
-  return "generator"; // default
+  return "generators";
 }
 
 // get icon for block type
 function getBlockIcon(category: BlockCategory): string {
   switch (category) {
-    case "generator":
+    case "seeders":
+      return "🌱";
+    case "generators":
       return "🤖";
-    case "validator":
+    case "validators":
       return "✅";
-    case "score":
+    case "metrics":
       return "📊";
-    case "output":
-      return "📤";
   }
 }
 
@@ -116,7 +105,7 @@ function BlockNode({ data, selected }: NodeProps<BlockData>) {
   const [showTooltip, setShowTooltip] = useState(false);
   const { theme } = useTheme();
 
-  const category = getBlockCategory(block.type);
+  const category = getBlockCategory(block.category);
   const categoryColor = CATEGORY_COLORS[category];
   const icon = getBlockIcon(category);
   const previewFields = getPreviewFields(block.type, config);
