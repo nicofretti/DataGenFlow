@@ -24,6 +24,18 @@ storage = Storage()
 job_queue = JobQueue()
 
 
+def is_multiplier_pipeline(blocks: list[dict[str, Any]]) -> bool:
+    if not blocks:
+        return False
+
+    first_block_type = blocks[0].get("type")
+    if not first_block_type:
+        return False
+
+    block_class = registry.get_block_class(first_block_type)
+    return getattr(block_class, "is_multiplier", False)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await storage.init_db()
@@ -155,9 +167,15 @@ async def generate_from_file(
 @app.post("/generate")
 async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -> dict[str, Any]:
     """start a new background job for pipeline execution from seed file"""
-    if not file.filename or not file.filename.endswith(".json"):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    is_markdown = file.filename.endswith(".md")
+    is_json = file.filename.endswith(".json")
+
+    if not is_markdown and not is_json:
         raise HTTPException(
-            status_code=400, detail="Only JSON files are accepted. Please upload a .json file."
+            status_code=400, detail="Only .json or .md files are accepted"
         )
 
     # check if there's already an active job
@@ -168,62 +186,66 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
         )
         raise HTTPException(status_code=409, detail=detail_msg)
 
-    # parse seed file to calculate total samples
     content = await file.read()
-    try:
-        data = json.loads(content)
-    except json.JSONDecodeError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"The JSON file is invalid: {str(e)}. Please check your file syntax.",
-        )
 
-    # validate seed structure
-    if not isinstance(data, (list, dict)):
-        raise HTTPException(
-            status_code=400, detail="The JSON file must contain an object or an array of objects."
-        )
+    if is_markdown:
+        markdown_content = content.decode("utf-8")
+        if not markdown_content.strip():
+            raise HTTPException(status_code=400, detail="Markdown file is empty")
 
-    seeds = data if isinstance(data, list) else [data]
-
-    # validate each seed has required structure
-    for i, seed in enumerate(seeds):
-        if not isinstance(seed, dict):
+        seeds = [{"repetitions": 1, "metadata": {"file_content": markdown_content}}]
+        total_samples = 1
+        file_suffix = ".md"
+    else:
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
             raise HTTPException(
                 status_code=400,
-                detail=f"Seed {i + 1} must be an object. Please check your file structure.",
+                detail=f"The JSON file is invalid: {str(e)}. Please check your file syntax.",
             )
-        if "metadata" not in seed:
+
+        if not isinstance(data, (list, dict)):
             raise HTTPException(
-                status_code=400, detail=f"Seed {i + 1} is missing the required 'metadata' field."
+                status_code=400, detail="The JSON file must contain an object or an array of objects."
             )
 
-    # calculate total executions from all seeds
-    total_samples = sum(
-        seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1
-        for seed in seeds
-    )
+        seeds = data if isinstance(data, list) else [data]
 
-    # save file temporarily (cross-platform)
-    fd, tmp_path = tempfile.mkstemp(suffix=".json", prefix=f"seed_{pipeline_id}_")
+        for i, seed in enumerate(seeds):
+            if not isinstance(seed, dict):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Seed {i + 1} must be an object. Please check your file structure.",
+                )
+            if "metadata" not in seed:
+                raise HTTPException(
+                    status_code=400, detail=f"Seed {i + 1} is missing the required 'metadata' field."
+                )
+
+        total_samples = sum(
+            seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1
+            for seed in seeds
+        )
+        file_suffix = ".json"
+
+    fd, tmp_path = tempfile.mkstemp(suffix=file_suffix, prefix=f"seed_{pipeline_id}_")
     tmp_file = Path(tmp_path)
     try:
-        # write content to file descriptor first, then close it
         import os
 
-        os.write(fd, content)
+        # job processor requires JSON format for all seeds
+        if is_markdown:
+            os.write(fd, json.dumps(seeds).encode("utf-8"))
+        else:
+            os.write(fd, content)
         os.close(fd)
     except Exception:
         os.close(fd)
         raise
 
-    # create job in database
     job_id = await storage.create_job(pipeline_id, total_samples, status="running")
-
-    # register job in memory queue
     job_queue.create_job(job_id, pipeline_id, total_samples, status="running")
-
-    # start background processing with file path
     process_job_in_thread(job_id, pipeline_id, str(tmp_file), job_queue, storage)
 
     return {"job_id": job_id}
@@ -371,16 +393,20 @@ async def create_pipeline(pipeline_data: dict[str, Any]) -> dict[str, Any]:
     return {"id": pipeline_id, "name": name}
 
 
-@app.get("/pipelines")
+@app.get("/api/pipelines")
 async def list_pipelines() -> list[dict[str, Any]]:
     return await storage.list_pipelines()
 
 
-@app.get("/pipelines/{pipeline_id}")
+@app.get("/api/pipelines/{pipeline_id}")
 async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
     pipeline = await storage.get_pipeline(pipeline_id)
     if not pipeline:
         raise HTTPException(status_code=404, detail="pipeline not found")
+
+    blocks = pipeline.get("definition", {}).get("blocks", [])
+    pipeline["first_block_is_multiplier"] = is_multiplier_pipeline(blocks)
+
     return pipeline
 
 

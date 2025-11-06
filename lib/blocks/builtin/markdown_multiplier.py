@@ -15,15 +15,15 @@ class MarkdownMultiplierBlock(BaseMultiplierBlock):
     _config_enums = {"parser_type": ["markdown", "sentence"]}
 
     _config_descriptions = {
-        "parser_type": "Chunking strategy: 'markdown' respects structure, 'sentence' is simpler",
-        "chunk_size": "Maximum chunk size in tokens (for sentence parser)",
-        "chunk_overlap": "Overlap between chunks in tokens (for sentence parser)",
+        "parser_type": "Chunking strategy: 'markdown' respects structure, 'sentence' splits by sentences",
+        "chunk_size": "Maximum chunk size in tokens (0 disables for markdown, required for sentence)",
+        "chunk_overlap": "Overlap between chunks in tokens",
     }
 
     def __init__(
         self,
         parser_type: str = "markdown",
-        chunk_size: int = 512,
+        chunk_size: int = 0,
         chunk_overlap: int = 50,
     ):
         self.parser_type = parser_type
@@ -33,22 +33,40 @@ class MarkdownMultiplierBlock(BaseMultiplierBlock):
     async def execute(self, data: dict[str, Any]) -> list[dict[str, Any]]:
         file_content = data.get("file_content", "")
 
-        if self.parser_type == "markdown":
-            parser = MarkdownNodeParser()
-        else:
+        if self.parser_type == "sentence":
             parser = SentenceSplitter(
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
             )
+            nodes = parser.get_nodes_from_documents([Document(text=file_content)])
+            return [
+                {"chunk_text": node.text, "chunk_index": idx}
+                for idx, node in enumerate(nodes)
+            ]
 
-        nodes = parser.get_nodes_from_documents([Document(text=file_content)])
+        md_parser = MarkdownNodeParser()
+        md_nodes = md_parser.get_nodes_from_documents([Document(text=file_content)])
+
+        if self.chunk_size == 0:
+            return [
+                {"chunk_text": node.text, "chunk_index": idx}
+                for idx, node in enumerate(md_nodes)
+            ]
+
+        sentence_parser = SentenceSplitter(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+        )
+        final_nodes = []
+        for md_node in md_nodes:
+            sub_nodes = sentence_parser.get_nodes_from_documents(
+                [Document(text=md_node.text)]
+            )
+            final_nodes.extend(sub_nodes)
 
         return [
-            {
-                "chunk_text": node.text,
-                "chunk_index": idx,
-            }
-            for idx, node in enumerate(nodes)
+            {"chunk_text": node.text, "chunk_index": idx}
+            for idx, node in enumerate(final_nodes)
         ]
 
     @classmethod

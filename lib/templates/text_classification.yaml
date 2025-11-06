@@ -3,7 +3,7 @@ description: Classify text into predefined categories with confidence scores
 blocks:
   - type: StructuredGenerator
     config:
-      prompt: "Classify this text into one of these categories: environment, technology, health, finance, sports. Text: {{ content }}"
+      user_prompt: "Classify this text into one of these categories: environment, technology, health, finance, sports. Text: {{ content }}"
       json_schema:
         type: object
         properties:

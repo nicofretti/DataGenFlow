@@ -28,6 +28,7 @@ export default function Generator() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
+  const [isMultiplierPipeline, setIsMultiplierPipeline] = useState(false);
   const [validationResult, setValidationResult] = useState<{
     valid: boolean;
     errors: string[];
@@ -39,7 +40,40 @@ export default function Generator() {
     fetchPipelines();
   }, []);
 
-  // re-validate when pipeline selection changes
+  useEffect(() => {
+    const fetchPipelineDetails = async () => {
+      if (!selectedPipeline) {
+        setIsMultiplierPipeline(false);
+        setFile(null);
+        setValidationResult(null);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/pipelines/${selectedPipeline}`);
+        const data = await res.json();
+        const isMultiplier = data.first_block_is_multiplier || false;
+
+        if (file) {
+          const isMarkdown = file.name.endsWith(".md");
+          const isJson = file.name.endsWith(".json");
+
+          if ((isMultiplier && isJson) || (!isMultiplier && isMarkdown)) {
+            setFile(null);
+            setValidationResult(null);
+            setMessage(null);
+          }
+        }
+
+        setIsMultiplierPipeline(isMultiplier);
+      } catch {
+        setIsMultiplierPipeline(false);
+      }
+    };
+
+    fetchPipelineDetails();
+  }, [selectedPipeline]);
+
   useEffect(() => {
     const revalidate = async () => {
       if (file && selectedPipeline) {
@@ -124,10 +158,22 @@ export default function Generator() {
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type === "application/json") {
-        setFile(droppedFile);
+      const isJson = droppedFile.type === "application/json" || droppedFile.name.endsWith(".json");
+      const isMarkdown = droppedFile.name.endsWith(".md");
+
+      const isValidFile = isMultiplierPipeline ? isMarkdown : isJson;
+
+      if (isValidFile) {
+        const input = fileInputRef.current;
+        if (input) {
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(droppedFile);
+          input.files = dataTransfer.files;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        }
       } else {
-        setMessage({ type: "error", text: "Please drop a JSON file" });
+        const expected = isMultiplierPipeline ? "Markdown (.md) file" : "JSON (.json) file";
+        setMessage({ type: "error", text: `Please drop a ${expected}` });
       }
     }
   };
@@ -136,13 +182,45 @@ export default function Generator() {
     if (!e.target.files?.[0]) return;
 
     const selectedFile = e.target.files[0];
+    const isMarkdown = selectedFile.name.endsWith(".md");
+    const isJson = selectedFile.name.endsWith(".json");
 
-    // validate JSON
+    if (isMultiplierPipeline && isJson) {
+      setMessage({
+        type: "error",
+        text: "Please upload a Markdown (.md) file for this pipeline.",
+      });
+      return;
+    }
+
+    if (!isMultiplierPipeline && isMarkdown) {
+      setMessage({
+        type: "error",
+        text: "Please upload a JSON (.json) file for this pipeline.",
+      });
+      return;
+    }
+
+    if (isMarkdown) {
+      const text = await selectedFile.text();
+      if (!text.trim()) {
+        setMessage({
+          type: "error",
+          text: "Empty file: The markdown file is empty.",
+        });
+        return;
+      }
+
+      setFile(selectedFile);
+      setMessage(null);
+      setValidationResult(null);
+      return;
+    }
+
     try {
       const text = await selectedFile.text();
       const data = JSON.parse(text);
 
-      // check not empty
       const seeds = Array.isArray(data) ? data : [data];
       if (seeds.length === 0) {
         setMessage({
@@ -152,7 +230,6 @@ export default function Generator() {
         return;
       }
 
-      // check basic structure
       for (let i = 0; i < seeds.length; i++) {
         if (!seeds[i].metadata) {
           setMessage({
@@ -163,11 +240,9 @@ export default function Generator() {
         }
       }
 
-      // validation passed
       setFile(selectedFile);
       setMessage(null);
 
-      // validate against pipeline if one is selected
       if (selectedPipeline) {
         await validateSeeds(seeds);
       } else {
@@ -392,7 +467,7 @@ export default function Generator() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json"
+              accept={isMultiplierPipeline ? ".md" : ".json"}
               onChange={handleFileChange}
               style={{ display: "none" }}
             />
@@ -401,12 +476,18 @@ export default function Generator() {
               <UploadIcon size={48} />
             </Box>
             <Heading as="h3" sx={{ fontSize: 2, mt: 3, mb: 2, color: "fg.default" }}>
-              {file ? file.name : "Drop JSON seed file here or click to browse"}
+              {file
+                ? file.name
+                : isMultiplierPipeline
+                  ? "Drop Markdown file here or click to browse"
+                  : "Drop JSON seed file here or click to browse"}
             </Heading>
             <Text sx={{ color: "fg.default", fontSize: 1 }}>
               {file
                 ? `Size: ${(file.size / 1024).toFixed(2)} KB`
-                : 'Format: {"repetitions": N, "metadata": {...}}'}
+                : isMultiplierPipeline
+                  ? "Markdown (.md) format"
+                  : 'Format: {"repetitions": N, "metadata": {...}}'}
             </Text>
 
             {file && (

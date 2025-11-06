@@ -24,6 +24,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "litellm>=1.78.5",
     "rouge-score>=0.1.2",
+    "llama-index-core>=0.14.7",
 ]
 
 [tool.setuptools.packages.find]

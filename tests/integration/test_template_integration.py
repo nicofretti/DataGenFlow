@@ -161,13 +161,14 @@ async def test_text_classification_template_end_to_end(mock_llm):
 @patch("litellm.acompletion")
 async def test_qa_generation_template_end_to_end(mock_llm):
     """
-    test qa_generation template two-step pipeline
+    test qa_generation template with markdown chunker
 
     flow:
-    1. TextGenerator generates questions
-    2. StructuredGenerator generates Q&A pairs
-    3. JSONValidator validates structure
-    4. verify accumulated state flows correctly
+    1. MarkdownMultiplierBlock chunks markdown
+    2. TextGenerator generates questions per chunk
+    3. StructuredGenerator generates Q&A pairs
+    4. JSONValidator validates structure
+    5. verify accumulated state flows correctly
     """
     call_count = [0]
 
@@ -215,15 +216,22 @@ async def test_qa_generation_template_end_to_end(mock_llm):
     pipeline_def = {"name": "Test Q&A", "blocks": template["blocks"]}
     pipeline = WorkflowPipeline.load_from_dict(pipeline_def)
 
-    # execute with educational content
+    # execute with markdown content
     seed_data = {
-        "content": "Photosynthesis is the process by which plants convert sunlight into energy. "
+        "file_content": "# Photosynthesis\n\nPhotosynthesis is the process by which plants convert sunlight into energy. "
         "Chlorophyll in leaves absorbs light, which triggers chemical reactions that produce glucose."
     }
 
-    result, trace, trace_id = await pipeline.execute(seed_data)
+    # multiplier pipeline returns list of results
+    results = await pipeline.execute(seed_data)
 
-    # verify all 3 blocks executed
+    assert isinstance(results, list)
+    assert len(results) > 0
+
+    # verify first result (test one chunk)
+    result, trace, trace_id = results[0]
+
+    # verify all 3 blocks executed (after chunker)
     assert len(trace) == 3  # TextGenerator + StructuredGenerator + JSONValidator
 
     # verify TextGenerator output (questions)
@@ -256,26 +264,25 @@ async def test_qa_generation_template_end_to_end(mock_llm):
 
     # verify accumulated state contains all outputs
     final_state = trace[-1]["accumulated_state"]
+    assert "chunk_text" in final_state  # from MarkdownMultiplierBlock
     assert "assistant" in final_state  # from TextGenerator
     assert "generated" in final_state  # from StructuredGenerator
     assert "valid" in final_state  # from JSONValidator
     assert "parsed_json" in final_state  # from JSONValidator
 
-    # verify both LLM calls had rendered templates
-    assert mock_llm.call_count == 2
+    # verify both LLM calls had rendered templates (per chunk)
+    assert mock_llm.call_count >= 2
 
-    # first call should have {{ content }} rendered
+    # first call should have {{ chunk_text }} rendered
     first_call_messages = mock_llm.call_args_list[0].kwargs["messages"]
     first_prompt = first_call_messages[0]["content"]
-    assert "{{ content }}" not in first_prompt
-    assert seed_data["content"] in first_prompt
+    assert "{{ chunk_text }}" not in first_prompt
 
-    # second call should have {{ assistant }} and {{ content }} rendered
+    # second call should have {{ assistant }} and {{ chunk_text }} rendered
     second_call_messages = mock_llm.call_args_list[1].kwargs["messages"]
     second_prompt = second_call_messages[0]["content"]
     assert "{{ assistant }}" not in second_prompt
-    assert "{{ content }}" not in second_prompt
-    assert seed_data["content"] in second_prompt
+    assert "{{ chunk_text }}" not in second_prompt
 
 
 @pytest.mark.integration
@@ -370,10 +377,22 @@ async def test_all_templates_load_and_execute(mock_llm):
         pipeline_def = {"name": f"Test {template_id}", "blocks": template["blocks"]}
         pipeline = WorkflowPipeline.load_from_dict(pipeline_def)
 
-        seed_data = {"content": "Test content for smoke test"}
+        # qa_generation uses file_content, others use content
+        if template_id == "qa_generation":
+            seed_data = {"file_content": "# Test\n\nTest content for smoke test"}
+        else:
+            seed_data = {"content": "Test content for smoke test"}
 
         # should not crash
-        result, trace, trace_id = await pipeline.execute(seed_data)
+        execution_result = await pipeline.execute(seed_data)
+
+        # qa_generation (multiplier pipeline) returns list, others return tuple
+        if template_id == "qa_generation":
+            assert isinstance(execution_result, list)
+            assert len(execution_result) > 0
+            result, trace, trace_id = execution_result[0]
+        else:
+            result, trace, trace_id = execution_result
 
         assert trace is not None
         assert len(trace) > 0

@@ -20,7 +20,7 @@ async def test_structured_generator(mock_completion):
     }
 
     block = StructuredGenerator(json_schema=schema)
-    result = await block.execute({"prompt": "Generate person data"})
+    result = await block.execute({"user_prompt": "Generate person data"})
 
     assert "generated" in result
     assert result["generated"]["name"] == "John"
@@ -36,7 +36,7 @@ async def test_structured_generator_with_prompt(mock_completion):
 
     schema = {"type": "object", "properties": {"result": {"type": "string"}}}
 
-    block = StructuredGenerator(json_schema=schema, prompt="Generate a test result")
+    block = StructuredGenerator(json_schema=schema, user_prompt="Generate a test result")
     result = await block.execute({})
 
     assert result["generated"]["result"] == "test"
@@ -69,7 +69,7 @@ async def test_structured_generator_with_enum_enforcement(mock_completion):
     }
 
     block = StructuredGenerator(
-        json_schema=schema, prompt="Classify sentiment: Great product!", temperature=0.7
+        json_schema=schema, user_prompt="Classify sentiment: Great product!", temperature=0.7
     )
 
     result = await block.execute({})

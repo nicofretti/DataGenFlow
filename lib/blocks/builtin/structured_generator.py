@@ -20,7 +20,7 @@ class StructuredGenerator(BaseBlock):
     outputs = ["generated"]
 
     _config_descriptions = {
-        "prompt": (
+        "user_prompt": (
             "Jinja2 template. Reference fields with {{ field_name }} or "
             "{{ metadata.field_name }}. Example: Generate data for {{ metadata.topic }}"
         ),
@@ -33,17 +33,17 @@ class StructuredGenerator(BaseBlock):
         model: str | None = settings.LLM_MODEL,
         temperature: float = 0.7,
         max_tokens: int = 2048,
-        prompt: str = "prompt",
+        user_prompt: str = "",
     ):
         self.json_schema = json_schema
         self.model = model or settings.LLM_MODEL
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.prompt = prompt
+        self.user_prompt = user_prompt
 
     async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        # use config prompt or data prompt
-        prompt_template = self.prompt or data.get("prompt", "Generate data according to schema")
+        # use config user_prompt or data user_prompt
+        prompt_template = self.user_prompt or data.get("user_prompt", "Generate data according to schema")
 
         # render the Jinja2 template with data context
         user_prompt = render_template(prompt_template, data)
@@ -139,15 +139,15 @@ class StructuredGenerator(BaseBlock):
 
     @classmethod
     def get_required_fields(cls, config: dict[str, Any]) -> list[str]:
-        """extract required fields from jinja2 template in prompt"""
+        """extract required fields from jinja2 template in user_prompt"""
         env = Environment()
-        prompt = config.get("prompt", "")
+        user_prompt = config.get("user_prompt", "")
 
-        if not prompt:
+        if not user_prompt:
             return []
 
         try:
-            ast = env.parse(prompt)
+            ast = env.parse(user_prompt)
             variables = meta.find_undeclared_variables(ast)
             return sorted(list(variables))
         except Exception:

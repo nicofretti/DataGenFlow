@@ -3,7 +3,7 @@ description: Extract structured information from text as JSON
 blocks:
   - type: StructuredGenerator
     config:
-      prompt: "Extract key information from this text and structure it as JSON with 'title' and 'description' fields. Text: {{ content }}"
+      user_prompt: "Extract key information from this text and structure it as JSON with 'title' and 'description' fields. Text: {{ content }}"
       json_schema:
         type: object
         properties:

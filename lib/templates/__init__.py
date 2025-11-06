@@ -28,11 +28,24 @@ class TemplateRegistry:
                     template_data = yaml.safe_load(f)
                     template_id = template_file.stem
 
-                    # load example seed if it exists
-                    seed_file = self.seeds_dir / f"seed_{template_id}.json"
-                    if seed_file.exists():
-                        with open(seed_file, "r") as sf:
+                    # load example seed if it exists (json or markdown)
+                    seed_json = self.seeds_dir / f"seed_{template_id}.json"
+                    seed_md = self.seeds_dir / f"seed_{template_id}.md"
+
+                    if seed_json.exists():
+                        with open(seed_json, "r") as sf:
                             template_data["example_seed"] = json.load(sf)
+                    elif seed_md.exists():
+                        with open(seed_md, "r") as sf:
+                            # markdown seed is wrapped in json format for file_content
+                            template_data["example_seed"] = [
+                                {
+                                    "repetitions": 1,
+                                    "metadata": {
+                                        "file_content": sf.read()
+                                    }
+                                }
+                            ]
 
                     self._templates[template_id] = template_data
             except Exception:

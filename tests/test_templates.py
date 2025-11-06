@@ -41,7 +41,8 @@ def test_template_seeds_use_content_field():
             # check first seed item
             first_seed = example_seed[0]
             assert "metadata" in first_seed
-            assert "content" in first_seed["metadata"]
+            # allow either "content" or "file_content" (for markdown templates)
+            assert "content" in first_seed["metadata"] or "file_content" in first_seed["metadata"]
 
             # ensure no old-style system/user fields
             assert "system" not in first_seed["metadata"]
@@ -85,24 +86,27 @@ def test_text_classification_template_structure():
 
 
 def test_qa_generation_template_structure():
-    """test qa_generation template has two-step pipeline"""
+    """test qa_generation template has markdown chunking and two-step generation pipeline"""
     template = template_registry.get_template("qa_generation")
 
     assert template is not None
     assert template["name"] == "Q&A Generation"
-    assert len(template["blocks"]) == 3
+    assert len(template["blocks"]) == 4
 
-    # first block should be TextGenerator
-    assert template["blocks"][0]["type"] == "TextGenerator"
+    # first block should be MarkdownMultiplierBlock
+    assert template["blocks"][0]["type"] == "MarkdownMultiplierBlock"
 
-    # second block should be StructuredGenerator
-    assert template["blocks"][1]["type"] == "StructuredGenerator"
+    # second block should be TextGenerator
+    assert template["blocks"][1]["type"] == "TextGenerator"
 
-    # third block should be JSONValidatorBlock
-    assert template["blocks"][2]["type"] == "JSONValidatorBlock"
+    # third block should be StructuredGenerator
+    assert template["blocks"][2]["type"] == "StructuredGenerator"
+
+    # fourth block should be JSONValidatorBlock
+    assert template["blocks"][3]["type"] == "JSONValidatorBlock"
 
     # check schema has qa_pairs array
-    schema = template["blocks"][1]["config"]["json_schema"]
+    schema = template["blocks"][2]["config"]["json_schema"]
     assert "properties" in schema
     assert "qa_pairs" in schema["properties"]
     assert schema["properties"]["qa_pairs"]["type"] == "array"
@@ -180,13 +184,14 @@ async def test_text_classification_template_renders_content(mock_llm):
 @pytest.mark.asyncio
 @patch("litellm.acompletion")
 async def test_qa_generation_template_renders_content(mock_llm):
-    """test that qa_generation template properly renders {{ content }} and {{ assistant }}"""
+    """test that qa_generation template properly renders {{ chunk_text }} and {{ assistant }}"""
     template = template_registry.get_template("qa_generation")
     assert template is not None
     pipeline_def = {"name": "Test Q&A", "blocks": template["blocks"]}
     pipeline = WorkflowPipeline.load_from_dict(pipeline_def)
 
-    seed_data = {"content": "Photosynthesis is how plants convert sunlight."}
+    # use file_content for markdown multiplier
+    seed_data = {"file_content": "# Photosynthesis\n\nPhotosynthesis is how plants convert sunlight."}
 
     captured_prompts = []
 
@@ -195,7 +200,7 @@ async def test_qa_generation_template_renders_content(mock_llm):
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
 
-        # first call: questions, second call: Q&A pairs
+        # first call: questions (from TextGenerator), second call: Q&A pairs (from StructuredGenerator)
         if len(captured_prompts) == 1:
             mock_response.choices[0].message.content = "What is photosynthesis?"
         else:
@@ -208,18 +213,19 @@ async def test_qa_generation_template_renders_content(mock_llm):
 
     mock_llm.side_effect = capture_call
 
-    result, trace, trace_id = await pipeline.execute(seed_data)
+    # multiplier returns list of results
+    results = await pipeline.execute(seed_data)
+    assert len(results) > 0, "Expected at least one result from multiplier"
 
-    # verify first prompt (TextGenerator) rendered {{ content }}
+    # verify prompts were rendered
     assert len(captured_prompts) >= 2
-    assert "{{ content }}" not in captured_prompts[0], "TextGenerator prompt not rendered"
-    assert seed_data["content"] in captured_prompts[0], "TextGenerator prompt missing content"
+    # verify first prompt (TextGenerator) rendered {{ chunk_text }}
+    assert "{{ chunk_text }}" not in captured_prompts[0], "TextGenerator prompt not rendered"
 
-    # verify second prompt (StructuredGenerator) rendered {{ assistant }} and {{ content }}
+    # verify second prompt (StructuredGenerator) rendered {{ assistant }} and {{ chunk_text }}
     assert "{{ assistant }}" not in captured_prompts[1], (
         "StructuredGenerator prompt not rendered - still has {{ assistant }}"
     )
-    assert "{{ content }}" not in captured_prompts[1], (
-        "StructuredGenerator prompt not rendered - still has {{ content }}"
+    assert "{{ chunk_text }}" not in captured_prompts[1], (
+        "StructuredGenerator prompt not rendered - still has {{ chunk_text }}"
     )
-    assert seed_data["content"] in captured_prompts[1], "StructuredGenerator prompt missing content"

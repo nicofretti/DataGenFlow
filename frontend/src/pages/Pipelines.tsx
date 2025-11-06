@@ -129,17 +129,39 @@ export default function Pipelines() {
   const downloadExampleSeed = (template: Template) => {
     if (!template.example_seed) return;
 
-    const blob = new Blob([JSON.stringify(template.example_seed, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `seed_${template.id}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // check if this is a markdown seed (has file_content instead of content)
+    const isMarkdownSeed = Array.isArray(template.example_seed) &&
+      template.example_seed.length > 0 &&
+      template.example_seed[0].metadata?.file_content;
+
+    if (isMarkdownSeed) {
+      // download markdown content
+      const markdownContent = template.example_seed[0].metadata.file_content;
+      const blob = new Blob([markdownContent], {
+        type: "text/markdown",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `seed_${template.id}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      // download as json
+      const blob = new Blob([JSON.stringify(template.example_seed, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `seed_${template.id}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   };
 
   const copyToClipboard = (text: string) => {
