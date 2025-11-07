@@ -67,7 +67,6 @@ async def _process_job(
 ) -> None:
     """execute pipeline for seeds from file with progress tracking"""
     try:
-        # load pipeline
         pipeline_data = await storage.get_pipeline(pipeline_id)
         if not pipeline_data:
             await _update_job_status(
@@ -82,13 +81,11 @@ async def _process_job(
 
         pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
 
-        # check if pipeline has multiplier
         has_multiplier = (
             len(pipeline._block_instances) > 0
             and getattr(pipeline._block_instances[0], "is_multiplier", False)
         )
 
-        # load seed file
         seed_path = Path(seed_file_path)
         if not seed_path.exists():
             raise FileNotFoundError(f"Seed file not found: {seed_file_path}")
@@ -96,10 +93,8 @@ async def _process_job(
         with open(seed_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        # seeds format: [{"repetitions": 5, "metadata": {...}}, ...]
         seeds_data = data if isinstance(data, list) else [data]
 
-        # calculate total executions
         total_executions = sum(
             (seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1)
             for seed in seeds_data
@@ -115,9 +110,7 @@ async def _process_job(
         records_failed = 0
         execution_index = 0
 
-        # process each seed
         for seed in seeds_data:
-            # check for cancellation
             job_status = job_queue.get_job(job_id)
             if job_status and job_status.get("status") == "cancelled":
                 logger.info(
@@ -125,18 +118,15 @@ async def _process_job(
                 )
                 break
 
-            # get repetitions and metadata
             repetitions = seed.get("repetitions", 1)
             if not isinstance(repetitions, int):
                 repetitions = 1
 
             metadata = seed.get("metadata", {})
 
-            # execute pipeline repetitions times for this seed
             for i in range(repetitions):
                 execution_index += 1
 
-                # check for cancellation
                 job_status = job_queue.get_job(job_id)
                 if job_status and job_status.get("status") == "cancelled":
                     cancel_msg = (
@@ -146,27 +136,14 @@ async def _process_job(
                     logger.info(cancel_msg)
                     break
 
-                # update progress
-                progress = execution_index / total_executions
-                await _update_job_status(
-                    job_queue,
-                    storage,
-                    job_id,
-                    current_seed=execution_index,
-                    progress=progress,
-                    current_block=None,
-                    current_step=f"Processing execution {execution_index}/{total_executions}",
-                )
-
                 try:
                     if has_multiplier:
-                        # multiplier pipeline returns list of results
                         results = await pipeline.execute(
                             metadata, job_id=job_id, job_queue=job_queue, storage=storage
                         )
 
-                        # save all generated records
-                        for result_data, trace, trace_id in results:
+                        # workflow already handles current_seed, total_seeds, and progress updates
+                        for chunk_idx, (result_data, trace, trace_id) in enumerate(results, 1):
                             record = Record(
                                 metadata=metadata,
                                 trace=trace,
@@ -174,60 +151,60 @@ async def _process_job(
                             await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
                             records_generated += 1
 
-                        # update count
+                            # don't override workflow's seed tracking, only update record count
+                            await _update_job_status(
+                                job_queue,
+                                storage,
+                                job_id,
+                                records_generated=records_generated,
+                            )
+                    else:
+                        progress = execution_index / total_executions
                         await _update_job_status(
                             job_queue,
                             storage,
                             job_id,
-                            records_generated=records_generated,
+                            current_seed=execution_index,
+                            total_seeds=total_executions,
+                            progress=progress,
                             current_block=None,
                             current_step=f"Processing execution {execution_index}/{total_executions}",
                         )
-                    else:
-                        # normal pipeline returns single result
+
                         result, trace, trace_id = await pipeline.execute(
                             metadata, job_id=job_id, job_queue=job_queue, storage=storage
                         )
 
-                        # create record from pipeline execution
                         record = Record(
                             metadata=metadata,
                             trace=trace,
                         )
 
-                        # save record with job_id
                         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
                         records_generated += 1
 
-                        # update count and clear block info
                         await _update_job_status(
                             job_queue,
                             storage,
                             job_id,
                             records_generated=records_generated,
-                            current_block=None,
-                            current_step=f"Processing execution {execution_index}/{total_executions}",
                         )
 
                 except Exception as e:
                     records_failed += 1
                     logger.error(f"[Job {job_id}] Execution {execution_index} failed: {e}")
 
-                    # update failed count
                     await _update_job_status(
                         job_queue, storage, job_id, records_failed=records_failed
                     )
 
-                    # skip and continue
                     continue
 
-        # clean up temp file
         try:
             seed_path.unlink()
         except Exception:
             pass
 
-        # mark as completed (or check if cancelled)
         final_status = job_queue.get_job(job_id)
         if final_status and final_status.get("status") != "cancelled":
             completed_at = datetime.now().isoformat()
@@ -247,7 +224,6 @@ async def _process_job(
         error_msg = str(e)
         logger.error(f"[Job {job_id}] Failed: {error_msg}")
 
-        # mark as failed
         completed_at = datetime.now().isoformat()
         await _update_job_status(
             job_queue,

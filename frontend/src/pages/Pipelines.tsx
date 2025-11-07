@@ -29,7 +29,7 @@ export default function Pipelines() {
     loadTemplates();
   }, []);
 
-  // hide navigation when pipeline editor is open
+  // hide navigation for immersive full-screen editing experience
   useEffect(() => {
     setHideNavigation(editing !== null);
   }, [editing, setHideNavigation]);
@@ -46,7 +46,7 @@ export default function Pipelines() {
       const data = await res.json();
       setTemplates(data);
     } catch {
-      // silent fail - templates are optional
+      // templates are optional feature, don't disrupt user experience if unavailable
     }
   };
 
@@ -68,7 +68,6 @@ export default function Pipelines() {
   const savePipeline = async (pipeline: any) => {
     try {
       if (editing?.mode === "new") {
-        // create new pipeline
         const res = await fetch("/api/pipelines", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -78,7 +77,6 @@ export default function Pipelines() {
         if (!res.ok) throw new Error("Failed to create pipeline");
         setMessage({ type: "success", text: "Pipeline created successfully" });
       } else if (editing?.mode === "edit" && editing.pipeline) {
-        // update existing pipeline
         const res = await fetch(`/api/pipelines/${editing.pipeline.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -114,7 +112,6 @@ export default function Pipelines() {
     if (!confirm(`Delete all ${pipelines.length} pipeline(s)? This cannot be undone!`)) return;
 
     try {
-      // delete each pipeline
       await Promise.all(
         pipelines.map((pipeline) => fetch(`/api/pipelines/${pipeline.id}`, { method: "DELETE" }))
       );

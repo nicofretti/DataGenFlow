@@ -186,62 +186,115 @@ class Pipeline:
 
         logger.info(f"Multiplier block generated {len(seeds)} seeds in {execution_time:.3f}s")
 
+        # set now that multiplier has determined the actual count
+        if job_id and job_queue:
+            job_queue.update_job(job_id, total_seeds=len(seeds), current_seed=0)
+            if storage:
+                await storage.update_job(job_id, total_seeds=len(seeds), current_seed=0)
+
         results = []
         for seed_idx, seed_data in enumerate(seeds):
             trace_id = str(uuid.uuid4())
             accumulated_data = seed_data.copy()
             trace = []
+            seed_failed = False
 
-            for i, block in enumerate(remaining_blocks, start=1):
-                block_name = block.__class__.__name__
+            try:
+                for i, block in enumerate(remaining_blocks, start=1):
+                    block_name = block.__class__.__name__
 
-                if job_id and job_queue:
-                    job_queue.update_job(
-                        job_id,
-                        current_block=block_name,
-                        current_step=f"Seed {seed_idx + 1}/{len(seeds)}, Block {i}/{len(remaining_blocks)}",
-                    )
-                    if storage:
-                        await storage.update_job(
+                    if job_id and job_queue:
+                        progress = seed_idx / len(seeds) if len(seeds) > 0 else 0.0
+
+                        job_queue.update_job(
                             job_id,
+                            current_seed=seed_idx + 1,
+                            progress=progress,
                             current_block=block_name,
                             current_step=f"Seed {seed_idx + 1}/{len(seeds)}, Block {i}/{len(remaining_blocks)}",
                         )
+                        if storage:
+                            await storage.update_job(
+                                job_id,
+                                current_seed=seed_idx + 1,
+                                progress=progress,
+                                current_block=block_name,
+                                current_step=f"Seed {seed_idx + 1}/{len(seeds)}, Block {i}/{len(remaining_blocks)}",
+                            )
 
-                block_start_time = time.time()
-                try:
-                    block_input = accumulated_data.copy()
-                    result = await block.execute(accumulated_data)
-                    block_execution_time = time.time() - block_start_time
+                    block_start_time = time.time()
+                    try:
+                        block_input = accumulated_data.copy()
+                        result = await block.execute(accumulated_data)
+                        block_execution_time = time.time() - block_start_time
 
-                    self._validate_output(block, result)
-                    accumulated_data.update(result)
+                        self._validate_output(block, result)
+                        accumulated_data.update(result)
 
-                    trace.append(
-                        {
-                            "block_type": block_name,
-                            "input": block_input,
-                            "output": result,
-                            "accumulated_state": accumulated_data.copy(),
-                            "execution_time": block_execution_time,
-                        }
+                        trace.append(
+                            {
+                                "block_type": block_name,
+                                "input": block_input,
+                                "output": result,
+                                "accumulated_state": accumulated_data.copy(),
+                                "execution_time": block_execution_time,
+                            }
+                        )
+                    except Exception as e:
+                        logger.error(f"[{trace_id}] {block_name} failed at seed {seed_idx + 1}: {str(e)}")
+                        trace.append(
+                            {
+                                "block_type": block_name,
+                                "input": block_input,
+                                "output": None,
+                                "error": str(e),
+                            }
+                        )
+                        raise
+
+                results.append((accumulated_data, trace, trace_id))
+
+                # update immediately to give real-time feedback
+                if job_id and job_queue:
+                    current_job = job_queue.get_job(job_id)
+                    if current_job:
+                        records_generated = current_job.get("records_generated", 0) + 1
+                        job_queue.update_job(job_id, records_generated=records_generated)
+                        if storage:
+                            await storage.update_job(job_id, records_generated=records_generated)
+
+            except Exception as e:
+                # continue with next seed instead of stopping entire pipeline
+                seed_failed = True
+                logger.error(f"[{trace_id}] Seed {seed_idx + 1}/{len(seeds)} failed: {str(e)}")
+
+                if job_id and job_queue:
+                    current_job = job_queue.get_job(job_id)
+                    if current_job:
+                        records_failed = current_job.get("records_failed", 0) + 1
+                        job_queue.update_job(job_id, records_failed=records_failed)
+                        if storage:
+                            await storage.update_job(job_id, records_failed=records_failed)
+
+            # show final status regardless of success or failure
+            if job_id and job_queue:
+                progress = (seed_idx + 1) / len(seeds) if len(seeds) > 0 else 0.0
+                status_msg = f"Failed seed {seed_idx + 1}/{len(seeds)}" if seed_failed else f"Completed seed {seed_idx + 1}/{len(seeds)}"
+                job_queue.update_job(
+                    job_id,
+                    current_seed=seed_idx + 1,
+                    progress=progress,
+                    current_block=None,
+                    current_step=status_msg,
+                )
+                if storage:
+                    await storage.update_job(
+                        job_id,
+                        current_seed=seed_idx + 1,
+                        progress=progress,
+                        current_block=None,
+                        current_step=status_msg,
                     )
-                except ValidationError:
-                    logger.error(f"[{trace_id}] {block_name} validation error at seed {seed_idx + 1}")
-                    raise
-                except Exception as e:
-                    logger.error(f"[{trace_id}] {block_name} failed at seed {seed_idx + 1}: {str(e)}")
-                    raise BlockExecutionError(
-                        f"Block '{block_name}' failed for seed {seed_idx + 1}: {str(e)}",
-                        detail={
-                            "block_type": block_name,
-                            "seed_index": seed_idx,
-                            "error": str(e),
-                            "input": block_input,
-                        },
-                    )
-
-            results.append((accumulated_data, trace, trace_id))
 
         logger.info(f"Multiplier pipeline '{self.name}' completed with {len(results)} results")
         return results

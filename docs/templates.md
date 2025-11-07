@@ -8,7 +8,7 @@ Templates provide pre-configured pipelines for common data generation tasks with
 
 ## Seed Structure
 
-All templates use a simplified seed format with only a `content` field:
+Most templates use a simplified seed format with a `content` field:
 
 ```json
 [
@@ -20,6 +20,8 @@ All templates use a simplified seed format with only a `content` field:
   }
 ]
 ```
+
+**Note:** Templates using the Markdown Chunker (like Q&A Generation) use `file_content` instead of `content` to process markdown documents.
 
 ## Available Templates
 
@@ -90,12 +92,13 @@ All templates use a simplified seed format with only a `content` field:
 
 ### Q&A Generation
 
-**Purpose:** Generate question-answer pairs from source content using a two-step pipeline.
+**Purpose:** Generate question-answer pairs from markdown documents. Automatically chunks long documents by structure and generates Q&A pairs for each section.
 
 **Blocks:**
-1. TextGenerator: Generates 3-5 questions (unstructured text)
-2. StructuredGenerator: Answers questions based on original content
-3. JSONValidator: Validates Q&A structure
+1. Markdown Chunker: Splits markdown by structure with size constraints (512 tokens, 50 overlap)
+2. TextGenerator: Generates 3-5 questions per chunk
+3. StructuredGenerator: Answers questions based on chunk content
+4. JSONValidator: Validates Q&A structure
 
 **Output Schema:**
 ```json
@@ -113,28 +116,33 @@ All templates use a simplified seed format with only a `content` field:
 ```json
 // Input seed
 {
-  "content": "Photosynthesis is how plants convert sunlight into energy using chlorophyll."
+  "file_content": "# Photosynthesis\n\nPhotosynthesis is how plants convert sunlight into energy using chlorophyll.\n\n## The Process\n\nLight energy is absorbed by chlorophyll in the leaves. This triggers chemical reactions that produce glucose and oxygen."
 }
 
-// Generated output
+// Generated output (per chunk)
 {
   "qa_pairs": [
     {
       "question": "What is photosynthesis?",
-      "answer": "Photosynthesis is how plants convert sunlight into energy."
+      "answer": "Photosynthesis is how plants convert sunlight into energy using chlorophyll."
     },
     {
-      "question": "What substance do plants use for photosynthesis?",
-      "answer": "Plants use chlorophyll for photosynthesis."
+      "question": "What role does chlorophyll play?",
+      "answer": "Chlorophyll absorbs light energy in the leaves to trigger chemical reactions."
+    },
+    {
+      "question": "What does photosynthesis produce?",
+      "answer": "Photosynthesis produces glucose and oxygen."
     }
   ]
 }
 ```
 
 **Use Cases:**
-- Training dataset generation
-- Educational content creation
-- Comprehension test generation
+- Convert documentation into training datasets
+- Generate educational Q&A from textbooks/tutorials
+- Create comprehension tests from long markdown articles
+- Process multi-section documents efficiently
 
 ## Customizing Templates
 

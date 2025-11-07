@@ -374,7 +374,7 @@ export default function Generator() {
               <Text sx={{ fontSize: 3, fontWeight: "bold", color: "fg.default", display: "block" }}>
                 {currentJob.current_seed} / {currentJob.total_seeds}
               </Text>
-              <Text sx={{ fontSize: 1, color: "fg.muted" }}>Seeds Processed</Text>
+              <Text sx={{ fontSize: 1, color: "fg.muted" }}>Seed in Processing</Text>
             </Box>
             <Box sx={{ textAlign: "center" }}>
               <Text sx={{ fontSize: 3, fontWeight: "bold", color: "success.fg", display: "block" }}>
