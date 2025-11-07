@@ -148,7 +148,9 @@ async def test_text_classification_template_end_to_end(mock_llm):
         "Renewable energy sources like solar and wind are crucial for reducing emissions."
     }
 
-    result2, trace2, trace_id2 = await pipeline2.execute(env_seed)
+    exec_result2 = await pipeline2.execute(env_seed)
+    assert isinstance(exec_result2, tuple)
+    result2, trace2, trace_id2 = exec_result2
 
     # verify different category
     classification2 = trace2[0]["output"]["generated"]
@@ -390,8 +392,11 @@ async def test_all_templates_load_and_execute(mock_llm):
         if template_id == "qa_generation":
             assert isinstance(execution_result, list)
             assert len(execution_result) > 0
-            result, trace, trace_id = execution_result[0]
+            first_result = execution_result[0]
+            assert isinstance(first_result, tuple)
+            result, trace, trace_id = first_result
         else:
+            assert isinstance(execution_result, tuple)
             result, trace, trace_id = execution_result
 
         assert trace is not None

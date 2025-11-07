@@ -71,9 +71,10 @@ class Pipeline:
         job_id: int | None = None,
         job_queue: Any = None,
         storage: Any = None,
-    ) -> tuple[dict[str, Any], list[dict[str, Any]], str] | list[
+    ) -> (
         tuple[dict[str, Any], list[dict[str, Any]], str]
-    ]:
+        | list[tuple[dict[str, Any], list[dict[str, Any]], str]]
+    ):
         if not self._block_instances:
             trace_id = str(uuid.uuid4())
             return initial_data, [], trace_id
@@ -82,9 +83,7 @@ class Pipeline:
         is_multiplier = getattr(first_block, "is_multiplier", False)
 
         if is_multiplier:
-            return await self._execute_multiplier_pipeline(
-                initial_data, job_id, job_queue, storage
-            )
+            return await self._execute_multiplier_pipeline(initial_data, job_id, job_queue, storage)
         else:
             return await self._execute_normal_pipeline(initial_data, job_id, job_queue, storage)
 
@@ -211,7 +210,10 @@ class Pipeline:
                             current_seed=seed_idx + 1,
                             progress=progress,
                             current_block=block_name,
-                            current_step=f"Seed {seed_idx + 1}/{len(seeds)}, Block {i}/{len(remaining_blocks)}",
+                            current_step=(
+                                f"Seed {seed_idx + 1}/{len(seeds)}, "
+                                f"Block {i}/{len(remaining_blocks)}"
+                            ),
                         )
                         if storage:
                             await storage.update_job(
@@ -219,7 +221,10 @@ class Pipeline:
                                 current_seed=seed_idx + 1,
                                 progress=progress,
                                 current_block=block_name,
-                                current_step=f"Seed {seed_idx + 1}/{len(seeds)}, Block {i}/{len(remaining_blocks)}",
+                                current_step=(
+                                    f"Seed {seed_idx + 1}/{len(seeds)}, "
+                                    f"Block {i}/{len(remaining_blocks)}"
+                                ),
                             )
 
                     block_start_time = time.time()
@@ -241,7 +246,9 @@ class Pipeline:
                             }
                         )
                     except Exception as e:
-                        logger.error(f"[{trace_id}] {block_name} failed at seed {seed_idx + 1}: {str(e)}")
+                        logger.error(
+                            f"[{trace_id}] {block_name} failed at seed {seed_idx + 1}: {str(e)}"
+                        )
                         trace.append(
                             {
                                 "block_type": block_name,
@@ -279,7 +286,11 @@ class Pipeline:
             # show final status regardless of success or failure
             if job_id and job_queue:
                 progress = (seed_idx + 1) / len(seeds) if len(seeds) > 0 else 0.0
-                status_msg = f"Failed seed {seed_idx + 1}/{len(seeds)}" if seed_failed else f"Completed seed {seed_idx + 1}/{len(seeds)}"
+                status_msg = (
+                    f"Failed seed {seed_idx + 1}/{len(seeds)}"
+                    if seed_failed
+                    else f"Completed seed {seed_idx + 1}/{len(seeds)}"
+                )
                 job_queue.update_job(
                     job_id,
                     current_seed=seed_idx + 1,

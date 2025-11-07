@@ -39,12 +39,7 @@ class TemplateRegistry:
                         with open(seed_md, "r") as sf:
                             # markdown seed is wrapped in json format for file_content
                             template_data["example_seed"] = [
-                                {
-                                    "repetitions": 1,
-                                    "metadata": {
-                                        "file_content": sf.read()
-                                    }
-                                }
+                                {"repetitions": 1, "metadata": {"file_content": sf.read()}}
                             ]
 
                     self._templates[template_id] = template_data

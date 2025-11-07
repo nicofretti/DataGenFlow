@@ -191,7 +191,9 @@ async def test_qa_generation_template_renders_content(mock_llm):
     pipeline = WorkflowPipeline.load_from_dict(pipeline_def)
 
     # use file_content for markdown multiplier
-    seed_data = {"file_content": "# Photosynthesis\n\nPhotosynthesis is how plants convert sunlight."}
+    seed_data = {
+        "file_content": "# Photosynthesis\n\nPhotosynthesis is how plants convert sunlight."
+    }
 
     captured_prompts = []
 

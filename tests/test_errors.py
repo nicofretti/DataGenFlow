@@ -158,7 +158,9 @@ class TestEdgeCases:
 
         pipeline = Pipeline.load_from_dict(pipeline_def)
 
-        result, trace, trace_id = await pipeline.execute({"text": "测试 مرحبا Привет"})
+        exec_result = await pipeline.execute({"text": "测试 مرحبا Привет"})
+        assert isinstance(exec_result, tuple)
+        result, trace, trace_id = exec_result
 
         assert "text" in result
         assert "测试" in result["text"]

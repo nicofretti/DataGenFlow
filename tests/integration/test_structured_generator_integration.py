@@ -17,7 +17,7 @@ async def test_structured_generator_ollama():
         model="gemma3:1b",
         temperature=0.7,
         max_tokens=200,
-        prompt="Generate a person with name and age",
+        user_prompt="Generate a person with name and age",
     )
 
     result = await block.execute({})
@@ -59,7 +59,7 @@ async def test_structured_generator_complex_schema():
     }
 
     block = StructuredGenerator(
-        json_schema=schema, prompt="Generate a product with name, price and 3 features"
+        json_schema=schema, user_prompt="Generate a product with name, price and 3 features"
     )
 
     result = await block.execute({})

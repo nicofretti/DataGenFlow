@@ -61,7 +61,9 @@ async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
     first_block_def = blocks[0]
     block_class = registry.get_block_class(first_block_def["type"])
     if not block_class:
-        raise HTTPException(status_code=400, detail=f"block type '{first_block_def['type']}' not found")
+        raise HTTPException(
+            status_code=400, detail=f"block type '{first_block_def['type']}' not found"
+        )
 
     required_inputs = block_class.get_required_fields(first_block_def.get("config", {}))
 
@@ -105,10 +107,15 @@ async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
 
     if all_missing_fields:
         fields_str = ", ".join(f"'{field}'" for field in sorted(all_missing_fields))
-        errors.append(f"Some seeds missing required field(s): {fields_str} (needed by {block_class.name} block)")
+        errors.append(
+            f"Some seeds missing required field(s): {fields_str} "
+            f"(needed by {block_class.name} block)"
+        )
 
     if zero_repetition_count > 0:
-        warnings.append(f"{zero_repetition_count} seed(s) have repetitions=0 (will not generate records)")
+        warnings.append(
+            f"{zero_repetition_count} seed(s) have repetitions=0 (will not generate records)"
+        )
 
     return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
 
@@ -147,7 +154,10 @@ async def generate_from_file(
             total += 1
             try:
                 # execute pipeline with metadata as input
-                result, trace, trace_id = await pipeline.execute(seed.metadata)
+                exec_result = await pipeline.execute(seed.metadata)
+                # help mypy understand this is the tuple variant
+                assert isinstance(exec_result, tuple)
+                result, trace, trace_id = exec_result
 
                 # create record from pipeline execution
                 record = Record(
@@ -174,9 +184,7 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
     is_json = file.filename.endswith(".json")
 
     if not is_markdown and not is_json:
-        raise HTTPException(
-            status_code=400, detail="Only .json or .md files are accepted"
-        )
+        raise HTTPException(status_code=400, detail="Only .json or .md files are accepted")
 
     # check if there's already an active job
     active_job = job_queue.get_active_job()
@@ -207,7 +215,8 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
 
         if not isinstance(data, (list, dict)):
             raise HTTPException(
-                status_code=400, detail="The JSON file must contain an object or an array of objects."
+                status_code=400,
+                detail="The JSON file must contain an object or an array of objects.",
             )
 
         seeds = data if isinstance(data, list) else [data]
@@ -220,13 +229,15 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
                 )
             if "metadata" not in seed:
                 raise HTTPException(
-                    status_code=400, detail=f"Seed {i + 1} is missing the required 'metadata' field."
+                    status_code=400,
+                    detail=f"Seed {i + 1} is missing the required 'metadata' field.",
                 )
 
-        total_samples = sum(
-            seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1
-            for seed in seeds
-        )
+        def get_repetitions(seed: dict[str, Any]) -> int:
+            reps = seed.get("repetitions", 1)
+            return reps if isinstance(reps, int) else 1
+
+        total_samples = sum(get_repetitions(seed) for seed in seeds)
         file_suffix = ".json"
 
     fd, tmp_path = tempfile.mkstemp(suffix=file_suffix, prefix=f"seed_{pipeline_id}_")

@@ -21,7 +21,9 @@ async def test_pipeline_single_block():
         mock_gen.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content="generated response"))]
         )
-        result, trace, trace_id = await pipeline.execute({"system": "test", "user": "test"})
+        exec_result = await pipeline.execute({"system": "test", "user": "test"})
+        assert isinstance(exec_result, tuple)
+        result, trace, trace_id = exec_result
 
         assert result["assistant"] == "generated response"
         assert len(trace) == 1
@@ -45,7 +47,9 @@ async def test_pipeline_multiple_blocks():
         mock_gen.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content="hello world"))]
         )
-        result, trace, trace_id = await pipeline.execute({"system": "test", "user": "test"})
+        exec_result = await pipeline.execute({"system": "test", "user": "test"})
+        assert isinstance(exec_result, tuple)
+        result, trace, trace_id = exec_result
 
         assert result["assistant"] == "hello world"
         assert result["valid"] is True
@@ -111,7 +115,10 @@ async def test_multiplier_pipeline_execution():
     pipeline_def = {
         "name": "Multiplier Pipeline",
         "blocks": [
-            {"type": "MarkdownMultiplierBlock", "config": {"parser_type": "sentence", "chunk_size": 100, "chunk_overlap": 10}},
+            {
+                "type": "MarkdownMultiplierBlock",
+                "config": {"parser_type": "sentence", "chunk_size": 100, "chunk_overlap": 10},
+            },
             {"type": "ValidatorBlock", "config": {"min_length": 1}},
         ],
     }

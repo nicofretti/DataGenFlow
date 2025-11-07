@@ -110,8 +110,11 @@ More content that also could be split but shouldn't be."""
 async def test_markdown_multiplier_two_pass_with_chunk_size():
     block = MarkdownMultiplierBlock(parser_type="markdown", chunk_size=100, chunk_overlap=10)
 
-    markdown_content = """# Introduction
-This is a long introduction section with multiple sentences. It contains enough text to exceed the chunk size limit. """ * 5
+    markdown_content = (
+        """# Introduction
+This is a long introduction section with multiple sentences. It contains enough text to exceed the chunk size limit. """
+        * 5
+    )
 
     result = await block.execute({"file_content": markdown_content})
 
@@ -126,11 +129,16 @@ This is a long introduction section with multiple sentences. It contains enough 
 async def test_markdown_multiplier_two_pass_multiple_sections():
     block = MarkdownMultiplierBlock(parser_type="markdown", chunk_size=50, chunk_overlap=5)
 
-    markdown_content = """# Section One
-Content for section one that will be split. """ * 10 + """
+    markdown_content = (
+        """# Section One
+Content for section one that will be split. """
+        * 10
+        + """
 
 # Section Two
-Content for section two that will also be split into smaller chunks. """ * 10
+Content for section two that will also be split into smaller chunks. """
+        * 10
+    )
 
     result = await block.execute({"file_content": markdown_content})
 

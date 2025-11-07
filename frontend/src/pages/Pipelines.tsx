@@ -127,7 +127,8 @@ export default function Pipelines() {
     if (!template.example_seed) return;
 
     // check if this is a markdown seed (has file_content instead of content)
-    const isMarkdownSeed = Array.isArray(template.example_seed) &&
+    const isMarkdownSeed =
+      Array.isArray(template.example_seed) &&
       template.example_seed.length > 0 &&
       template.example_seed[0].metadata?.file_content;
 

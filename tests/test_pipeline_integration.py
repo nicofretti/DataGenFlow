@@ -29,7 +29,9 @@ async def test_pipeline_execution_with_trace():
             choices=[MagicMock(message=MagicMock(content="Hello! How can I help you today?"))]
         )
 
-        result, trace, trace_id = await pipeline.execute(input_data)
+        exec_result = await pipeline.execute(input_data)
+        assert isinstance(exec_result, tuple)
+        result, trace, trace_id = exec_result
 
         # verify result has assistant output
         assert "assistant" in result

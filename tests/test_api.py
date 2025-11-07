@@ -250,7 +250,9 @@ class TestAPISeedValidation:
             {"repetitions": 1, "metadata": {"text": "another seed", "assistant": "response"}},
         ]
 
-        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        response = client.post(
+            "/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds}
+        )
         assert response.status_code == 200
 
         result = response.json()
@@ -268,7 +270,9 @@ class TestAPISeedValidation:
 
         seeds = [{"repetitions": 1, "metadata": {"wrong_field": "value"}}]
 
-        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        response = client.post(
+            "/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds}
+        )
         assert response.status_code == 200
 
         result = response.json()
@@ -287,7 +291,9 @@ class TestAPISeedValidation:
 
         seeds = [{"repetitions": 1}]
 
-        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        response = client.post(
+            "/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds}
+        )
         assert response.status_code == 200
 
         result = response.json()
@@ -305,7 +311,9 @@ class TestAPISeedValidation:
 
         seeds = [{"repetitions": 0, "metadata": {"text": "hello", "assistant": "response"}}]
 
-        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        response = client.post(
+            "/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds}
+        )
         assert response.status_code == 200
 
         result = response.json()
@@ -325,7 +333,9 @@ class TestAPISeedValidation:
 
         seeds = [{"repetitions": -5, "metadata": {"text": "hello", "assistant": "response"}}]
 
-        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        response = client.post(
+            "/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds}
+        )
         assert response.status_code == 200
 
         result = response.json()
@@ -355,14 +365,20 @@ class TestAPISeedValidation:
         create_response = client.post("/api/pipelines", json=pipeline_data)
         pipeline_id = create_response.json()["id"]
 
-        seeds_valid = [{"repetitions": 1, "metadata": {"role": "teacher", "topic": "math", "audience": "kids"}}]
-        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds_valid})
+        seeds_valid = [
+            {"repetitions": 1, "metadata": {"role": "teacher", "topic": "math", "audience": "kids"}}
+        ]
+        response = client.post(
+            "/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds_valid}
+        )
         assert response.status_code == 200
         result = response.json()
         assert result["valid"] is True
 
         seeds_missing = [{"repetitions": 1, "metadata": {"role": "teacher"}}]
-        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds_missing})
+        response = client.post(
+            "/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds_missing}
+        )
         assert response.status_code == 200
         result = response.json()
         assert result["valid"] is False
@@ -393,7 +409,9 @@ class TestAPISeedValidation:
             {"repetitions": 1, "metadata": {}},
         ]
 
-        response = client.post("/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds})
+        response = client.post(
+            "/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds}
+        )
         assert response.status_code == 200
         result = response.json()
         assert result["valid"] is False

@@ -43,7 +43,9 @@ class StructuredGenerator(BaseBlock):
 
     async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
         # use config user_prompt or data user_prompt
-        prompt_template = self.user_prompt or data.get("user_prompt", "Generate data according to schema")
+        prompt_template = self.user_prompt or data.get(
+            "user_prompt", "Generate data according to schema"
+        )
 
         # render the Jinja2 template with data context
         user_prompt = render_template(prompt_template, data)

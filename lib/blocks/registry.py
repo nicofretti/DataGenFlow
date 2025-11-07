@@ -33,7 +33,10 @@ class BlockRegistry:
                     module = importlib.import_module(module_name)
                     for name, obj in inspect.getmembers(module, inspect.isclass):
                         # only register classes inheriting from BaseBlock, excluding base classes
-                        if issubclass(obj, BaseBlock) and obj not in (BaseBlock, BaseMultiplierBlock):
+                        if issubclass(obj, BaseBlock) and obj not in (
+                            BaseBlock,
+                            BaseMultiplierBlock,
+                        ):
                             self._blocks[obj.__name__] = obj
                 except Exception:
                     # skip modules that fail to import

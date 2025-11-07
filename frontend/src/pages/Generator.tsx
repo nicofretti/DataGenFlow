@@ -528,9 +528,7 @@ export default function Generator() {
               )}
 
               {!isValidating && validationResult && validationResult.valid && (
-                <Flash variant="success">
-                  ✅ All seeds are valid. Ready to generate!
-                </Flash>
+                <Flash variant="success">✅ All seeds are valid. Ready to generate!</Flash>
               )}
 
               {!isValidating && validationResult && !validationResult.valid && (

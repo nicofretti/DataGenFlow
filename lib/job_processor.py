@@ -81,9 +81,8 @@ async def _process_job(
 
         pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
 
-        has_multiplier = (
-            len(pipeline._block_instances) > 0
-            and getattr(pipeline._block_instances[0], "is_multiplier", False)
+        has_multiplier = len(pipeline._block_instances) > 0 and getattr(
+            pipeline._block_instances[0], "is_multiplier", False
         )
 
         seed_path = Path(seed_file_path)
@@ -141,6 +140,8 @@ async def _process_job(
                         results = await pipeline.execute(
                             metadata, job_id=job_id, job_queue=job_queue, storage=storage
                         )
+                        # help mypy understand this is the list variant
+                        assert isinstance(results, list)
 
                         # workflow already handles current_seed, total_seeds, and progress updates
                         for chunk_idx, (result_data, trace, trace_id) in enumerate(results, 1):
@@ -148,7 +149,9 @@ async def _process_job(
                                 metadata=metadata,
                                 trace=trace,
                             )
-                            await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
+                            await storage.save_record(
+                                record, pipeline_id=pipeline_id, job_id=job_id
+                            )
                             records_generated += 1
 
                             # don't override workflow's seed tracking, only update record count
@@ -168,12 +171,17 @@ async def _process_job(
                             total_seeds=total_executions,
                             progress=progress,
                             current_block=None,
-                            current_step=f"Processing execution {execution_index}/{total_executions}",
+                            current_step=(
+                                f"Processing execution {execution_index}/{total_executions}"
+                            ),
                         )
 
-                        result, trace, trace_id = await pipeline.execute(
+                        exec_result = await pipeline.execute(
                             metadata, job_id=job_id, job_queue=job_queue, storage=storage
                         )
+                        # help mypy understand this is the tuple variant
+                        assert isinstance(exec_result, tuple)
+                        result, trace, trace_id = exec_result
 
                         record = Record(
                             metadata=metadata,

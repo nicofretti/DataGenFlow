@@ -55,6 +55,6 @@ class BaseMultiplierBlock(BaseBlock):
     is_multiplier: bool = True
 
     @abstractmethod
-    async def execute(self, data: dict[str, Any]) -> list[dict[str, Any]]:
+    async def execute(self, data: dict[str, Any]) -> list[dict[str, Any]]:  # type: ignore[override]
         """multiplier blocks return list of dicts instead of single dict"""
         pass

@@ -14,7 +14,6 @@ import {
 import { XIcon, StarFillIcon, KeyAsteriskIcon } from "@primer/octicons-react";
 import { Node } from "reactflow";
 import Editor from "@monaco-editor/react";
-import { GAP } from "@primer/react/lib-esm/internal/components/UnderlineTabbedInterface";
 
 interface BlockConfigPanelProps {
   node: Node;
@@ -313,9 +312,7 @@ export default function BlockConfigPanel({
           <Box sx={{ color: "fg.default" }}>
             <KeyAsteriskIcon />
           </Box>
-          <Heading sx={{ fontSize: 2, color: "fg.default" }}>
-           {block.name}
-          </Heading>
+          <Heading sx={{ fontSize: 2, color: "fg.default" }}>{block.name}</Heading>
         </Box>
         <Button onClick={onClose} variant="invisible" sx={{ p: 1, minWidth: "auto" }}>
           <XIcon />

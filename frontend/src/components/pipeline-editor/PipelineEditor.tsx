@@ -54,6 +54,8 @@ interface Block {
   inputs: string[];
   outputs: string[];
   config_schema: Record<string, any>;
+  category: string;
+  description?: string;
 }
 
 interface PipelineEditorProps {
