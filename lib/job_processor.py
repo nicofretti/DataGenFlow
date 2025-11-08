@@ -75,11 +75,6 @@ async def _process_job(
     storage: Storage,
 ) -> None:
     """execute pipeline for seeds from file with progress tracking"""
-    from lib.storage import Storage as StorageClass
-
-    thread_storage = StorageClass()
-    await thread_storage.init_db()
-
     try:
         pipeline_data = await storage.get_pipeline(pipeline_id)
         if not pipeline_data:
@@ -159,7 +154,7 @@ async def _process_job(
                             metadata,
                             job_id=job_id,
                             job_queue=job_queue,
-                            storage=thread_storage,
+                            storage=storage,
                             pipeline_id=pipeline_id,
                         )
                         assert isinstance(results, list)
@@ -182,7 +177,7 @@ async def _process_job(
                             metadata,
                             job_id=job_id,
                             job_queue=job_queue,
-                            storage=thread_storage,
+                            storage=storage,
                             pipeline_id=pipeline_id,
                         )
                         assert isinstance(exec_result, tuple)
@@ -194,7 +189,7 @@ async def _process_job(
                             trace=trace,
                         )
 
-                        await thread_storage.save_record(
+                        await storage.save_record(
                             record, pipeline_id=pipeline_id, job_id=job_id
                         )
                         records_generated += 1
@@ -251,5 +246,3 @@ async def _process_job(
             error=error_msg,
             completed_at=completed_at,
         )
-    finally:
-        await thread_storage.close()

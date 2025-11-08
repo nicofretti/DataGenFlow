@@ -264,6 +264,13 @@ class Pipeline:
                     )
                     await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
 
+                    if job_id and job_queue:
+                        current_job = job_queue.get_job(job_id)
+                        if current_job:
+                            records_generated = current_job.get("records_generated", 0) + 1
+                            job_queue.update_job(job_id, records_generated=records_generated)
+                            await storage.update_job(job_id, records_generated=records_generated)
+
                 results.append((accumulated_data, trace, trace_id))
 
             except Exception as e:

@@ -137,17 +137,11 @@ class Storage:
             result = await func(self._conn)
             await self._conn.commit()
             return result
-        else:
-            db = await aiosqlite.connect(self.db_path)
-            try:
-                await db.execute("PRAGMA journal_mode=DELETE")
-                await db.execute("PRAGMA synchronous=FULL")
-                await db.execute("PRAGMA busy_timeout=5000")
-                result = await func(db)
-                await db.commit()
-                return result
-            finally:
-                await db.close()
+
+        async with aiosqlite.connect(self.db_path) as db:
+            result = await func(db)
+            await db.commit()
+            return result
 
     async def save_record(
         self, record: Record, pipeline_id: int | None = None, job_id: int | None = None

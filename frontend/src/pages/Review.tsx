@@ -51,8 +51,15 @@ export default function Review() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_isExpanded, setIsExpanded] = useState(false);
   const startEditingRef = useRef<(() => void) | null>(null);
+  const currentRecordIdRef = useRef<number | null>(null);
 
   const currentRecord = records[currentIndex] || null;
+
+  useEffect(() => {
+    if (currentRecord && viewMode === "single") {
+      currentRecordIdRef.current = currentRecord.id;
+    }
+  }, [currentRecord, viewMode]);
 
   useEffect(() => {
     localStorage.setItem("review_view_mode", viewMode);
@@ -99,7 +106,14 @@ export default function Review() {
     const res = await fetch(url, { cache: 'no-store' });
     const data = await res.json();
     setRecords(data);
-  }, [filterStatus, selectedJob, selectedPipeline]);
+
+    if (viewMode === "single" && currentRecordIdRef.current !== null) {
+      const newIndex = data.findIndex((r: RecordData) => r.id === currentRecordIdRef.current);
+      if (newIndex !== -1) {
+        setCurrentIndex(newIndex);
+      }
+    }
+  }, [filterStatus, selectedJob, selectedPipeline, viewMode]);
 
   const loadStats = useCallback(async () => {
     if (!selectedPipeline) {

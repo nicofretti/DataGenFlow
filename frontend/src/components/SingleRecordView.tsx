@@ -64,7 +64,6 @@ export default function SingleRecordView({
   );
 
   const startEditing = useCallback(() => {
-    // initialize edit values with primary fields
     const initial: Record<string, string> = {};
     primaryFields.forEach((field) => {
       const value = finalState[field];
