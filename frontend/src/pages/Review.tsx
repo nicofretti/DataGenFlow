@@ -70,7 +70,9 @@ export default function Review() {
       const res = await fetch("/api/pipelines");
       const data = await res.json();
       setPipelines(data);
-    } catch {}
+    } catch {
+      // do nothing
+    }
   }, []);
 
   const loadCurrentPipeline = useCallback(async (pipelineId: number) => {
@@ -81,7 +83,9 @@ export default function Review() {
       if (!data.validation_config) {
         setShowConfigModal(true);
       }
-    } catch {}
+    } catch {
+      // do nothing
+    }
   }, []);
 
   const loadJobs = useCallback(async (pipelineId: number) => {
@@ -90,7 +94,9 @@ export default function Review() {
       const data = await res.json();
       const jobsWithRecords = data.filter((job: Job) => job.records_generated > 0);
       setJobs(jobsWithRecords);
-    } catch {}
+    } catch {
+      // do nothing
+    }
   }, []);
 
   const loadRecords = useCallback(async () => {
@@ -103,7 +109,7 @@ export default function Review() {
     if (selectedJob) {
       url += `&job_id=${selectedJob}`;
     }
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, { cache: "no-store" });
     const data = await res.json();
     setRecords(data);
 

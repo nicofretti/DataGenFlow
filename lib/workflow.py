@@ -207,6 +207,7 @@ class Pipeline:
                     block_name = block.__class__.__name__
 
                     progress = seed_idx / len(seeds) if len(seeds) > 0 else 0.0
+                    step = f"Seed {seed_idx + 1}/{len(seeds)}, Block {i}/{len(remaining_blocks)}"
                     await self._update_job_progress(
                         job_id,
                         job_queue,
@@ -214,7 +215,7 @@ class Pipeline:
                         current_seed=seed_idx + 1,
                         progress=progress,
                         current_block=block_name,
-                        current_step=f"Seed {seed_idx + 1}/{len(seeds)}, Block {i}/{len(remaining_blocks)}",
+                        current_step=step,
                     )
 
                     block_start_time = time.time()
@@ -263,7 +264,10 @@ class Pipeline:
                         if current_job:
                             records_generated = current_job.get("records_generated", 0) + 1
                             await self._update_job_progress(
-                                job_id, job_queue, storage, records_generated=records_generated
+                                job_id,
+                                job_queue,
+                                storage,
+                                records_generated=records_generated,
                             )
 
                 results.append((accumulated_data, trace, trace_id))
