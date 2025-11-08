@@ -19,12 +19,27 @@ class Storage:
         if self.db_path != ":memory:":
             settings.ensure_data_dir()
 
+            # clean up WAL files if they exist (switching to DELETE mode)
+            from pathlib import Path
+            db_file = Path(self.db_path)
+            wal_file = db_file.with_suffix('.db-wal')
+            shm_file = db_file.with_suffix('.db-shm')
+            if wal_file.exists():
+                wal_file.unlink()
+            if shm_file.exists():
+                shm_file.unlink()
+
         # for :memory: db, keep connection open
         if self.db_path == ":memory:":
             self._conn = await aiosqlite.connect(self.db_path)
+            # enable autocommit mode for immediate writes
+            self._conn.isolation_level = None
             db = self._conn
         else:
             db = await aiosqlite.connect(self.db_path)
+            # force DELETE journal mode for cross-connection visibility
+            await db.execute("PRAGMA journal_mode=DELETE")
+            await db.execute("PRAGMA synchronous=FULL")
 
         try:
             # create pipelines table first to avoid foreign key issues
@@ -118,12 +133,21 @@ class Storage:
             await db.execute("ALTER TABLE pipelines ADD COLUMN validation_config TEXT")
 
     async def _execute_with_connection(self, func: Callable[[Connection], Any]) -> Any:
-        # helper to execute with appropriate connection handling
         if self._conn:
-            return await func(self._conn)
+            result = await func(self._conn)
+            await self._conn.commit()
+            return result
         else:
-            async with aiosqlite.connect(self.db_path) as db:
-                return await func(db)
+            db = await aiosqlite.connect(self.db_path)
+            try:
+                await db.execute("PRAGMA journal_mode=DELETE")
+                await db.execute("PRAGMA synchronous=FULL")
+                await db.execute("PRAGMA busy_timeout=5000")
+                result = await func(db)
+                await db.commit()
+                return result
+            finally:
+                await db.close()
 
     async def save_record(
         self, record: Record, pipeline_id: int | None = None, job_id: int | None = None
@@ -150,7 +174,6 @@ class Storage:
                     now,
                 ),
             )
-            await db.commit()
             return cursor.lastrowid if cursor.lastrowid is not None else 0
 
         return await self._execute_with_connection(_save)
@@ -231,7 +254,7 @@ class Storage:
 
         async def _update(db: Connection) -> bool:
             cursor = await db.execute(f"UPDATE records SET {set_clause} WHERE id = ?", values)
-            await db.commit()
+            # autocommit: no explicit commit needed
             return cursor.rowcount > 0
 
         return await self._execute_with_connection(_update)
@@ -276,7 +299,7 @@ class Storage:
 
         async def _update(db: Connection) -> bool:
             cursor = await db.execute(f"UPDATE records SET {set_clause} WHERE id = ?", values)
-            await db.commit()
+            # autocommit: no explicit commit needed
             return cursor.rowcount > 0
 
         return await self._execute_with_connection(_update)
@@ -288,11 +311,11 @@ class Storage:
                 count = cursor.rowcount
                 # also delete the job
                 await db.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
-                await db.commit()
+                # autocommit: no explicit commit needed
                 return count
             else:
                 cursor = await db.execute("DELETE FROM records")
-                await db.commit()
+                # autocommit: no explicit commit needed
                 return cursor.rowcount
 
         return await self._execute_with_connection(_delete)
@@ -331,7 +354,7 @@ class Storage:
                 "INSERT INTO pipelines (name, definition, created_at) VALUES (?, ?, ?)",
                 (name, json.dumps(definition), now),
             )
-            await db.commit()
+            # autocommit: no explicit commit needed
             return cursor.lastrowid if cursor.lastrowid is not None else 0
 
         return await self._execute_with_connection(_save)
@@ -383,7 +406,7 @@ class Storage:
                 "UPDATE pipelines SET name = ?, definition = ? WHERE id = ?",
                 (name, json.dumps(definition), pipeline_id),
             )
-            await db.commit()
+            # autocommit: no explicit commit needed
             return cursor.rowcount > 0
 
         return await self._execute_with_connection(_update)
@@ -396,7 +419,7 @@ class Storage:
                 "UPDATE pipelines SET validation_config = ? WHERE id = ?",
                 (json.dumps(validation_config), pipeline_id),
             )
-            await db.commit()
+            # autocommit: no explicit commit needed
             return cursor.rowcount > 0
 
         return await self._execute_with_connection(_update)
@@ -412,7 +435,7 @@ class Storage:
 
             # delete the pipeline
             cursor = await db.execute("DELETE FROM pipelines WHERE id = ?", (pipeline_id,))
-            await db.commit()
+            # autocommit: no explicit commit needed
             return cursor.rowcount > 0
 
         return await self._execute_with_connection(_delete)
@@ -426,7 +449,7 @@ class Storage:
                 "VALUES (?, ?, ?, ?)"
             )
             cursor = await db.execute(sql, (pipeline_id, status, total_seeds, now))
-            await db.commit()
+            # autocommit: no explicit commit needed
             return cursor.lastrowid if cursor.lastrowid is not None else 0
 
         return await self._execute_with_connection(_create)
@@ -499,7 +522,6 @@ class Storage:
 
         async def _update(db: Connection) -> bool:
             cursor = await db.execute(f"UPDATE jobs SET {set_clause} WHERE id = ?", values)
-            await db.commit()
             return cursor.rowcount > 0
 
         return await self._execute_with_connection(_update)

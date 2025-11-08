@@ -105,7 +105,10 @@ class TextGenerator(BaseBlock):
                     ast = env.parse(prompt)
                     variables = meta.find_undeclared_variables(ast)
                     required.update(variables)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to parse Jinja2 template for required fields: {e} "
+                        f"(prompt: {prompt!r})"
+                    )
 
         return sorted(list(required))

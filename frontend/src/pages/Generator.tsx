@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -36,6 +36,39 @@ export default function Generator() {
   } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
+  const validateSeeds = useCallback(
+    async (seedsData: any[]) => {
+      if (!selectedPipeline) {
+        return;
+      }
+
+      setIsValidating(true);
+      try {
+        const res = await fetch("/api/seeds/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pipeline_id: selectedPipeline,
+            seeds: seedsData,
+          }),
+        });
+
+        if (!res.ok) {
+          setValidationResult(null);
+          return;
+        }
+
+        const result = await res.json();
+        setValidationResult(result);
+      } catch {
+        setValidationResult(null);
+      } finally {
+        setIsValidating(false);
+      }
+    },
+    [selectedPipeline]
+  );
+
   useEffect(() => {
     fetchPipelines();
   }, []);
@@ -72,7 +105,7 @@ export default function Generator() {
     };
 
     fetchPipelineDetails();
-  }, [selectedPipeline]);
+  }, [selectedPipeline, file]);
 
   useEffect(() => {
     const revalidate = async () => {
@@ -90,7 +123,7 @@ export default function Generator() {
       }
     };
     revalidate();
-  }, [selectedPipeline]);
+  }, [selectedPipeline, file, validateSeeds]);
 
   // update generating state based on job status
   useEffect(() => {
@@ -108,36 +141,6 @@ export default function Generator() {
       setPipelines(data);
     } catch {
       // silent fail - will show empty pipeline list
-    }
-  };
-
-  const validateSeeds = async (seedsData: any[]) => {
-    if (!selectedPipeline) {
-      return;
-    }
-
-    setIsValidating(true);
-    try {
-      const res = await fetch("/api/seeds/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pipeline_id: selectedPipeline,
-          seeds: seedsData,
-        }),
-      });
-
-      if (!res.ok) {
-        setValidationResult(null);
-        return;
-      }
-
-      const result = await res.json();
-      setValidationResult(result);
-    } catch {
-      setValidationResult(null);
-    } finally {
-      setIsValidating(false);
     }
   };
 

@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 import uuid
@@ -5,6 +6,7 @@ from typing import Any
 
 from lib.blocks.registry import registry
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
+from models import Record
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +52,6 @@ class Pipeline:
         return cls(name=data["name"], blocks=data["blocks"])
 
     def _validate_output(self, block: Any, result: dict[str, Any]) -> None:
-        # validate block returns only declared outputs
         declared = set(block.outputs)
         actual = set(result.keys())
         if not actual.issubset(declared):
@@ -71,6 +72,7 @@ class Pipeline:
         job_id: int | None = None,
         job_queue: Any = None,
         storage: Any = None,
+        pipeline_id: int | None = None,
     ) -> (
         tuple[dict[str, Any], list[dict[str, Any]], str]
         | list[tuple[dict[str, Any], list[dict[str, Any]], str]]
@@ -83,7 +85,7 @@ class Pipeline:
         is_multiplier = getattr(first_block, "is_multiplier", False)
 
         if is_multiplier:
-            return await self._execute_multiplier_pipeline(initial_data, job_id, job_queue, storage)
+            return await self._execute_multiplier_pipeline(initial_data, job_id, job_queue, storage, pipeline_id)
         else:
             return await self._execute_normal_pipeline(initial_data, job_id, job_queue, storage)
 
@@ -108,7 +110,6 @@ class Pipeline:
                 f"[{trace_id}] Executing block {i + 1}/{len(self._block_instances)}: {block_name}"
             )
 
-            # update job status with current block
             if job_id and job_queue:
                 job_queue.update_job(
                     job_id,
@@ -130,13 +131,9 @@ class Pipeline:
 
                 logger.debug(f"[{trace_id}] {block_name} completed in {execution_time:.3f}s")
 
-                # validate output matches declared schema
                 self._validate_output(block, result)
-
-                # merge result into accumulated data
                 accumulated_data.update(result)
 
-                # capture trace with accumulated state
                 trace.append(
                     {
                         "block_type": block_name,
@@ -151,7 +148,6 @@ class Pipeline:
                 logger.error(f"[{trace_id}] {block_name} validation error at step {i + 1}")
                 raise
             except Exception as e:
-                # wrap execution errors with context
                 logger.error(f"[{trace_id}] {block_name} failed at step {i + 1}: {str(e)}")
                 raise BlockExecutionError(
                     f"Block '{block_name}' failed at step {i + 1}: {str(e)}",
@@ -172,6 +168,7 @@ class Pipeline:
         job_id: int | None = None,
         job_queue: Any = None,
         storage: Any = None,
+        pipeline_id: int | None = None,
     ) -> list[tuple[dict[str, Any], list[dict[str, Any]], str]]:
         """execute pipeline with multiplier first block that generates multiple seeds"""
         first_block = self._block_instances[0]
@@ -259,16 +256,15 @@ class Pipeline:
                         )
                         raise
 
-                results.append((accumulated_data, trace, trace_id))
+                if storage and pipeline_id:
+                    record = Record(
+                        metadata=initial_data,
+                        output=json.dumps(accumulated_data),
+                        trace=trace,
+                    )
+                    await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
 
-                # update immediately to give real-time feedback
-                if job_id and job_queue:
-                    current_job = job_queue.get_job(job_id)
-                    if current_job:
-                        records_generated = current_job.get("records_generated", 0) + 1
-                        job_queue.update_job(job_id, records_generated=records_generated)
-                        if storage:
-                            await storage.update_job(job_id, records_generated=records_generated)
+                results.append((accumulated_data, trace, trace_id))
 
             except Exception as e:
                 # continue with next seed instead of stopping entire pipeline

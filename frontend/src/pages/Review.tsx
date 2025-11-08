@@ -25,9 +25,11 @@ import ConfigureFieldsModal from "../components/ConfigureFieldsModal";
 import SingleRecordView from "../components/SingleRecordView";
 import TableRecordView from "../components/TableRecordView";
 import RecordDetailsModal from "../components/RecordDetailsModal";
+import { useJob } from "../contexts/JobContext";
 import type { RecordData, Pipeline, Job } from "../types";
 
 export default function Review() {
+  const { currentJob } = useJob();
   const [records, setRecords] = useState<RecordData[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filterStatus, setFilterStatus] = useState<"pending" | "accepted" | "rejected">("pending");
@@ -52,7 +54,6 @@ export default function Review() {
 
   const currentRecord = records[currentIndex] || null;
 
-  // persist view mode to localStorage
   useEffect(() => {
     localStorage.setItem("review_view_mode", viewMode);
   }, [viewMode]);
@@ -62,9 +63,7 @@ export default function Review() {
       const res = await fetch("/api/pipelines");
       const data = await res.json();
       setPipelines(data);
-    } catch {
-      // silent fail - pipelines filter is optional
-    }
+    } catch {}
   }, []);
 
   const loadCurrentPipeline = useCallback(async (pipelineId: number) => {
@@ -72,30 +71,22 @@ export default function Review() {
       const res = await fetch(`/api/pipelines/${pipelineId}`);
       const data = await res.json();
       setCurrentPipeline(data);
-
-      // show config modal if validation_config is null
       if (!data.validation_config) {
         setShowConfigModal(true);
       }
-    } catch {
-      // silent fail - pipeline is optional
-    }
+    } catch {}
   }, []);
 
   const loadJobs = useCallback(async (pipelineId: number) => {
     try {
       const res = await fetch(`/api/jobs?pipeline_id=${pipelineId}`);
       const data = await res.json();
-      // only show jobs that have generated records
       const jobsWithRecords = data.filter((job: Job) => job.records_generated > 0);
       setJobs(jobsWithRecords);
-    } catch {
-      // silent fail - jobs filter is optional
-    }
+    } catch {}
   }, []);
 
   const loadRecords = useCallback(async () => {
-    // don't load records if no pipeline selected
     if (!selectedPipeline) {
       setRecords([]);
       return;
@@ -105,19 +96,17 @@ export default function Review() {
     if (selectedJob) {
       url += `&job_id=${selectedJob}`;
     }
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: 'no-store' });
     const data = await res.json();
     setRecords(data);
   }, [filterStatus, selectedJob, selectedPipeline]);
 
   const loadStats = useCallback(async () => {
-    // don't load stats if no pipeline selected
     if (!selectedPipeline) {
       setStats({ pending: 0, accepted: 0, rejected: 0 });
       return;
     }
 
-    // fetch records to get accurate counts, filtered by pipeline and job if selected
     const pipelineParam = `&pipeline_id=${selectedPipeline}`;
     const jobParam = selectedJob ? `&job_id=${selectedJob}` : "";
     const [pending, accepted, rejected] = await Promise.all([
@@ -140,7 +129,6 @@ export default function Review() {
         body: JSON.stringify({ status }),
       });
 
-      // reload records and stats after update
       await loadRecords();
       await loadStats();
     },
@@ -167,13 +155,11 @@ export default function Review() {
     }
   }, [selectedPipeline, loadCurrentPipeline, loadJobs]);
 
-  // reset index when changing filter
   useEffect(() => {
     setCurrentIndex(0);
     setIsExpanded(false);
   }, [filterStatus]);
 
-  // keep currentIndex in valid range when records change
   useEffect(() => {
     if (records.length === 0) {
       setCurrentIndex(0);
@@ -182,15 +168,49 @@ export default function Review() {
     }
   }, [records.length, currentIndex]);
 
-  // reset page when changing filters
   useEffect(() => {
     setCurrentPage(1);
   }, [filterStatus, selectedJob]);
 
-  // keyboard shortcuts
+  useEffect(() => {
+    if (currentJob && currentJob.status === "running" && !selectedPipeline) {
+      setSelectedPipeline(currentJob.pipeline_id);
+    }
+  }, [currentJob, selectedPipeline]);
+
+  useEffect(() => {
+    if (
+      currentJob &&
+      currentJob.status === "running" &&
+      selectedPipeline === currentJob.pipeline_id &&
+      selectedJob === null
+    ) {
+      setSelectedJob(currentJob.id);
+    }
+  }, [currentJob, selectedPipeline, selectedJob]);
+
+  useEffect(() => {
+    if (!currentJob || currentJob.status !== "running" || !selectedPipeline) {
+      return;
+    }
+
+    if (currentJob.pipeline_id !== selectedPipeline) {
+      return;
+    }
+
+    loadRecords();
+    loadStats();
+
+    const interval = setInterval(() => {
+      loadRecords();
+      loadStats();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [currentJob, selectedPipeline, loadRecords, loadStats]);
+
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // disable shortcuts when typing in input/textarea
       if (
         document.activeElement?.tagName === "INPUT" ||
         document.activeElement?.tagName === "TEXTAREA"
@@ -262,7 +282,6 @@ export default function Review() {
     window.location.href = url;
   };
 
-  // pagination helper
   const getCurrentPageRecords = () => {
     const start = (currentPage - 1) * recordsPerPage;
     const end = start + recordsPerPage;

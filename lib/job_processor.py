@@ -52,9 +52,18 @@ def _run_job_async(
         loop.run_until_complete(
             _process_job(job_id, pipeline_id, seed_file_path, job_queue, storage)
         )
+        # give litellm's background logging tasks time to complete
+        pending = asyncio.all_tasks(loop)
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
     except Exception as e:
         logger.error(f"Job thread failed: {e}")
     finally:
+        # properly shutdown async generators before closing
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
         loop.close()
 
 
@@ -66,6 +75,11 @@ async def _process_job(
     storage: Storage,
 ) -> None:
     """execute pipeline for seeds from file with progress tracking"""
+    from lib.storage import Storage as StorageClass
+
+    thread_storage = StorageClass()
+    await thread_storage.init_db()
+
     try:
         pipeline_data = await storage.get_pipeline(pipeline_id)
         if not pipeline_data:
@@ -95,7 +109,11 @@ async def _process_job(
         seeds_data = data if isinstance(data, list) else [data]
 
         total_executions = sum(
-            (seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1)
+            (
+                seed.get("repetitions", 1)
+                if isinstance(seed.get("repetitions"), int)
+                else 1
+            )
             for seed in seeds_data
         )
 
@@ -138,29 +156,13 @@ async def _process_job(
                 try:
                     if has_multiplier:
                         results = await pipeline.execute(
-                            metadata, job_id=job_id, job_queue=job_queue, storage=storage
+                            metadata,
+                            job_id=job_id,
+                            job_queue=job_queue,
+                            storage=thread_storage,
+                            pipeline_id=pipeline_id,
                         )
-                        # help mypy understand this is the list variant
                         assert isinstance(results, list)
-
-                        # workflow already handles current_seed, total_seeds, and progress updates
-                        for chunk_idx, (result_data, trace, trace_id) in enumerate(results, 1):
-                            record = Record(
-                                metadata=metadata,
-                                trace=trace,
-                            )
-                            await storage.save_record(
-                                record, pipeline_id=pipeline_id, job_id=job_id
-                            )
-                            records_generated += 1
-
-                            # don't override workflow's seed tracking, only update record count
-                            await _update_job_status(
-                                job_queue,
-                                storage,
-                                job_id,
-                                records_generated=records_generated,
-                            )
                     else:
                         progress = execution_index / total_executions
                         await _update_job_status(
@@ -177,18 +179,24 @@ async def _process_job(
                         )
 
                         exec_result = await pipeline.execute(
-                            metadata, job_id=job_id, job_queue=job_queue, storage=storage
+                            metadata,
+                            job_id=job_id,
+                            job_queue=job_queue,
+                            storage=thread_storage,
+                            pipeline_id=pipeline_id,
                         )
-                        # help mypy understand this is the tuple variant
                         assert isinstance(exec_result, tuple)
                         result, trace, trace_id = exec_result
 
                         record = Record(
                             metadata=metadata,
+                            output=json.dumps(result),
                             trace=trace,
                         )
 
-                        await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
+                        await thread_storage.save_record(
+                            record, pipeline_id=pipeline_id, job_id=job_id
+                        )
                         records_generated += 1
 
                         await _update_job_status(
@@ -200,7 +208,9 @@ async def _process_job(
 
                 except Exception as e:
                     records_failed += 1
-                    logger.error(f"[Job {job_id}] Execution {execution_index} failed: {e}")
+                    logger.error(
+                        f"[Job {job_id}] Execution {execution_index} failed: {e}"
+                    )
 
                     await _update_job_status(
                         job_queue, storage, job_id, records_failed=records_failed
@@ -241,3 +251,5 @@ async def _process_job(
             error=error_msg,
             completed_at=completed_at,
         )
+    finally:
+        await thread_storage.close()
