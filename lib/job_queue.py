@@ -96,10 +96,9 @@ class JobQueue:
             if pipeline_id in self._job_history:
                 history = self._job_history[pipeline_id]
                 if job_id in history:
-                    # convert deque to list, remove item, convert back
-                    history_list = list(history)
-                    history_list.remove(job_id)
-                    self._job_history[pipeline_id] = deque(history_list, maxlen=10)
+                    self._job_history[pipeline_id] = deque(
+                        [jid for jid in history if jid != job_id], maxlen=10
+                    )
 
             if self._active_job == job_id:
                 self._active_job = None

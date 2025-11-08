@@ -1,4 +1,3 @@
-import re
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -41,11 +40,6 @@ class BaseBlock(ABC):
             "config_schema": cls.get_config_schema(),
             "is_multiplier": getattr(cls, "is_multiplier", False),
         }
-
-    @staticmethod
-    def extract_template_vars(text: str) -> list[str]:
-        """extract {variable} placeholders from text"""
-        return list(set(re.findall(r"\{(\w+)\}", text)))
 
 
 class BaseMultiplierBlock(BaseBlock):

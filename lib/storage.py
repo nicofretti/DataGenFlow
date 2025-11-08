@@ -15,31 +15,16 @@ class Storage:
         self._conn: Connection | None = None  # persistent connection for :memory:
 
     async def init_db(self) -> None:
-        # only ensure data dir if not using in-memory database
+        # ensure data directory exists for file-based databases
         if self.db_path != ":memory:":
             settings.ensure_data_dir()
 
-            # clean up WAL files if they exist (switching to DELETE mode)
-            from pathlib import Path
-            db_file = Path(self.db_path)
-            wal_file = db_file.with_suffix('.db-wal')
-            shm_file = db_file.with_suffix('.db-shm')
-            if wal_file.exists():
-                wal_file.unlink()
-            if shm_file.exists():
-                shm_file.unlink()
-
-        # for :memory: db, keep connection open
+        # for :memory: db, keep connection open persistently
         if self.db_path == ":memory:":
             self._conn = await aiosqlite.connect(self.db_path)
-            # enable autocommit mode for immediate writes
-            self._conn.isolation_level = None
             db = self._conn
         else:
             db = await aiosqlite.connect(self.db_path)
-            # force DELETE journal mode for cross-connection visibility
-            await db.execute("PRAGMA journal_mode=DELETE")
-            await db.execute("PRAGMA synchronous=FULL")
 
         try:
             # create pipelines table first to avoid foreign key issues
@@ -60,10 +45,15 @@ class Storage:
                     pipeline_id INTEGER NOT NULL,
                     status TEXT NOT NULL,
                     total_seeds INTEGER NOT NULL,
+                    current_seed INTEGER DEFAULT 0,
                     records_generated INTEGER DEFAULT 0,
                     records_failed INTEGER DEFAULT 0,
+                    progress REAL DEFAULT 0.0,
+                    current_block TEXT,
+                    current_step TEXT,
                     started_at TIMESTAMP NOT NULL,
                     completed_at TIMESTAMP,
+                    created_at TIMESTAMP NOT NULL,
                     FOREIGN KEY (pipeline_id) REFERENCES pipelines(id)
                 )
             """
@@ -106,31 +96,47 @@ class Storage:
                 await db.close()
 
     async def _migrate_schema(self, db: Connection) -> None:
-        # check if pipeline_id column exists in records
+        # migrate records table
         cursor = await db.execute("PRAGMA table_info(records)")
         columns = await cursor.fetchall()
         column_names = [col[1] for col in columns]
 
-        # add pipeline_id if missing
         if "pipeline_id" not in column_names:
             await db.execute("ALTER TABLE records ADD COLUMN pipeline_id INTEGER")
 
-        # add job_id if missing
         if "job_id" not in column_names:
             await db.execute("ALTER TABLE records ADD COLUMN job_id INTEGER")
 
-        # add trace if missing
         if "trace" not in column_names:
             await db.execute("ALTER TABLE records ADD COLUMN trace TEXT")
 
-        # check if validation_config column exists in pipelines
+        # migrate pipelines table
         cursor = await db.execute("PRAGMA table_info(pipelines)")
         pipeline_columns = await cursor.fetchall()
         pipeline_column_names = [col[1] for col in pipeline_columns]
 
-        # add validation_config if missing
         if "validation_config" not in pipeline_column_names:
             await db.execute("ALTER TABLE pipelines ADD COLUMN validation_config TEXT")
+
+        # migrate jobs table
+        cursor = await db.execute("PRAGMA table_info(jobs)")
+        job_columns = await cursor.fetchall()
+        job_column_names = [col[1] for col in job_columns]
+
+        if "current_seed" not in job_column_names:
+            await db.execute("ALTER TABLE jobs ADD COLUMN current_seed INTEGER DEFAULT 0")
+
+        if "progress" not in job_column_names:
+            await db.execute("ALTER TABLE jobs ADD COLUMN progress REAL DEFAULT 0.0")
+
+        if "current_block" not in job_column_names:
+            await db.execute("ALTER TABLE jobs ADD COLUMN current_block TEXT")
+
+        if "current_step" not in job_column_names:
+            await db.execute("ALTER TABLE jobs ADD COLUMN current_step TEXT")
+
+        if "created_at" not in job_column_names:
+            await db.execute("ALTER TABLE jobs ADD COLUMN created_at TIMESTAMP")
 
     async def _execute_with_connection(self, func: Callable[[Connection], Any]) -> Any:
         if self._conn:
@@ -439,10 +445,10 @@ class Storage:
 
         async def _create(db: Connection) -> int:
             sql = (
-                "INSERT INTO jobs (pipeline_id, status, total_seeds, started_at) "
-                "VALUES (?, ?, ?, ?)"
+                "INSERT INTO jobs (pipeline_id, status, total_seeds, started_at, created_at) "
+                "VALUES (?, ?, ?, ?, ?)"
             )
-            cursor = await db.execute(sql, (pipeline_id, status, total_seeds, now))
+            cursor = await db.execute(sql, (pipeline_id, status, total_seeds, now, now))
             # autocommit: no explicit commit needed
             return cursor.lastrowid if cursor.lastrowid is not None else 0
 
@@ -455,15 +461,23 @@ class Storage:
             row = await cursor.fetchone()
             if not row:
                 return None
+
+            # handle columns that might not exist in older databases
+            row_dict = dict(row)
             return {
-                "id": row["id"],
-                "pipeline_id": row["pipeline_id"],
-                "status": row["status"],
-                "total_seeds": row["total_seeds"],
-                "records_generated": row["records_generated"],
-                "records_failed": row["records_failed"],
-                "started_at": row["started_at"],
-                "completed_at": row["completed_at"],
+                "id": row_dict["id"],
+                "pipeline_id": row_dict["pipeline_id"],
+                "status": row_dict["status"],
+                "total_seeds": row_dict["total_seeds"],
+                "current_seed": row_dict.get("current_seed", 0),
+                "records_generated": row_dict["records_generated"],
+                "records_failed": row_dict["records_failed"],
+                "progress": row_dict.get("progress", 0.0),
+                "current_block": row_dict.get("current_block"),
+                "current_step": row_dict.get("current_step"),
+                "started_at": row_dict["started_at"],
+                "completed_at": row_dict["completed_at"],
+                "created_at": row_dict.get("created_at"),
             }
 
         return await self._execute_with_connection(_get)
@@ -484,16 +498,23 @@ class Storage:
                     (limit,),
                 )
             rows = await cursor.fetchall()
+
+            # convert rows to dicts to use .get() method
             return [
                 {
-                    "id": row["id"],
-                    "pipeline_id": row["pipeline_id"],
-                    "status": row["status"],
-                    "total_seeds": row["total_seeds"],
-                    "records_generated": row["records_generated"],
-                    "records_failed": row["records_failed"],
-                    "started_at": row["started_at"],
-                    "completed_at": row["completed_at"],
+                    "id": (row_dict := dict(row))["id"],
+                    "pipeline_id": row_dict["pipeline_id"],
+                    "status": row_dict["status"],
+                    "total_seeds": row_dict["total_seeds"],
+                    "current_seed": row_dict.get("current_seed", 0),
+                    "records_generated": row_dict["records_generated"],
+                    "records_failed": row_dict["records_failed"],
+                    "progress": row_dict.get("progress", 0.0),
+                    "current_block": row_dict.get("current_block"),
+                    "current_step": row_dict.get("current_step"),
+                    "started_at": row_dict["started_at"],
+                    "completed_at": row_dict["completed_at"],
+                    "created_at": row_dict.get("created_at"),
                 }
                 for row in rows
             ]
@@ -505,7 +526,17 @@ class Storage:
             return False
 
         # filter to only valid database fields for jobs table
-        valid_fields = {"status", "records_generated", "records_failed", "completed_at"}
+        valid_fields = {
+            "status",
+            "total_seeds",
+            "current_seed",
+            "records_generated",
+            "records_failed",
+            "progress",
+            "current_block",
+            "current_step",
+            "completed_at",
+        }
         update_fields = {k: v for k, v in updates.items() if k in valid_fields}
 
         if not update_fields:

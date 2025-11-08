@@ -19,6 +19,17 @@ class Pipeline:
         self._initialize_blocks()
         self._validate_multiplier_placement()
 
+    async def _update_job_progress(
+        self, job_id: int | None, job_queue: Any, storage: Any, **updates: Any
+    ) -> None:
+        """helper to update job progress in both memory and database"""
+        if not job_id or not job_queue:
+            return
+
+        job_queue.update_job(job_id, **updates)
+        if storage:
+            await storage.update_job(job_id, **updates)
+
     def _initialize_blocks(self) -> None:
         for block_def in self.blocks:
             block_type = block_def["type"]
@@ -85,9 +96,11 @@ class Pipeline:
         is_multiplier = getattr(first_block, "is_multiplier", False)
 
         if is_multiplier:
-            return await self._execute_multiplier_pipeline(initial_data, job_id, job_queue, storage, pipeline_id)
-        else:
-            return await self._execute_normal_pipeline(initial_data, job_id, job_queue, storage)
+            return await self._execute_multiplier_pipeline(
+                initial_data, job_id, job_queue, storage, pipeline_id
+            )
+
+        return await self._execute_normal_pipeline(initial_data, job_id, job_queue, storage)
 
     async def _execute_normal_pipeline(
         self,
@@ -110,18 +123,13 @@ class Pipeline:
                 f"[{trace_id}] Executing block {i + 1}/{len(self._block_instances)}: {block_name}"
             )
 
-            if job_id and job_queue:
-                job_queue.update_job(
-                    job_id,
-                    current_block=block_name,
-                    current_step=f"Block {i + 1}/{len(self._block_instances)}",
-                )
-                if storage:
-                    await storage.update_job(
-                        job_id,
-                        current_block=block_name,
-                        current_step=f"Block {i + 1}/{len(self._block_instances)}",
-                    )
+            await self._update_job_progress(
+                job_id,
+                job_queue,
+                storage,
+                current_block=block_name,
+                current_step=f"Block {i + 1}/{len(self._block_instances)}",
+            )
 
             start_time = time.time()
             try:
@@ -183,10 +191,9 @@ class Pipeline:
         logger.info(f"Multiplier block generated {len(seeds)} seeds in {execution_time:.3f}s")
 
         # set now that multiplier has determined the actual count
-        if job_id and job_queue:
-            job_queue.update_job(job_id, total_seeds=len(seeds), current_seed=0)
-            if storage:
-                await storage.update_job(job_id, total_seeds=len(seeds), current_seed=0)
+        await self._update_job_progress(
+            job_id, job_queue, storage, total_seeds=len(seeds), current_seed=0
+        )
 
         results = []
         for seed_idx, seed_data in enumerate(seeds):
@@ -199,30 +206,16 @@ class Pipeline:
                 for i, block in enumerate(remaining_blocks, start=1):
                     block_name = block.__class__.__name__
 
-                    if job_id and job_queue:
-                        progress = seed_idx / len(seeds) if len(seeds) > 0 else 0.0
-
-                        job_queue.update_job(
-                            job_id,
-                            current_seed=seed_idx + 1,
-                            progress=progress,
-                            current_block=block_name,
-                            current_step=(
-                                f"Seed {seed_idx + 1}/{len(seeds)}, "
-                                f"Block {i}/{len(remaining_blocks)}"
-                            ),
-                        )
-                        if storage:
-                            await storage.update_job(
-                                job_id,
-                                current_seed=seed_idx + 1,
-                                progress=progress,
-                                current_block=block_name,
-                                current_step=(
-                                    f"Seed {seed_idx + 1}/{len(seeds)}, "
-                                    f"Block {i}/{len(remaining_blocks)}"
-                                ),
-                            )
+                    progress = seed_idx / len(seeds) if len(seeds) > 0 else 0.0
+                    await self._update_job_progress(
+                        job_id,
+                        job_queue,
+                        storage,
+                        current_seed=seed_idx + 1,
+                        progress=progress,
+                        current_block=block_name,
+                        current_step=f"Seed {seed_idx + 1}/{len(seeds)}, Block {i}/{len(remaining_blocks)}",
+                    )
 
                     block_start_time = time.time()
                     try:
@@ -264,12 +257,14 @@ class Pipeline:
                     )
                     await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
 
+                    # increment records_generated counter
                     if job_id and job_queue:
                         current_job = job_queue.get_job(job_id)
                         if current_job:
                             records_generated = current_job.get("records_generated", 0) + 1
-                            job_queue.update_job(job_id, records_generated=records_generated)
-                            await storage.update_job(job_id, records_generated=records_generated)
+                            await self._update_job_progress(
+                                job_id, job_queue, storage, records_generated=records_generated
+                            )
 
                 results.append((accumulated_data, trace, trace_id))
 
@@ -278,37 +273,31 @@ class Pipeline:
                 seed_failed = True
                 logger.error(f"[{trace_id}] Seed {seed_idx + 1}/{len(seeds)} failed: {str(e)}")
 
+                # increment records_failed counter
                 if job_id and job_queue:
                     current_job = job_queue.get_job(job_id)
                     if current_job:
                         records_failed = current_job.get("records_failed", 0) + 1
-                        job_queue.update_job(job_id, records_failed=records_failed)
-                        if storage:
-                            await storage.update_job(job_id, records_failed=records_failed)
+                        await self._update_job_progress(
+                            job_id, job_queue, storage, records_failed=records_failed
+                        )
 
             # show final status regardless of success or failure
-            if job_id and job_queue:
-                progress = (seed_idx + 1) / len(seeds) if len(seeds) > 0 else 0.0
-                status_msg = (
-                    f"Failed seed {seed_idx + 1}/{len(seeds)}"
-                    if seed_failed
-                    else f"Completed seed {seed_idx + 1}/{len(seeds)}"
-                )
-                job_queue.update_job(
-                    job_id,
-                    current_seed=seed_idx + 1,
-                    progress=progress,
-                    current_block=None,
-                    current_step=status_msg,
-                )
-                if storage:
-                    await storage.update_job(
-                        job_id,
-                        current_seed=seed_idx + 1,
-                        progress=progress,
-                        current_block=None,
-                        current_step=status_msg,
-                    )
+            progress = (seed_idx + 1) / len(seeds) if len(seeds) > 0 else 0.0
+            status_msg = (
+                f"Failed seed {seed_idx + 1}/{len(seeds)}"
+                if seed_failed
+                else f"Completed seed {seed_idx + 1}/{len(seeds)}"
+            )
+            await self._update_job_progress(
+                job_id,
+                job_queue,
+                storage,
+                current_seed=seed_idx + 1,
+                progress=progress,
+                current_block=None,
+                current_step=status_msg,
+            )
 
         logger.info(f"Multiplier pipeline '{self.name}' completed with {len(results)} results")
         return results
