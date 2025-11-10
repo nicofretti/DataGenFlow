@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { Box, Heading, Text, Button, Flash } from "@primer/react";
+import { Box, Heading, Text, Button } from "@primer/react";
 import { ChevronUpIcon, ChevronDownIcon, XIcon } from "@primer/octicons-react";
+import { toast } from "sonner";
+import { Toaster } from "./ui/sonner";
 
 interface ConfigureFieldsModalProps {
   pipelineId: number;
@@ -18,7 +20,6 @@ export default function ConfigureFieldsModal({
   const [hiddenFields, setHiddenFields] = useState<string[]>([]);
   const [draggedField, setDraggedField] = useState<string | null>(null);
   const [draggedFrom, setDraggedFrom] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export default function ConfigureFieldsModal({
 
       setLoading(false);
     } catch {
-      setError("Failed to load available fields");
+      toast.error("Failed to load available fields");
       setLoading(false);
     }
   };
@@ -185,7 +186,7 @@ export default function ConfigureFieldsModal({
 
       onSave();
     } catch (err) {
-      setError(`Error saving configuration: ${err}`);
+      toast.error(`Error saving configuration: ${err}`);
     }
   };
 
@@ -342,11 +343,7 @@ export default function ConfigureFieldsModal({
           <Button leadingVisual={XIcon} onClick={onClose} aria-label="Close" />
         </Box>
 
-        {error && (
-          <Flash variant="danger" sx={{ mb: 3 }}>
-            {error}
-          </Flash>
-        )}
+        <Toaster />
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mb: 4 }}>
           {renderFieldList(

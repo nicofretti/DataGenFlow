@@ -6,7 +6,6 @@ import {
   Text,
   SegmentedControl,
   CounterLabel,
-  Flash,
   FormControl,
   Select,
   ActionMenu,
@@ -26,13 +25,13 @@ import SingleRecordView from "../components/SingleRecordView";
 import TableRecordView from "../components/TableRecordView";
 import RecordDetailsModal from "../components/RecordDetailsModal";
 import type { RecordData, Pipeline, Job } from "../types";
+import { toast } from "sonner";
 
 export default function Review() {
   const [records, setRecords] = useState<RecordData[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filterStatus, setFilterStatus] = useState<"pending" | "accepted" | "rejected">("pending");
   const [stats, setStats] = useState({ pending: 0, accepted: 0, rejected: 0 });
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
   const [currentPipeline, setCurrentPipeline] = useState<Pipeline | null>(null);
@@ -243,8 +242,8 @@ export default function Review() {
     try {
       const url = selectedJob ? `/api/records?job_id=${selectedJob}` : `/api/records`;
       await fetch(url, { method: "DELETE" });
-      setMessage({ type: "success", text: "Records deleted successfully" });
 
+      toast.success("All records deleted successfully");
       if (selectedJob && selectedPipeline) {
         setSelectedJob(null);
         await loadJobs(selectedPipeline);
@@ -253,7 +252,7 @@ export default function Review() {
       loadRecords();
       loadStats();
     } catch (error) {
-      setMessage({ type: "error", text: `Error: ${error}` });
+      toast.error(`Error: ${error}`);
     }
   };
 
@@ -317,12 +316,6 @@ export default function Review() {
           )}
         </Box>
       </Box>
-
-      {message && (
-        <Flash variant={message.type === "error" ? "danger" : "success"} sx={{ mb: 3 }}>
-          {message.text}
-        </Flash>
-      )}
 
       {/* Filter by Pipeline and Job */}
       <Box sx={{ mb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
@@ -603,7 +596,7 @@ export default function Review() {
           onSave={() => {
             setShowConfigModal(false);
             loadCurrentPipeline(selectedPipeline);
-            setMessage({ type: "success", text: "Field layout saved successfully" });
+            toast.success("Field layout saved successfully");
           }}
         />
       )}
