@@ -48,6 +48,11 @@ app = FastAPI(title="DataGenFlow", version="0.1.0", lifespan=lifespan)
 api_router = APIRouter()
 
 
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "healthy"}
+
+
 @api_router.post("/seeds/validate")
 async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
     """validate seeds against pipeline's first block requirements"""
@@ -101,7 +106,9 @@ async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
     warnings = []
 
     if has_structure_errors:
-        errors.append("Some seeds are not well structured (missing 'metadata' or invalid format)")
+        errors.append(
+            "Some seeds are not well structured (missing 'metadata' or invalid format)"
+        )
 
     if has_repetition_errors:
         errors.append("Some seeds have invalid repetitions (must be positive integer)")
@@ -127,7 +134,8 @@ async def generate_from_file(
 ) -> dict[str, Any]:
     if not file.filename or not file.filename.endswith(".json"):
         raise HTTPException(
-            status_code=400, detail="Only JSON files are accepted. Please upload a .json file."
+            status_code=400,
+            detail="Only JSON files are accepted. Please upload a .json file.",
         )
 
     # load pipeline
@@ -176,7 +184,9 @@ async def generate_from_file(
 
 
 @api_router.post("/generate")
-async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -> dict[str, Any]:
+async def generate(
+    file: UploadFile = File(...), pipeline_id: int = Form(...)
+) -> dict[str, Any]:
     """start a new background job for pipeline execution from seed file"""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -185,14 +195,14 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
     is_json = file.filename.endswith(".json")
 
     if not is_markdown and not is_json:
-        raise HTTPException(status_code=400, detail="Only .json or .md files are accepted")
+        raise HTTPException(
+            status_code=400, detail="Only .json or .md files are accepted"
+        )
 
     # check if there's already an active job
     active_job = job_queue.get_active_job()
     if active_job:
-        detail_msg = (
-            f"Job {active_job['id']} is already running. Cancel it first or wait for completion."
-        )
+        detail_msg = f"Job {active_job['id']} is already running. Cancel it first or wait for completion."
         raise HTTPException(status_code=409, detail=detail_msg)
 
     content = await file.read()
@@ -322,7 +332,11 @@ async def get_records(
     pipeline_id: int | None = None,
 ) -> list[dict[str, Any]]:
     records = await storage.get_all(
-        status=status, limit=limit, offset=offset, job_id=job_id, pipeline_id=pipeline_id
+        status=status,
+        limit=limit,
+        offset=offset,
+        job_id=job_id,
+        pipeline_id=pipeline_id,
     )
     return [record.model_dump() for record in records]
 
@@ -342,7 +356,9 @@ async def update_record(record_id: int, update: RecordUpdate) -> dict[str, bool]
     # separate standard fields from accumulated_state field updates
     standard_fields = {"output", "status", "metadata"}
     standard_updates = {k: v for k, v in updates.items() if k in standard_fields}
-    accumulated_state_updates = {k: v for k, v in updates.items() if k not in standard_fields}
+    accumulated_state_updates = {
+        k: v for k, v in updates.items() if k not in standard_fields
+    }
 
     # if there are accumulated_state field updates, handle them specially
     if accumulated_state_updates:
@@ -423,7 +439,9 @@ async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
 
 
 @api_router.put("/pipelines/{pipeline_id}")
-async def update_pipeline(pipeline_id: int, pipeline_data: dict[str, Any]) -> dict[str, Any]:
+async def update_pipeline(
+    pipeline_id: int, pipeline_data: dict[str, Any]
+) -> dict[str, Any]:
     name = pipeline_data.get("name")
     blocks = pipeline_data.get("blocks")
 
@@ -438,7 +456,9 @@ async def update_pipeline(pipeline_id: int, pipeline_data: dict[str, Any]) -> di
 
 
 @api_router.post("/pipelines/{pipeline_id}/execute", response_model=None)
-async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, Any] | JSONResponse:
+async def execute_pipeline(
+    pipeline_id: int, data: dict[str, Any]
+) -> dict[str, Any] | JSONResponse:
     try:
         pipeline_data = await storage.get_pipeline(pipeline_id)
         if not pipeline_data:
@@ -452,13 +472,19 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
         raise
     except BlockNotFoundError as e:
         logger.error(f"BlockNotFoundError in pipeline {pipeline_id}: {e.message}")
-        return JSONResponse(status_code=400, content={"error": e.message, "detail": e.detail})
+        return JSONResponse(
+            status_code=400, content={"error": e.message, "detail": e.detail}
+        )
     except (BlockExecutionError, ValidationError) as e:
         logger.error(f"{e.__class__.__name__} in pipeline {pipeline_id}: {e.message}")
-        return JSONResponse(status_code=400, content={"error": e.message, "detail": e.detail})
+        return JSONResponse(
+            status_code=400, content={"error": e.message, "detail": e.detail}
+        )
     except Exception as e:
         logger.exception(f"Unexpected error executing pipeline {pipeline_id}")
-        return JSONResponse(status_code=500, content={"error": f"Unexpected error: {str(e)}"})
+        return JSONResponse(
+            status_code=500, content={"error": f"Unexpected error: {str(e)}"}
+        )
 
 
 @api_router.get("/pipelines/{pipeline_id}/accumulated_state_schema")
@@ -496,7 +522,9 @@ async def update_validation_config(
         )
 
     # update database
-    success = await storage.update_pipeline_validation_config(pipeline_id, validation_config)
+    success = await storage.update_pipeline_validation_config(
+        pipeline_id, validation_config
+    )
     if not success:
         raise HTTPException(status_code=404, detail="pipeline not found")
 

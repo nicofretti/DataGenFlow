@@ -24,11 +24,11 @@ check-deps:
 	@echo "✅ All dependencies are installed"
 
 install: check-deps
-	uv pip install -e .
+	uv venv && uv sync
 	cd frontend && yarn install
 
 dev: check-deps
-	uv pip install -e ".[dev]"
+	uv venv && uv sync --extra dev
 	cd frontend && yarn install
 
 dev-ui:
