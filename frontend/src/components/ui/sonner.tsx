@@ -31,7 +31,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           warning: "bg-yellow-400",
           info: "bg-blue-400",
           toast:
-            "p-4 border border-border rounded-sm flex row gap-2 items-center min-w-[20rem] max-w-sm shadow-md text-sm",
+            "p-4 border border-border rounded-sm flex row gap-2 items-center min-w-[20rem] max-w-sm shadow-md text-sm z-100",
         },
         ...props.toastOptions,
       }}

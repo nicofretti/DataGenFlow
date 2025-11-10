@@ -184,8 +184,6 @@ export default function Generator() {
         </Text>
       </Box>
 
-      <Toaster />
-
       {/* Job Progress Section */}
       {currentJob && (
         <Box
@@ -393,6 +391,8 @@ export default function Generator() {
           </Button>
         </Box>
       </Box>
+
+      <Toaster />
     </Box>
   );
 }

@@ -14,7 +14,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import "../../styles/pipeline-editor.css";
-import { Box, Button, Text, TextInput, useTheme } from "@primer/react";
+import { Box, Text, TextInput, useTheme } from "@primer/react";
 import { XIcon, ZapIcon } from "@primer/octicons-react";
 
 import BlockPalette from "./BlockPalette";
@@ -29,6 +29,7 @@ import {
   convertFromPipelineFormat,
 } from "./utils";
 import { toast } from "sonner";
+import { Button } from "../ui/button";
 
 // define node types outside component to prevent recreation
 const nodeTypes: NodeTypes = {
@@ -585,20 +586,11 @@ export default function PipelineEditor({
 
         <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
           {/* Auto-layout button */}
-          <Button
-            onClick={handleAutoLayout}
-            disabled={nodes.length < 2}
-            variant="invisible"
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-            }}
-          >
+          <Button onClick={handleAutoLayout} disabled={nodes.length < 2} variant="ghost">
             <ZapIcon size={16} />
             Auto-layout
           </Button>
-          <Button onClick={handleSave} disabled={saving} variant="primary">
+          <Button onClick={handleSave} disabled={saving} variant="default">
             {saving ? "Saving..." : "Save Pipeline"}
           </Button>
           <Button onClick={onClose}>

@@ -7,6 +7,7 @@ import Review from "./pages/Review";
 import Pipelines from "./pages/Pipelines";
 import GlobalJobIndicator from "./components/GlobalJobIndicator";
 import { JobProvider } from "./contexts/JobContext";
+import { useTheme as shadcnUseTheme, ThemeProvider as ShadcnThemeProvider } from "next-themes";
 
 // context to control navigation visibility
 const NavigationContext = createContext<{
@@ -22,6 +23,7 @@ export const useNavigation = () => useContext(NavigationContext);
 function Navigation() {
   const location = useLocation();
   const { resolvedColorScheme, setColorMode } = useTheme();
+  const { setTheme } = shadcnUseTheme();
   const isDark = resolvedColorScheme === "dark";
   const { hideNavigation } = useNavigation();
 
@@ -34,6 +36,7 @@ function Navigation() {
   const handleToggleTheme = () => {
     const newMode = isDark ? "light" : "dark";
     setColorMode(newMode);
+    setTheme(newMode);
     localStorage.setItem("colorMode", newMode);
   };
 
@@ -148,14 +151,21 @@ export default function App() {
   const [hideNavigation, setHideNavigation] = useState(false);
 
   return (
-    <ThemeProvider colorMode={colorMode}>
-      <BrowserRouter>
-        <JobProvider>
-          <NavigationContext.Provider value={{ hideNavigation, setHideNavigation }}>
-            <Navigation />
-          </NavigationContext.Provider>
-        </JobProvider>
-      </BrowserRouter>
-    </ThemeProvider>
+    <ShadcnThemeProvider
+      defaultTheme="system"
+      attribute="class"
+      enableSystem
+      storageKey="colorMode"
+    >
+      <ThemeProvider colorMode={colorMode}>
+        <BrowserRouter>
+          <JobProvider>
+            <NavigationContext.Provider value={{ hideNavigation, setHideNavigation }}>
+              <Navigation />
+            </NavigationContext.Provider>
+          </JobProvider>
+        </BrowserRouter>
+      </ThemeProvider>
+    </ShadcnThemeProvider>
   );
 }
