@@ -128,12 +128,7 @@ uv run pytest --cov=lib --cov=app tests/
 
 ### Test Database
 
-Tests use a separate database (`data/test_qa_records.db`) that is:
-- Automatically created before tests
-- Completely isolated from production data
-- Cleaned up after test session
-
-See `TEST_DATABASE.md` for detailed information.
+Tests use a separate in-memory database that is automatically created and cleaned up after each test session.
 
 ### Writing Tests
 
@@ -164,7 +159,7 @@ Response:
 ```json
 [
   {
-    "type": "LLMBlock",
+    "type": "TextGenerator",
     "name": "LLM Generator",
     "description": "Generate text using LLM",
     "inputs": ["system", "user"],
@@ -188,7 +183,7 @@ Content-Type: application/json
   "name": "My Pipeline",
   "blocks": [
     {
-      "type": "LLMBlock",
+      "type": "TextGenerator",
       "config": {"temperature": 0.7}
     }
   ]
@@ -209,7 +204,7 @@ Response:
   "result": {"output": "..."},
   "trace": [
     {
-      "block_type": "LLMBlock",
+      "block_type": "TextGenerator",
       "input": {...},
       "output": {...},
       "accumulated_state": {...},
@@ -310,8 +305,8 @@ DEBUG=true
 **Example logs:**
 ```bash
 2025-10-14 10:15:32 [INFO] [a1b2c3d4] Pipeline 'Data Gen' started (3 blocks)
-2025-10-14 10:15:32 [DEBUG] [a1b2c3d4] Block 1/3: LLMBlock executing
-2025-10-14 10:15:35 [DEBUG] [a1b2c3d4] LLMBlock completed (3.124s)
+2025-10-14 10:15:32 [DEBUG] [a1b2c3d4] Block 1/3: TextGenerator executing
+2025-10-14 10:15:35 [DEBUG] [a1b2c3d4] TextGenerator completed (3.124s)
 2025-10-14 10:15:35 [INFO] [a1b2c3d4] Pipeline completed successfully
 ```
 
@@ -333,7 +328,7 @@ All exceptions include:
   "error": "Block 'InvalidBlock' not found",
   "detail": {
     "block_type": "InvalidBlock",
-    "available_blocks": ["LLMBlock", "ValidatorBlock", ...]
+    "available_blocks": ["TextGenerator", "ValidatorBlock", ...]
   }
 }
 ```

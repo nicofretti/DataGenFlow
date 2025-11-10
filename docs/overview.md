@@ -67,10 +67,14 @@ A **pipeline** is a sequence of blocks that process data. Think of it as a visua
 - Adds its outputs to accumulated state
 
 **Built-in blocks:**
-- **LLMBlock**: Generate text using LLM with Jinja2 templates
+- **TextGenerator**: Generate text using LLM with Jinja2 templates
+- **StructuredGenerator**: Generate structured JSON with schema validation
 - **ValidatorBlock**: Check text quality (length, patterns, forbidden words)
 - **JSONValidatorBlock**: Parse and validate JSON structures
-- **OutputBlock**: Format final results with Jinja2 templates
+- **RougeScore**: Calculate ROUGE similarity between texts
+- **DiversityScore**: Measure lexical diversity
+- **CoherenceScore**: Calculate coherence metrics
+- **MarkdownMultiplierBlock**: Split markdown into processable chunks
 
 **Custom blocks:** Create your own in minutes - just inherit from `BaseBlock` and implement `execute()`.
 
@@ -79,13 +83,13 @@ A **pipeline** is a sequence of blocks that process data. Think of it as a visua
 One of DataGenFlow's most powerful features: **data automatically flows between blocks**.
 
 ```text
-Seed Data: {"topic": "Python", "level": "beginner"}
+Seed Data: {"content": "Python programming language"}
     ↓
-LLMBlock outputs: {"assistant": "Python is..."}
-    ↓ (state: topic, level, assistant)
-ValidatorBlock outputs: {"is_valid": true}
-    ↓ (state: topic, level, assistant, is_valid)
-OutputBlock can access: ALL previous data
+StructuredGenerator outputs: {"generated": {"title": "...", "description": "..."}}
+    ↓ (state: content, generated)
+JSONValidatorBlock outputs: {"valid": true, "parsed_json": {...}}
+    ↓ (state: content, generated, valid, parsed_json)
+Any subsequent block can access: ALL accumulated data
 ```
 
 No manual wiring needed - every block sees all previous outputs plus the original seed data.
@@ -142,7 +146,7 @@ Every record includes full trace:
 
 ### Jinja2 Template Support
 
-Use powerful template syntax in LLMBlock and OutputBlock:
+Use powerful template syntax in generator blocks:
 
 ```jinja2
 System: You are a {{ role }} expert in {{ domain }}.

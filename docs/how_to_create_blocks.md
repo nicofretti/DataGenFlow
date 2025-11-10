@@ -40,8 +40,8 @@ DataGenFlow includes these atomic blocks:
 - **ValidatorBlock**: Validate text content (length, forbidden words, patterns)
 - **JSONValidatorBlock**: Parse and validate JSON from any accumulated state field
 
-**Output:**
-- **OutputBlock**: Format final pipeline output using Jinja2 templates
+**Seeders:**
+- **MarkdownMultiplierBlock**: Split markdown documents into chunks for batch processing
 
 You can create custom blocks to add your own logic and integrate with external services.
 
@@ -693,7 +693,7 @@ async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
 ### String Templates (Jinja2)
 
 ```python
-from lib.jinja_utils import render_template
+from lib.template_renderer import render_template
 
 async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
     # use jinja2 templates with accumulated state

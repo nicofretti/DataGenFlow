@@ -107,11 +107,11 @@ Fixed issue where block configuration panel doesn't appear when editing existing
 
 
 ### Reproduction Steps
-1. Create a new pipeline with an LLMBlock
+1. Create a new pipeline with a TextGenerator block
 2. Configure the block with a custom system prompt
 3. Save the pipeline
 4. Click "Edit" on the saved pipeline
-5. Click on the LLMBlock
+5. Click on the TextGenerator block
 6. **Bug**: Configuration panel doesn't appear
 
 ### Expected vs Actual
@@ -132,15 +132,15 @@ Fixed issue where block configuration panel doesn't appear when editing existing
 ### Example PR (Feature)
 
 ```markdown
-Title: 🚀 Feat: add retry logic to LLM block
+Title: 🚀 Feat: add retry logic to TextGenerator block
 
 ### Description
-Added configurable retry logic to LLMBlock for handling transient API failures. LLM API calls can fail due to rate limits, network issues, or temporary outages. Without retries, entire pipeline executions fail, wasting compute and time.
+Added configurable retry logic to TextGenerator for handling transient API failures. LLM API calls can fail due to rate limits, network issues, or temporary outages. Without retries, entire pipeline executions fail, wasting compute and time.
 
 ## Proposed Solution
-- Added `max_retries` and `retry_delay` config options to LLMBlock
+- Added `max_retries` and `retry_delay` config options to TextGenerator
 - Implemented exponential backoff strategy
-- Updated LLMBlock schema and validation
+- Updated TextGenerator schema and validation
 - Added tests for retry behavior
 
 ## Testing

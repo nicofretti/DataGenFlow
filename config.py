@@ -8,7 +8,7 @@ load_dotenv()
 
 
 class Settings:
-    LLM_ENDPOINT: str = os.getenv("LLM_ENDPOINT", "http://localhost:11434/api/generate")
+    LLM_ENDPOINT: str = os.getenv("LLM_ENDPOINT", "http://localhost:11434/v1/chat/completions")
     LLM_API_KEY: str = os.getenv("LLM_API_KEY", "")
     LLM_MODEL: str = os.getenv("LLM_MODEL", "llama3")
 

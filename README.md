@@ -53,24 +53,24 @@ make run-dev
 
 ### TL;DR - Visual Overview
 
-Example of a simple pipeline generating text based on seed data:
+Example of JSON extraction pipeline from text:
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ 1. SEED DATA (JSON)                                                     │
-│    { "repetitions": 2, "metadata": {"topic": "AI", "level": "basic"} }  │
+│    { "repetitions": 2, "metadata": {"content": "Python is a..."} }      │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ 2. PIPELINE (Visual Drag & Drop)                                        │
 │                                                                         │
-│    ┌──────────────┐      ┌──────────────┐      ┌──────────────┐         │
-│    │  LLM Block   │ ───► │  Validator   │ ───► │    Output    │         │
-│    │              │      │    Block     │      │    Block     │         │
-│    └──────────────┘      └──────────────┘      └──────────────┘         │
+│         ┌──────────────────┐           ┌──────────────────┐             │
+│         │   Structured     │    ───►   │       JSON       │             │
+│         │    Generator     │           │    Validator     │             │
+│         └──────────────────┘           └──────────────────┘             │
 │                                                                         │
 │    Accumulated State Flow:                                              │
-│    topic, level  ─►  + assistant  ─►  + is_valid  ─►  + formatted       │
+│    content  ─►  + generated (title, description)  ─►  + valid, parsed   │
 │                                                                         │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
@@ -139,24 +139,22 @@ Design your data generation workflow using drag-and-drop blocks. Each block proc
 #### Built-in Blocks
 
 Start with ready-to-use blocks:
-- LLM Generator: Generate text using AI models (OpenAI, Ollama, etc.)
-- Validator: Check quality (length, forbidden words, patterns)
-- JSON Validator: Ensure structured data correctness
-- Output Formatter: Format results for review page
-- ... waiting for more!
 
-#### Conversational AI Vertical
+**Generators:**
+- Text Generator: Generate text using LLM with configurable parameters
+- Structured Generator: Generate structured JSON with schema validation
 
-DataGenFlow includes research-backed algorithms for synthetic conversation generation:
+**Validators:**
+- Validator: Validate text (length, forbidden words, patterns)
+- JSON Validator: Parse and validate JSON structures
 
-- **Persona-Driven Dialogue** - Generate realistic multi-turn conversations with consistent character voices
-- **Back-Translation Diversity** - Automatically create diverse variations while maintaining intent
-- **Adversarial Perturbation** - Generate edge cases and robustness test scenarios
-- **Quality Metrics** - Auto-computed scores for diversity, coherence, and engagement
+**Metrics:**
+- Coherence Score: Calculate text coherence metrics
+- Diversity Score: Measure lexical diversity
+- Rouge Score: Calculate ROUGE similarity scores
 
-Perfect for training conversational AI, chatbots, and dialogue systems. Get started with the pre-configured "Customer Service Conversations" template.
-
-📚 Complete guide: [Conversational AI Vertical](docs/conversational-ai-vertical.md) | [Research Algorithms](docs/research-algorithms.md)
+**Seeders:**
+- Markdown Multiplier: Split markdown documents into chunks for processing
 
 #### Extend with Custom Blocks
 
@@ -202,19 +200,17 @@ Need to debug your custom block? Use the included `debug_pipeline.py` script wit
 Data flows automatically through your pipeline. Each block adds its outputs to an accumulated state that every subsequent block can access—no manual wiring:
 
 ```
-    ┌─────────────────┐
-    │   LLM Block     │ → outputs: {"assistant": "Generated text"}
-    └─────────────────┘
-        │
-        ▼ (state: assistant)
-    ┌─────────────────┐
-    │ Validator Block │ → outputs: {"is_valid": true}
-    └─────────────────┘
-        │
-        ▼ (state: assistant, is_valid)
-    ┌─────────────────┐
-    │  Output Block   │ ← can access both: assistant, is_valid
-    └─────────────────┘
+┌─────────────────────┐
+│ Structured Generator│ → outputs: {"generated": {"title": "...", "description": "..."}}
+└─────────────────────┘
+    │
+    ▼ (state: content, generated)
+┌─────────────────────┐
+│   JSON Validator    │ → outputs: {"valid": true, "parsed_json": {...}}
+└─────────────────────┘
+    │
+    ▼ (state: content, generated, valid, parsed_json)
+    All subsequent blocks can access all fields
 ```
 
 This makes building complex pipelines incredibly simple—connect blocks and they automatically share data.
@@ -233,7 +229,7 @@ Create `.env` file (or copy from `.env.example`):
 
 ```bash
 # LLM Configuration
-LLM_ENDPOINT=http://localhost:11434/v1  # Ollama, OpenAI, etc.
+LLM_ENDPOINT=http://localhost:11434/v1/chat/completions  # Ollama, OpenAI, etc.
 LLM_API_KEY=                            # Optional for some endpoints
 LLM_MODEL=llama3.2
 

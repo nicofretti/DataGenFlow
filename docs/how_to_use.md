@@ -92,47 +92,36 @@ This example comes from the built-in "JSON Generation with Validation" template.
 **Goal**: Generate structured JSON objects about topics with automatic validation
 
 **Pipeline Blocks**:
-1. **LLMBlock** - Generates JSON from topic
+1. **StructuredGenerator** - Generates structured JSON from topic
 2. **JSONValidatorBlock** - Validates and parses JSON structure
-3. **OutputBlock** - Formats validated output
 
 **Block Configurations**:
 
-**Block 1**: LLMBlock
+**Block 1**: StructuredGenerator
 - Temperature: `0.7`
 - Max tokens: `2048`
-- System prompt: Uses `{{ system }}` from seed (defines JSON structure and examples)
-- User prompt: Uses `{{ user }}` from seed (the topic)
+- User prompt: `"Extract key information from this text and structure it as JSON with 'title' and 'description' fields. Text: {{ content }}"`
+- JSON schema: Defines structure with title and description fields
 
 **Block 2**: JSONValidatorBlock
-- Field name: `assistant` (validates LLM output)
-- Required fields: `[]` (accepts any valid JSON)
-- Strict mode: `false` (allows flexible structure)
-
-**Block 3**: OutputBlock
-- Format template:
-  ```jinja2
-  {% if valid %}{{ parsed_json | tojson }}
-  {% else %}Raw output: {{ assistant }}{% endif %}
-  ```
+- Field name: `generated` (validates generator output)
+- Required fields: `["title", "description"]`
+- Strict mode: `true` (enforces schema)
 
 **Example Seed Data**:
 ```json
 {
   "repetitions": 3,
   "metadata": {
-    "system": "Generate a JSON object with the fields: title and description about the given user topic.\nExamples:\nuser: AI\noutput: { \"title\": \"Introduction to AI\", \"description\": \"A comprehensive overview...\" }\n\nDo not include any other text, just return a json object with title and description.",
-    "user": "Cleaning Your Laptop Screen"
+    "content": "Cleaning Your Laptop Screen"
   }
 }
 ```
 
 **What Happens**:
-1. LLM receives system prompt (JSON structure) and user topic
-2. LLM generates: `{ "title": "...", "description": "..." }`
-3. JSONValidatorBlock parses and validates the JSON
-4. OutputBlock returns formatted JSON if valid, or raw output if invalid
-5. Result is saved for review with full execution trace
+1. StructuredGenerator receives the content and generates structured JSON with title and description
+2. JSONValidatorBlock validates the JSON structure
+3. Result is saved for review with full execution trace showing `generated`, `valid`, and `parsed_json` fields
 
 ## Phase 2: Generating Records
 
@@ -315,8 +304,8 @@ The `accumulated_state` contains only the block outputs (e.g., `assistant`, `val
 - **Fix**: Check LLM_ENDPOINT in `.env`, test endpoint separately
 
 ### Empty outputs
-- **Cause**: OutputBlock template doesn't match available variables
-- **Fix**: Check trace to see what variables are available, update template
+- **Cause**: Block template doesn't match available variables in accumulated state
+- **Fix**: Check trace to see what variables are available, update block configuration
 
 ### Validation always fails
 - **Cause**: Validator rules too strict
