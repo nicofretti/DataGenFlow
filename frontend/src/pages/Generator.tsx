@@ -67,6 +67,18 @@ export default function Generator() {
 
         const result = await res.json();
         setValidationResult(result);
+
+        if (result.valid) {
+          toast.success("✅ All seeds are valid. Ready to generate!");
+        } else {
+          toast.error("❌ Seed validation failed");
+        }
+
+        if (result.warnings && result.warnings.length > 0) {
+          result.warnings.forEach((warning: string) => {
+            toast.warning(`⚠️ ${warning}`);
+          });
+        }
       } catch (err) {
         console.error("Validation failed:", err);
         toast.error("Validation error occurred");
@@ -255,12 +267,6 @@ export default function Generator() {
       }
 
       setFile(selectedFile);
-
-      if (selectedPipeline) {
-        await validateSeeds(seeds);
-      } else {
-        setValidationResult(null);
-      }
     } catch (e) {
       toast.error(
         e instanceof Error
@@ -467,7 +473,7 @@ export default function Generator() {
               style={{ display: "none" }}
             />
 
-            <Box sx={{ color: "fg.muted" }}>
+            <Box sx={{ display: "flex", justifyContent: "center", color: "fg.muted" }}>
               <UploadIcon size={48} />
             </Box>
             <Heading as="h3" sx={{ fontSize: 2, mt: 3, mb: 2, color: "fg.default" }}>
@@ -522,31 +528,22 @@ export default function Generator() {
                 </Box>
               )}
 
-              {!isValidating && validationResult && validationResult.valid && (
-                <Flash variant="success">✅ All seeds are valid. Ready to generate!</Flash>
-              )}
-
               {!isValidating && validationResult && !validationResult.valid && (
-                <Box>
-                  <Flash variant="danger" sx={{ mb: 2 }}>
-                    ❌ Seed validation failed
-                  </Flash>
+                <Box
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    bg: "danger.subtle",
+                    border: "1px solid",
+                    borderColor: "danger.emphasis",
+                  }}
+                >
                   {validationResult.errors.map((error, i) => (
                     <Text key={i} sx={{ fontSize: 1, color: "danger.fg", display: "block", mb: 1 }}>
                       • {error}
                     </Text>
                   ))}
                 </Box>
-              )}
-
-              {!isValidating && validationResult && validationResult.warnings.length > 0 && (
-                <Flash variant="warning" sx={{ mt: validationResult.valid ? 2 : 0 }}>
-                  {validationResult.warnings.map((warning, i) => (
-                    <Text key={i} sx={{ fontSize: 1, display: "block", mb: 1 }}>
-                      ⚠️ {warning}
-                    </Text>
-                  ))}
-                </Flash>
               )}
             </Box>
           )}
