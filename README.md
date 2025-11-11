@@ -89,7 +89,7 @@ Example of JSON extraction pipeline from text:
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Key Concept:** Each block adds data to the **accumulated state**, so subsequent blocks automatically have access to all previous outputs—no manual wiring needed!
+**Key Concept:** Each block adds data to the **accumulated state**, so subsequent blocks automatically have access to all previous outputs-no manual wiring needed!
 
 ---
 
@@ -181,13 +181,13 @@ class SentimentAnalyzerBlock(BaseBlock):
         }
 ```
 
-Drop your file in `user_blocks/` and it's automatically discovered on restart—no configuration needed.
+Drop your file in `user_blocks/` and it's automatically discovered on restart-no configuration needed.
 
 Why this matters:
 - Adapt to your specific domain or workflow instantly
 - Integrate proprietary validation logic or data sources
 - Build reusable components for your team
-- Share blocks as Python files—simple as copy/paste
+- Share blocks as Python files-simple as copy/paste
 
 **Debugging Custom Blocks**
 
@@ -197,7 +197,7 @@ Need to debug your custom block? Use the included `debug_pipeline.py` script wit
 
 #### Accumulated State
 
-Data flows automatically through your pipeline. Each block adds its outputs to an accumulated state that every subsequent block can access—no manual wiring:
+Data flows automatically through your pipeline. Each block adds its outputs to an accumulated state that every subsequent block can access-no manual wiring:
 
 ```
 ┌─────────────────────┐
@@ -213,7 +213,7 @@ Data flows automatically through your pipeline. Each block adds its outputs to a
     All subsequent blocks can access all fields
 ```
 
-This makes building complex pipelines incredibly simple—connect blocks and they automatically share data.
+This makes building complex pipelines incredibly simple-connect blocks and they automatically share data.
 
 ### 3. Review and Refine
 
