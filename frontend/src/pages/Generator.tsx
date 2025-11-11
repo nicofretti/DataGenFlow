@@ -90,7 +90,6 @@ export default function Generator() {
       if (!selectedPipeline) {
         if (mounted) {
           setIsMultiplierPipeline(false);
-          setFile(null);
           setValidationResult(null);
         }
         return;
@@ -131,7 +130,7 @@ export default function Generator() {
       mounted = false;
       controller.abort();
     };
-  }, [selectedPipeline, file]);
+  }, [selectedPipeline]);
 
   useEffect(() => {
     const revalidate = async () => {
