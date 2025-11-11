@@ -141,6 +141,7 @@ export default function Generator() {
       mounted = false;
       controller.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPipeline]);
 
   useEffect(() => {
@@ -301,7 +302,9 @@ export default function Generator() {
 
       if (!res.ok) {
         const error = await res.json();
-        toast.error(`Generation failed: ${error.detail || error.message || "Unknown error occurred."}`);
+        toast.error(
+          `Generation failed: ${error.detail || error.message || "Unknown error occurred."}`
+        );
         return;
       }
 
