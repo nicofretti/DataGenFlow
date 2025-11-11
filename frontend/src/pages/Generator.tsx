@@ -566,12 +566,11 @@ export default function Generator() {
             Configuration
           </Heading>
 
-          <FormControl sx={{ mb: 4 }} required>
+          <FormControl sx={{ mb: 4 }} required disabled={generating}>
             <FormControl.Label>Pipeline</FormControl.Label>
             <Select
               value={selectedPipeline?.toString() || ""}
               onChange={(e) => setSelectedPipeline(Number(e.target.value) || null)}
-              disabled={generating}
             >
               <Select.Option value="">Select a pipeline...</Select.Option>
               {pipelines.map((pipeline) => (

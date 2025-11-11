@@ -213,7 +213,7 @@ export default function Pipelines() {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
               gap: 3,
             }}
           >
@@ -242,10 +242,11 @@ export default function Pipelines() {
                   {template.description}
                 </Text>
 
-                <Box sx={{ display: "flex", gap: 2 }}>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                   <Button
                     variant="default"
-                    sx={{ flex: 1 }}
+                    size="small"
+                    sx={{ flex: "1 1 auto", minWidth: "120px" }}
                     onClick={() => createFromTemplate(template.id)}
                   >
                     Use Template
@@ -253,7 +254,9 @@ export default function Pipelines() {
                   {template.example_seed && (
                     <Button
                       variant="default"
+                      size="small"
                       leadingVisual={DownloadIcon}
+                      sx={{ flex: "1 1 auto", minWidth: "140px" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         downloadExampleSeed(template);
