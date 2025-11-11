@@ -42,3 +42,6 @@ llm/*.*
 website/node_modules/
 website/dist/
 website/public/**
+
+*storybook.log
+storybook-static

@@ -17,6 +17,7 @@ import { useJob } from "../contexts/JobContext";
 import type { Pipeline } from "../types";
 import { getElapsedTime } from "../utils/format";
 import { getStatusColor } from "../utils/status";
+import { toast } from "sonner";
 
 interface SeedData {
   repetitions?: number;
@@ -30,7 +31,6 @@ export default function Generator() {
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
   const [isMultiplierPipeline, setIsMultiplierPipeline] = useState(false);
@@ -60,7 +60,7 @@ export default function Generator() {
 
         if (!res.ok) {
           console.error("Validation request failed:", res.status);
-          setMessage({ type: "error", text: "Failed to validate seeds" });
+          toast.error("Failed to validate seeds");
           setValidationResult(null);
           return;
         }
@@ -69,7 +69,7 @@ export default function Generator() {
         setValidationResult(result);
       } catch (err) {
         console.error("Validation failed:", err);
-        setMessage({ type: "error", text: "Validation error occurred" });
+        toast.error("Validation error occurred");
         setValidationResult(null);
       } finally {
         setIsValidating(false);
@@ -111,7 +111,6 @@ export default function Generator() {
           if ((isMultiplier && isJson) || (!isMultiplier && isMarkdown)) {
             setFile(null);
             setValidationResult(null);
-            setMessage(null);
           }
         }
 
@@ -202,7 +201,7 @@ export default function Generator() {
         }
       } else {
         const expected = isMultiplierPipeline ? "Markdown (.md) file" : "JSON (.json) file";
-        setMessage({ type: "error", text: `Please drop a ${expected}` });
+        toast.error(`Please drop a ${expected}`);
       }
     }
   };
@@ -215,33 +214,23 @@ export default function Generator() {
     const isJson = selectedFile.name.endsWith(".json");
 
     if (isMultiplierPipeline && isJson) {
-      setMessage({
-        type: "error",
-        text: "Please upload a Markdown (.md) file for this pipeline.",
-      });
+      toast.error("Please upload a Markdown (.md) file for this pipeline.");
       return;
     }
 
     if (!isMultiplierPipeline && isMarkdown) {
-      setMessage({
-        type: "error",
-        text: "Please upload a JSON (.json) file for this pipeline.",
-      });
+      toast.error("Please upload a JSON (.json) file for this pipeline.");
       return;
     }
 
     if (isMarkdown) {
       const text = await selectedFile.text();
       if (!text.trim()) {
-        setMessage({
-          type: "error",
-          text: "Empty file: The markdown file is empty.",
-        });
+        toast.error("Empty file: The markdown file is empty.");
         return;
       }
 
       setFile(selectedFile);
-      setMessage(null);
       setValidationResult(null);
       return;
     }
@@ -252,25 +241,20 @@ export default function Generator() {
 
       const seeds = Array.isArray(data) ? data : [data];
       if (seeds.length === 0) {
-        setMessage({
-          type: "error",
-          text: "Empty file: The file contains no seeds. Please add at least one seed with metadata.",
-        });
+        toast.error(
+          "Empty file: The file contains no seeds. Please add at least one seed with metadata."
+        );
         return;
       }
 
       for (let i = 0; i < seeds.length; i++) {
         if (!seeds[i].metadata) {
-          setMessage({
-            type: "error",
-            text: `Invalid seed: Seed ${i + 1} is missing the required 'metadata' field.`,
-          });
+          toast.error(`Invalid seed: Seed ${i + 1} is missing the required 'metadata' field.`);
           return;
         }
       }
 
       setFile(selectedFile);
-      setMessage(null);
 
       if (selectedPipeline) {
         await validateSeeds(seeds);
@@ -278,13 +262,11 @@ export default function Generator() {
         setValidationResult(null);
       }
     } catch (e) {
-      setMessage({
-        type: "error",
-        text:
-          e instanceof Error
-            ? `Invalid JSON: ${e.message}`
-            : "The file is not valid JSON. Please check your file syntax.",
-      });
+      toast.error(
+        e instanceof Error
+          ? `Invalid JSON: ${e.message}`
+          : "The file is not valid JSON. Please check your file syntax."
+      );
       setValidationResult(null);
     }
   };
@@ -293,15 +275,13 @@ export default function Generator() {
     if (!file || !selectedPipeline) return;
 
     if (generating) {
-      setMessage({
-        type: "error",
-        text: "Job already running: A generation job is already in progress. Cancel it first or wait for completion.",
-      });
+      toast.error(
+        "Job already running: A generation job is already in progress. Cancel it first or wait for completion."
+      );
       return;
     }
 
     setGenerating(true);
-    setMessage(null);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -315,10 +295,7 @@ export default function Generator() {
 
       if (!res.ok) {
         const error = await res.json();
-        setMessage({
-          type: "error",
-          text: `Generation failed: ${error.detail || "Failed to start generation. Please try again."}`,
-        });
+        toast.error(`Generation failed: ${error.detail || error.message || "Unknown error occurred."}`);
         return;
       }
 
@@ -329,13 +306,8 @@ export default function Generator() {
       const job = await jobRes.json();
       setCurrentJob(job);
     } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? `Network error: ${error.message}`
-            : "Failed to connect to server. Please check your connection.",
-      });
+      const message = error instanceof Error ? error.message : "Network error occurred";
+      toast.error(`Generation failed: ${message}`);
     } finally {
       // always reset generating if there's no active job
       if (!currentJob || currentJob.status !== "running") {
@@ -351,9 +323,9 @@ export default function Generator() {
       await fetch(`/api/jobs/${currentJob.id}`, { method: "DELETE" });
       setCurrentJob(null);
       setGenerating(false);
-      setMessage({ type: "success", text: "Job cancelled" });
+      toast.success("Job cancelled successfully");
     } catch (error) {
-      setMessage({ type: "error", text: `Failed to cancel: ${error}` });
+      toast.error(`Failed to cancel: ${error}`);
     }
   };
 
@@ -366,12 +338,6 @@ export default function Generator() {
           multiple times based on repetitions.
         </Text>
       </Box>
-
-      {message && (
-        <Flash variant={message.type === "error" ? "danger" : "success"} sx={{ mb: 3 }}>
-          {message.text}
-        </Flash>
-      )}
 
       {/* Job Progress Section */}
       {currentJob && (

@@ -14,7 +14,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import "../../styles/pipeline-editor.css";
-import { Box, Button, Flash, Text, TextInput, useTheme } from "@primer/react";
+import { Box, Text, TextInput, useTheme } from "@primer/react";
 import { XIcon, ZapIcon } from "@primer/octicons-react";
 
 import BlockPalette from "./BlockPalette";
@@ -28,6 +28,8 @@ import {
   convertToPipelineFormat,
   convertFromPipelineFormat,
 } from "./utils";
+import { toast } from "sonner";
+import { Button } from "../ui/button";
 
 // define node types outside component to prevent recreation
 const nodeTypes: NodeTypes = {
@@ -81,7 +83,6 @@ export default function PipelineEditor({
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [pipelineName, setPipelineName] = useState(initialPipelineName);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const { theme } = useTheme();
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
 
@@ -273,7 +274,7 @@ export default function PipelineEditor({
           setNodes([startNode, endNode]);
         }
       } catch (error) {
-        setMessage({ type: "error", text: `Failed to load blocks: ${error}` });
+        toast.error(`Failed to load blocks: ${error}`);
       }
     }
     fetchBlocks();
@@ -443,7 +444,6 @@ export default function PipelineEditor({
   // handle save
   const handleSave = async () => {
     setSaving(true);
-    setMessage(null);
 
     try {
       // validation: check pipeline name
@@ -506,9 +506,9 @@ export default function PipelineEditor({
 
       const pipeline = convertToPipelineFormat(nodes, edges);
       await onSave({ name: pipelineName, ...pipeline });
-      setMessage({ type: "success", text: "Pipeline saved successfully!" });
+      toast.success("Pipeline saved successfully");
     } catch (error) {
-      setMessage({ type: "error", text: `Failed to save: ${error}` });
+      toast.error(`Failed to save pipeline: ${error}`);
     } finally {
       setSaving(false);
     }
@@ -588,20 +588,11 @@ export default function PipelineEditor({
 
         <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
           {/* Auto-layout button */}
-          <Button
-            onClick={handleAutoLayout}
-            disabled={nodes.length < 2}
-            variant="invisible"
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-            }}
-          >
+          <Button onClick={handleAutoLayout} disabled={nodes.length < 2} variant="ghost">
             <ZapIcon size={16} />
             Auto-layout
           </Button>
-          <Button onClick={handleSave} disabled={saving} variant="primary">
+          <Button onClick={handleSave} disabled={saving} variant="default">
             {saving ? "Saving..." : "Save Pipeline"}
           </Button>
           <Button onClick={onClose}>
@@ -609,13 +600,6 @@ export default function PipelineEditor({
           </Button>
         </Box>
       </Box>
-
-      {/* Message */}
-      {message && (
-        <Box sx={{ p: 2 }}>
-          <Flash variant={message.type === "error" ? "danger" : "success"}>{message.text}</Flash>
-        </Box>
-      )}
 
       {/* Main content */}
       <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
