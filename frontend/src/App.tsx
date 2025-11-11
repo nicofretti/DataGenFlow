@@ -8,6 +8,7 @@ import Pipelines from "./pages/Pipelines";
 import GlobalJobIndicator from "./components/GlobalJobIndicator";
 import { JobProvider } from "./contexts/JobContext";
 import { useTheme as shadcnUseTheme, ThemeProvider as ShadcnThemeProvider } from "next-themes";
+import { Toaster } from "./components/ui/sonner";
 
 // context to control navigation visibility
 const NavigationContext = createContext<{
@@ -150,6 +151,7 @@ export default function App() {
 
   const [hideNavigation, setHideNavigation] = useState(false);
 
+  // @todo: remove primer in favor of shadcn themes
   return (
     <ShadcnThemeProvider
       defaultTheme="system"
@@ -163,6 +165,7 @@ export default function App() {
             <NavigationContext.Provider value={{ hideNavigation, setHideNavigation }}>
               <Navigation />
             </NavigationContext.Provider>
+            <Toaster />
           </JobProvider>
         </BrowserRouter>
       </ThemeProvider>

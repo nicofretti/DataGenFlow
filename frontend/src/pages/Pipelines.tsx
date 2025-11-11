@@ -13,7 +13,6 @@ import {
 import PipelineEditor from "../components/pipeline-editor/PipelineEditor";
 import { useNavigation } from "../App";
 import type { Pipeline, Template } from "../types";
-import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
 export default function Pipelines() {
@@ -184,7 +183,6 @@ export default function Pipelines() {
         </Box>
       </Box>
 
-      <Toaster />
       {/* Templates Section */}
       {templates.length > 0 && (
         <Box sx={{ mb: 4 }}>

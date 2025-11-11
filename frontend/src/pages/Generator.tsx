@@ -17,7 +17,6 @@ import { useJob } from "../contexts/JobContext";
 import type { Pipeline } from "../types";
 import { getElapsedTime } from "../utils/format";
 import { getStatusColor } from "../utils/status";
-import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
 export default function Generator() {
@@ -391,8 +390,6 @@ export default function Generator() {
           </Button>
         </Box>
       </Box>
-
-      <Toaster />
     </Box>
   );
 }

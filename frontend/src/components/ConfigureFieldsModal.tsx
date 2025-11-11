@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Box, Heading, Text, Button } from "@primer/react";
 import { ChevronUpIcon, ChevronDownIcon, XIcon } from "@primer/octicons-react";
 import { toast } from "sonner";
-import { Toaster } from "./ui/sonner";
 
 interface ConfigureFieldsModalProps {
   pipelineId: number;
@@ -342,8 +341,6 @@ export default function ConfigureFieldsModal({
           </Box>
           <Button leadingVisual={XIcon} onClick={onClose} aria-label="Close" />
         </Box>
-
-        <Toaster />
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mb: 4 }}>
           {renderFieldList(
