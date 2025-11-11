@@ -31,7 +31,6 @@
     "react-router-dom": "^6.26.0",
     "reactflow": "^11.11.4",
     "sonner": "^2.0.7",
-    "storybook": "^10.0.6",
     "styled-components": "^5.3.11",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.17"
@@ -39,6 +38,7 @@
   "devDependencies": {
     "@storybook/addon-styling-webpack": "^2.0.0",
     "@storybook/react-vite": "^10.0.6",
+    "storybook": "^10.0.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@typescript-eslint/eslint-plugin": "^8.46.0",

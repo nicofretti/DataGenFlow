@@ -140,7 +140,7 @@ export default function Generator() {
 
       if (!res.ok) {
         const error = await res.json();
-        toast.error(`Generation failed: ${error.message || "Unknown error occurred."}`);
+        toast.error(`Generation failed: ${error.detail || error.message || "Unknown error occurred."}`);
         return;
       }
 
@@ -151,7 +151,8 @@ export default function Generator() {
       const job = await jobRes.json();
       setCurrentJob(job);
     } catch (error) {
-      toast.error(`Generation failed: ${error}`);
+      const message = error instanceof Error ? error.message : "Network error occurred";
+      toast.error(`Generation failed: ${message}`);
     } finally {
       // always reset generating if there's no active job
       if (!currentJob || currentJob.status !== "running") {

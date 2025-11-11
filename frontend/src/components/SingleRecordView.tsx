@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { Box, Text, Button, Label, Textarea, Flash } from "@primer/react";
+import { Box, Text, Button, Label, Textarea } from "@primer/react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -439,9 +439,20 @@ export default function SingleRecordView({
                       )}
                     </Box>
                     {step.error && (
-                      <Flash variant="danger" sx={{ mb: 2, fontSize: 0 }}>
+                      <Box
+                        sx={{
+                          mb: 2,
+                          fontSize: 0,
+                          p: 2,
+                          bg: "danger.subtle",
+                          border: "1px solid",
+                          borderColor: "danger.muted",
+                          borderRadius: 2,
+                          color: "danger.fg",
+                        }}
+                      >
                         {step.error}
-                      </Flash>
+                      </Box>
                     )}
                     <Box
                       sx={{
