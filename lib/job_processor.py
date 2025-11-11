@@ -63,6 +63,7 @@ def _run_job_async(
         try:
             loop.run_until_complete(loop.shutdown_asyncgens())
         except Exception:
+            # if shutting down async generators fails, ignore and proceed to close
             pass
         loop.close()
 

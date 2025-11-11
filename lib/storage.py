@@ -254,7 +254,6 @@ class Storage:
 
         async def _update(db: Connection) -> bool:
             cursor = await db.execute(f"UPDATE records SET {set_clause} WHERE id = ?", values)
-            # autocommit: no explicit commit needed
             return cursor.rowcount > 0
 
         return await self._execute_with_connection(_update)
@@ -299,7 +298,6 @@ class Storage:
 
         async def _update(db: Connection) -> bool:
             cursor = await db.execute(f"UPDATE records SET {set_clause} WHERE id = ?", values)
-            # autocommit: no explicit commit needed
             return cursor.rowcount > 0
 
         return await self._execute_with_connection(_update)
@@ -307,15 +305,18 @@ class Storage:
     async def delete_all_records(self, job_id: int | None = None) -> int:
         async def _delete(db: Connection) -> int:
             if job_id:
-                cursor = await db.execute("DELETE FROM records WHERE job_id = ?", (job_id,))
-                count = cursor.rowcount
-                # also delete the job
-                await db.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
-                # autocommit: no explicit commit needed
-                return count
+                await db.execute("BEGIN")
+                try:
+                    cursor = await db.execute("DELETE FROM records WHERE job_id = ?", (job_id,))
+                    count = cursor.rowcount
+                    await db.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+                    await db.execute("COMMIT")
+                    return count
+                except Exception:
+                    await db.execute("ROLLBACK")
+                    raise
             else:
                 cursor = await db.execute("DELETE FROM records")
-                # autocommit: no explicit commit needed
                 return cursor.rowcount
 
         return await self._execute_with_connection(_delete)
@@ -354,7 +355,6 @@ class Storage:
                 "INSERT INTO pipelines (name, definition, created_at) VALUES (?, ?, ?)",
                 (name, json.dumps(definition), now),
             )
-            # autocommit: no explicit commit needed
             return cursor.lastrowid if cursor.lastrowid is not None else 0
 
         return await self._execute_with_connection(_save)
@@ -406,7 +406,6 @@ class Storage:
                 "UPDATE pipelines SET name = ?, definition = ? WHERE id = ?",
                 (name, json.dumps(definition), pipeline_id),
             )
-            # autocommit: no explicit commit needed
             return cursor.rowcount > 0
 
         return await self._execute_with_connection(_update)
@@ -419,24 +418,23 @@ class Storage:
                 "UPDATE pipelines SET validation_config = ? WHERE id = ?",
                 (json.dumps(validation_config), pipeline_id),
             )
-            # autocommit: no explicit commit needed
             return cursor.rowcount > 0
 
         return await self._execute_with_connection(_update)
 
     async def delete_pipeline(self, pipeline_id: int) -> bool:
         async def _delete(db: Connection) -> bool:
-            # cascade delete: records -> jobs -> pipeline
-            # delete all records for this pipeline
-            await db.execute("DELETE FROM records WHERE pipeline_id = ?", (pipeline_id,))
-
-            # delete all jobs for this pipeline
-            await db.execute("DELETE FROM jobs WHERE pipeline_id = ?", (pipeline_id,))
-
-            # delete the pipeline
-            cursor = await db.execute("DELETE FROM pipelines WHERE id = ?", (pipeline_id,))
-            # autocommit: no explicit commit needed
-            return cursor.rowcount > 0
+            await db.execute("BEGIN")
+            try:
+                # cascade delete: records -> jobs -> pipeline
+                await db.execute("DELETE FROM records WHERE pipeline_id = ?", (pipeline_id,))
+                await db.execute("DELETE FROM jobs WHERE pipeline_id = ?", (pipeline_id,))
+                cursor = await db.execute("DELETE FROM pipelines WHERE id = ?", (pipeline_id,))
+                await db.execute("COMMIT")
+                return cursor.rowcount > 0
+            except Exception:
+                await db.execute("ROLLBACK")
+                raise
 
         return await self._execute_with_connection(_delete)
 
@@ -449,7 +447,6 @@ class Storage:
                 "VALUES (?, ?, ?, ?, ?)"
             )
             cursor = await db.execute(sql, (pipeline_id, status, total_seeds, now, now))
-            # autocommit: no explicit commit needed
             return cursor.lastrowid if cursor.lastrowid is not None else 0
 
         return await self._execute_with_connection(_create)
@@ -500,24 +497,27 @@ class Storage:
             rows = await cursor.fetchall()
 
             # convert rows to dicts to use .get() method
-            return [
-                {
-                    "id": (row_dict := dict(row))["id"],
-                    "pipeline_id": row_dict["pipeline_id"],
-                    "status": row_dict["status"],
-                    "total_seeds": row_dict["total_seeds"],
-                    "current_seed": row_dict.get("current_seed", 0),
-                    "records_generated": row_dict["records_generated"],
-                    "records_failed": row_dict["records_failed"],
-                    "progress": row_dict.get("progress", 0.0),
-                    "current_block": row_dict.get("current_block"),
-                    "current_step": row_dict.get("current_step"),
-                    "started_at": row_dict["started_at"],
-                    "completed_at": row_dict["completed_at"],
-                    "created_at": row_dict.get("created_at"),
-                }
-                for row in rows
-            ]
+            result = []
+            for row in rows:
+                row_dict = dict(row)
+                result.append(
+                    {
+                        "id": row_dict["id"],
+                        "pipeline_id": row_dict["pipeline_id"],
+                        "status": row_dict["status"],
+                        "total_seeds": row_dict["total_seeds"],
+                        "current_seed": row_dict.get("current_seed", 0),
+                        "records_generated": row_dict["records_generated"],
+                        "records_failed": row_dict["records_failed"],
+                        "progress": row_dict.get("progress", 0.0),
+                        "current_block": row_dict.get("current_block"),
+                        "current_step": row_dict.get("current_step"),
+                        "started_at": row_dict["started_at"],
+                        "completed_at": row_dict["completed_at"],
+                        "created_at": row_dict.get("created_at"),
+                    }
+                )
+            return result
 
         return await self._execute_with_connection(_list)
 

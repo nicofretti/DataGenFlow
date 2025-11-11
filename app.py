@@ -53,6 +53,58 @@ async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
 
+def _validate_seed_structure(seed: dict[str, Any]) -> tuple[bool, bool, int]:
+    """check seed structure and repetitions.
+
+    returns (has_structure_error, has_repetition_error, zero_rep_count)
+    """
+    if not isinstance(seed, dict):
+        return (True, False, 0)
+
+    if "metadata" not in seed:
+        return (True, False, 0)
+
+    if not isinstance(seed["metadata"], dict):
+        return (True, False, 0)
+
+    repetitions = seed.get("repetitions", 1)
+    if repetitions == 0:
+        return (False, False, 1)
+    if not isinstance(repetitions, int) or repetitions < 0:
+        return (False, True, 0)
+
+    return (False, False, 0)
+
+
+def _validate_seed_fields(seed: dict[str, Any], required_inputs: list[str]) -> set[str]:
+    """return set of missing required fields in seed metadata"""
+    if not isinstance(seed, dict) or "metadata" not in seed:
+        return set()
+
+    metadata = seed["metadata"]
+    if not isinstance(metadata, dict):
+        return set()
+
+    return {field for field in required_inputs if field not in metadata}
+
+
+def _build_validation_errors(
+    structure_err: bool, repetition_err: bool, missing: set[str], block_name: str
+) -> list[str]:
+    """build error messages from validation flags"""
+    errors = []
+    if structure_err:
+        errors.append("Some seeds are not well structured (missing 'metadata' or invalid format)")
+    if repetition_err:
+        errors.append("Some seeds have invalid repetitions (must be positive integer)")
+    if missing:
+        fields_str = ", ".join(f"'{field}'" for field in sorted(missing))
+        errors.append(
+            f"Some seeds missing required field(s): {fields_str} (needed by {block_name} block)"
+        )
+    return errors
+
+
 @api_router.post("/seeds/validate")
 async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
     """validate seeds against pipeline's first block requirements"""
@@ -64,67 +116,30 @@ async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
     if not blocks:
         raise HTTPException(status_code=400, detail="pipeline has no blocks")
 
-    first_block_def = blocks[0]
-    block_class = registry.get_block_class(first_block_def["type"])
+    block_class = registry.get_block_class(blocks[0]["type"])
     if not block_class:
-        raise HTTPException(
-            status_code=400, detail=f"block type '{first_block_def['type']}' not found"
-        )
+        raise HTTPException(status_code=400, detail=f"block type '{blocks[0]['type']}' not found")
 
-    required_inputs = block_class.get_required_fields(first_block_def.get("config", {}))
-
-    has_structure_errors = False
-    has_repetition_errors = False
-    zero_repetition_count = 0
-    all_missing_fields = set()
+    required_inputs = block_class.get_required_fields(blocks[0].get("config", {}))
+    structure_err, repetition_err, zero_count, missing_fields = False, False, 0, set()
 
     for seed in request.seeds:
-        if not isinstance(seed, dict):
-            has_structure_errors = True
-            continue
-
-        if "metadata" not in seed:
-            has_structure_errors = True
-            continue
-
-        metadata = seed["metadata"]
-        if not isinstance(metadata, dict):
-            has_structure_errors = True
-            continue
-
-        repetitions = seed.get("repetitions", 1)
-        if repetitions == 0:
-            zero_repetition_count += 1
-        elif not isinstance(repetitions, int) or repetitions < 0:
-            has_repetition_errors = True
-
-        missing_fields = [field for field in required_inputs if field not in metadata]
-        if missing_fields:
-            all_missing_fields.update(missing_fields)
-
-    errors = []
-    warnings = []
-
-    if has_structure_errors:
-        errors.append(
-            "Some seeds are not well structured (missing 'metadata' or invalid format)"
+        s_err, r_err, z_count = _validate_seed_structure(seed)
+        structure_err, repetition_err, zero_count = (
+            structure_err or s_err,
+            repetition_err or r_err,
+            zero_count + z_count,
         )
+        missing_fields.update(_validate_seed_fields(seed, required_inputs))
 
-    if has_repetition_errors:
-        errors.append("Some seeds have invalid repetitions (must be positive integer)")
-
-    if all_missing_fields:
-        fields_str = ", ".join(f"'{field}'" for field in sorted(all_missing_fields))
-        errors.append(
-            f"Some seeds missing required field(s): {fields_str} "
-            f"(needed by {block_class.name} block)"
-        )
-
-    if zero_repetition_count > 0:
-        warnings.append(
-            f"{zero_repetition_count} seed(s) have repetitions=0 (will not generate records)"
-        )
-
+    errors = _build_validation_errors(
+        structure_err, repetition_err, missing_fields, block_class.name
+    )
+    warnings = (
+        [f"{zero_count} seed(s) have repetitions=0 (will not generate records)"]
+        if zero_count > 0
+        else []
+    )
     return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
 
 
@@ -183,88 +198,89 @@ async def generate_from_file(
     return {"total": total, "success": success, "failed": failed}
 
 
+async def _parse_markdown_file(content: bytes) -> tuple[list[dict[str, Any]], int]:
+    """parse markdown file and return seeds and total samples"""
+    markdown_content = content.decode("utf-8")
+    if not markdown_content.strip():
+        raise HTTPException(status_code=400, detail="Markdown file is empty")
+    seeds = [{"repetitions": 1, "metadata": {"file_content": markdown_content}}]
+    return seeds, 1
+
+
+async def _parse_json_file(content: bytes) -> tuple[list[dict[str, Any]], int]:
+    """parse and validate json seed file, return seeds and total samples"""
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"The JSON file is invalid: {str(e)}. Please check your file syntax.",
+        )
+
+    if not isinstance(data, (list, dict)):
+        raise HTTPException(
+            status_code=400, detail="The JSON file must contain an object or an array of objects."
+        )
+
+    seeds = data if isinstance(data, list) else [data]
+    for i, seed in enumerate(seeds):
+        if not isinstance(seed, dict):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Seed {i + 1} must be an object. Please check your file structure.",
+            )
+        if "metadata" not in seed:
+            raise HTTPException(
+                status_code=400, detail=f"Seed {i + 1} is missing the required 'metadata' field."
+            )
+
+    total = sum(
+        seed.get("repetitions", 1) if isinstance(seed.get("repetitions", 1), int) else 1
+        for seed in seeds
+    )
+    return seeds, total
+
+
+async def _create_temp_seed_file(
+    seeds: list[dict[str, Any]], content: bytes, is_markdown: bool, pipeline_id: int
+) -> Path:
+    """create temp file with seed data and return path"""
+    import os
+
+    file_suffix = ".md" if is_markdown else ".json"
+    fd, tmp_path = tempfile.mkstemp(suffix=file_suffix, prefix=f"seed_{pipeline_id}_")
+    try:
+        os.write(fd, json.dumps(seeds).encode("utf-8") if is_markdown else content)
+        os.close(fd)
+        return Path(tmp_path)
+    except Exception:
+        os.close(fd)
+        raise
+
+
 @api_router.post("/generate")
-async def generate(
-    file: UploadFile = File(...), pipeline_id: int = Form(...)
-) -> dict[str, Any]:
+async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -> dict[str, Any]:
     """start a new background job for pipeline execution from seed file"""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
     is_markdown = file.filename.endswith(".md")
-    is_json = file.filename.endswith(".json")
+    if not is_markdown and not file.filename.endswith(".json"):
+        raise HTTPException(status_code=400, detail="Only .json or .md files are accepted")
 
-    if not is_markdown and not is_json:
-        raise HTTPException(
-            status_code=400, detail="Only .json or .md files are accepted"
-        )
-
-    # check if there's already an active job
     active_job = job_queue.get_active_job()
     if active_job:
-        detail_msg = f"Job {active_job['id']} is already running. Cancel it first or wait for completion."
-        raise HTTPException(status_code=409, detail=detail_msg)
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job {active_job['id']} is already running. "
+            "Cancel it first or wait for completion.",
+        )
 
     content = await file.read()
-
-    if is_markdown:
-        markdown_content = content.decode("utf-8")
-        if not markdown_content.strip():
-            raise HTTPException(status_code=400, detail="Markdown file is empty")
-
-        seeds = [{"repetitions": 1, "metadata": {"file_content": markdown_content}}]
-        total_samples = 1
-        file_suffix = ".md"
-    else:
-        try:
-            data = json.loads(content)
-        except json.JSONDecodeError as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"The JSON file is invalid: {str(e)}. Please check your file syntax.",
-            )
-
-        if not isinstance(data, (list, dict)):
-            raise HTTPException(
-                status_code=400,
-                detail="The JSON file must contain an object or an array of objects.",
-            )
-
-        seeds = data if isinstance(data, list) else [data]
-
-        for i, seed in enumerate(seeds):
-            if not isinstance(seed, dict):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Seed {i + 1} must be an object. Please check your file structure.",
-                )
-            if "metadata" not in seed:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Seed {i + 1} is missing the required 'metadata' field.",
-                )
-
-        def get_repetitions(seed: dict[str, Any]) -> int:
-            reps = seed.get("repetitions", 1)
-            return reps if isinstance(reps, int) else 1
-
-        total_samples = sum(get_repetitions(seed) for seed in seeds)
-        file_suffix = ".json"
-
-    fd, tmp_path = tempfile.mkstemp(suffix=file_suffix, prefix=f"seed_{pipeline_id}_")
-    tmp_file = Path(tmp_path)
-    try:
-        import os
-
-        # job processor requires JSON format for all seeds
-        if is_markdown:
-            os.write(fd, json.dumps(seeds).encode("utf-8"))
-        else:
-            os.write(fd, content)
-        os.close(fd)
-    except Exception:
-        os.close(fd)
-        raise
+    seeds, total_samples = await (
+        _parse_markdown_file(content) if is_markdown else _parse_json_file(content)
+    )
+    tmp_file = await _create_temp_seed_file(seeds, content, is_markdown, pipeline_id)
 
     job_id = await storage.create_job(pipeline_id, total_samples, status="running")
     job_queue.create_job(job_id, pipeline_id, total_samples, status="running")
@@ -356,9 +372,7 @@ async def update_record(record_id: int, update: RecordUpdate) -> dict[str, bool]
     # separate standard fields from accumulated_state field updates
     standard_fields = {"output", "status", "metadata"}
     standard_updates = {k: v for k, v in updates.items() if k in standard_fields}
-    accumulated_state_updates = {
-        k: v for k, v in updates.items() if k not in standard_fields
-    }
+    accumulated_state_updates = {k: v for k, v in updates.items() if k not in standard_fields}
 
     # if there are accumulated_state field updates, handle them specially
     if accumulated_state_updates:
@@ -439,9 +453,7 @@ async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
 
 
 @api_router.put("/pipelines/{pipeline_id}")
-async def update_pipeline(
-    pipeline_id: int, pipeline_data: dict[str, Any]
-) -> dict[str, Any]:
+async def update_pipeline(pipeline_id: int, pipeline_data: dict[str, Any]) -> dict[str, Any]:
     name = pipeline_data.get("name")
     blocks = pipeline_data.get("blocks")
 
@@ -456,9 +468,7 @@ async def update_pipeline(
 
 
 @api_router.post("/pipelines/{pipeline_id}/execute", response_model=None)
-async def execute_pipeline(
-    pipeline_id: int, data: dict[str, Any]
-) -> dict[str, Any] | JSONResponse:
+async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, Any] | JSONResponse:
     try:
         pipeline_data = await storage.get_pipeline(pipeline_id)
         if not pipeline_data:
@@ -472,19 +482,13 @@ async def execute_pipeline(
         raise
     except BlockNotFoundError as e:
         logger.error(f"BlockNotFoundError in pipeline {pipeline_id}: {e.message}")
-        return JSONResponse(
-            status_code=400, content={"error": e.message, "detail": e.detail}
-        )
+        return JSONResponse(status_code=400, content={"error": e.message, "detail": e.detail})
     except (BlockExecutionError, ValidationError) as e:
         logger.error(f"{e.__class__.__name__} in pipeline {pipeline_id}: {e.message}")
-        return JSONResponse(
-            status_code=400, content={"error": e.message, "detail": e.detail}
-        )
+        return JSONResponse(status_code=400, content={"error": e.message, "detail": e.detail})
     except Exception as e:
         logger.exception(f"Unexpected error executing pipeline {pipeline_id}")
-        return JSONResponse(
-            status_code=500, content={"error": f"Unexpected error: {str(e)}"}
-        )
+        return JSONResponse(status_code=500, content={"error": f"Unexpected error: {str(e)}"})
 
 
 @api_router.get("/pipelines/{pipeline_id}/accumulated_state_schema")
@@ -522,9 +526,7 @@ async def update_validation_config(
         )
 
     # update database
-    success = await storage.update_pipeline_validation_config(
-        pipeline_id, validation_config
-    )
+    success = await storage.update_pipeline_validation_config(pipeline_id, validation_config)
     if not success:
         raise HTTPException(status_code=404, detail="pipeline not found")
 

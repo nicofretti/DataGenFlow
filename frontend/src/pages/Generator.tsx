@@ -18,6 +18,11 @@ import type { Pipeline } from "../types";
 import { getElapsedTime } from "../utils/format";
 import { getStatusColor } from "../utils/status";
 
+interface SeedData {
+  repetitions?: number;
+  metadata: Record<string, unknown>;
+}
+
 export default function Generator() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,7 +42,7 @@ export default function Generator() {
   const [isValidating, setIsValidating] = useState(false);
 
   const validateSeeds = useCallback(
-    async (seedsData: any[]) => {
+    async (seedsData: SeedData[]) => {
       if (!selectedPipeline) {
         return;
       }
@@ -54,13 +59,17 @@ export default function Generator() {
         });
 
         if (!res.ok) {
+          console.error("Validation request failed:", res.status);
+          setMessage({ type: "error", text: "Failed to validate seeds" });
           setValidationResult(null);
           return;
         }
 
         const result = await res.json();
         setValidationResult(result);
-      } catch {
+      } catch (err) {
+        console.error("Validation failed:", err);
+        setMessage({ type: "error", text: "Validation error occurred" });
         setValidationResult(null);
       } finally {
         setIsValidating(false);
@@ -74,18 +83,27 @@ export default function Generator() {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let mounted = true;
+
     const fetchPipelineDetails = async () => {
       if (!selectedPipeline) {
-        setIsMultiplierPipeline(false);
-        setFile(null);
-        setValidationResult(null);
+        if (mounted) {
+          setIsMultiplierPipeline(false);
+          setFile(null);
+          setValidationResult(null);
+        }
         return;
       }
 
       try {
-        const res = await fetch(`/api/pipelines/${selectedPipeline}`);
+        const res = await fetch(`/api/pipelines/${selectedPipeline}`, {
+          signal: controller.signal,
+        });
         const data = await res.json();
         const isMultiplier = data.first_block_is_multiplier || false;
+
+        if (!mounted) return;
 
         if (file) {
           const isMarkdown = file.name.endsWith(".md");
@@ -99,12 +117,20 @@ export default function Generator() {
         }
 
         setIsMultiplierPipeline(isMultiplier);
-      } catch {
-        setIsMultiplierPipeline(false);
+      } catch (err) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          console.error("Failed to load pipeline details:", err);
+          if (mounted) setIsMultiplierPipeline(false);
+        }
       }
     };
 
     fetchPipelineDetails();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, [selectedPipeline, file]);
 
   useEffect(() => {
@@ -123,7 +149,8 @@ export default function Generator() {
       }
     };
     revalidate();
-  }, [selectedPipeline, file, validateSeeds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPipeline, file]);
 
   // update generating state based on job status
   useEffect(() => {

@@ -28,6 +28,8 @@ import RecordDetailsModal from "../components/RecordDetailsModal";
 import { useJob } from "../contexts/JobContext";
 import type { RecordData, Pipeline, Job } from "../types";
 
+const POLL_INTERVAL_MS = 2000;
+
 export default function Review() {
   const { currentJob } = useJob();
   const [records, setRecords] = useState<RecordData[]>([]);
@@ -70,8 +72,9 @@ export default function Review() {
       const res = await fetch("/api/pipelines");
       const data = await res.json();
       setPipelines(data);
-    } catch {
-      // do nothing
+    } catch (err) {
+      console.error("Failed to load pipelines:", err);
+      // pipelines filter is optional, continue without it
     }
   }, []);
 
@@ -83,8 +86,9 @@ export default function Review() {
       if (!data.validation_config) {
         setShowConfigModal(true);
       }
-    } catch {
-      // do nothing
+    } catch (err) {
+      console.error("Failed to load pipeline details:", err);
+      // pipeline details are optional, continue without them
     }
   }, []);
 
@@ -94,8 +98,9 @@ export default function Review() {
       const data = await res.json();
       const jobsWithRecords = data.filter((job: Job) => job.records_generated > 0);
       setJobs(jobsWithRecords);
-    } catch {
-      // do nothing
+    } catch (err) {
+      console.error("Failed to load jobs:", err);
+      // jobs filter is optional, continue without it
     }
   }, []);
 
@@ -218,16 +223,24 @@ export default function Review() {
       return;
     }
 
-    loadRecords();
-    loadStats();
+    let mounted = true;
 
-    const interval = setInterval(() => {
-      loadRecords();
-      loadStats();
-    }, 2000);
+    const poll = () => {
+      if (mounted) {
+        loadRecords();
+        loadStats();
+      }
+    };
 
-    return () => clearInterval(interval);
-  }, [currentJob, selectedPipeline, loadRecords, loadStats]);
+    poll();
+    const interval = setInterval(poll, POLL_INTERVAL_MS);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentJob, selectedPipeline]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
