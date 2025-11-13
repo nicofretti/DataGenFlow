@@ -76,7 +76,7 @@ class StructuredGenerator(BaseBlock):
             messages=messages,
             temperature=self.temperature,
             max_tokens=self.max_tokens,
-            response_format=response_format
+            response_format=response_format,
         )
 
         logger.info(f"Calling LiteLLM with model={llm_params.get('model')}")

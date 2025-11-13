@@ -40,7 +40,7 @@ const PROVIDER_DEFAULTS: Record<
   },
 };
 
-export default function EmbeddingModelFormModal({ isOpen, onClose, onSave, initialData }: Props) {
+export default function EmbeddingFormModal({ isOpen, onClose, onSave, initialData }: Props) {
   const [name, setName] = useState("");
   const [provider, setProvider] = useState<LLMProvider>("openai");
   const [endpoint, setEndpoint] = useState("");
@@ -134,13 +134,13 @@ export default function EmbeddingModelFormModal({ isOpen, onClose, onSave, initi
 
   return (
     <Dialog isOpen={isOpen} onDismiss={handleClose} sx={{ width: "600px" }}>
-      <Dialog.Header>
+      <Dialog.Header sx={{ color: "fg.default" }}>
         {initialData ? "Edit Embedding Model" : "Add Embedding Model"}
       </Dialog.Header>
 
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 3, bg: "canvas.default" }}>
         <FormControl required sx={{ mb: 3 }}>
-          <FormControl.Label>Name</FormControl.Label>
+          <FormControl.Label sx={{ color: "fg.default" }}>Name</FormControl.Label>
           <TextInput
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -151,11 +151,13 @@ export default function EmbeddingModelFormModal({ isOpen, onClose, onSave, initi
           {errors.name && (
             <FormControl.Validation variant="error">{errors.name}</FormControl.Validation>
           )}
-          <FormControl.Caption>unique identifier for this model</FormControl.Caption>
+          <FormControl.Caption sx={{ color: "fg.muted" }}>
+            unique identifier for this model
+          </FormControl.Caption>
         </FormControl>
 
         <FormControl required sx={{ mb: 3 }}>
-          <FormControl.Label>Provider</FormControl.Label>
+          <FormControl.Label sx={{ color: "fg.default" }}>Provider</FormControl.Label>
           <Select
             value={provider}
             onChange={(e) => handleProviderChange(e.target.value as LLMProvider)}
@@ -170,7 +172,7 @@ export default function EmbeddingModelFormModal({ isOpen, onClose, onSave, initi
         </FormControl>
 
         <FormControl required sx={{ mb: 3 }}>
-          <FormControl.Label>Endpoint URL</FormControl.Label>
+          <FormControl.Label sx={{ color: "fg.default" }}>Endpoint URL</FormControl.Label>
           <TextInput
             value={endpoint}
             onChange={(e) => setEndpoint(e.target.value)}
@@ -183,7 +185,7 @@ export default function EmbeddingModelFormModal({ isOpen, onClose, onSave, initi
         </FormControl>
 
         <FormControl required={provider !== "ollama"} sx={{ mb: 3 }}>
-          <FormControl.Label>API Key</FormControl.Label>
+          <FormControl.Label sx={{ color: "fg.default" }}>API Key</FormControl.Label>
           <TextInput
             type="password"
             value={apiKey}
@@ -195,12 +197,14 @@ export default function EmbeddingModelFormModal({ isOpen, onClose, onSave, initi
             <FormControl.Validation variant="error">{errors.apiKey}</FormControl.Validation>
           )}
           {provider === "ollama" && (
-            <FormControl.Caption>ollama doesn't require an api key</FormControl.Caption>
+            <FormControl.Caption sx={{ color: "fg.muted" }}>
+              ollama doesn't require an api key
+            </FormControl.Caption>
           )}
         </FormControl>
 
         <FormControl required sx={{ mb: 3 }}>
-          <FormControl.Label>Model Name</FormControl.Label>
+          <FormControl.Label sx={{ color: "fg.default" }}>Model Name</FormControl.Label>
           <TextInput
             value={modelName}
             onChange={(e) => setModelName(e.target.value)}
@@ -210,13 +214,13 @@ export default function EmbeddingModelFormModal({ isOpen, onClose, onSave, initi
           {errors.modelName && (
             <FormControl.Validation variant="error">{errors.modelName}</FormControl.Validation>
           )}
-          <FormControl.Caption>
+          <FormControl.Caption sx={{ color: "fg.muted" }}>
             {provider === "ollama" ? "e.g., nomic-embed-text" : "the model identifier"}
           </FormControl.Caption>
         </FormControl>
 
         <FormControl sx={{ mb: 3 }}>
-          <FormControl.Label>Dimensions (optional)</FormControl.Label>
+          <FormControl.Label sx={{ color: "fg.default" }}>Dimensions (optional)</FormControl.Label>
           <TextInput
             type="number"
             value={dimensions}
@@ -227,7 +231,9 @@ export default function EmbeddingModelFormModal({ isOpen, onClose, onSave, initi
           {errors.dimensions && (
             <FormControl.Validation variant="error">{errors.dimensions}</FormControl.Validation>
           )}
-          <FormControl.Caption>vector dimensionality</FormControl.Caption>
+          <FormControl.Caption sx={{ color: "fg.muted" }}>
+            vector dimensionality
+          </FormControl.Caption>
         </FormControl>
 
         <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end", mt: 4 }}>

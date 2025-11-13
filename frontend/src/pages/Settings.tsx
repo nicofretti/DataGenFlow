@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import { Box, Heading, Text, Button, IconButton } from "@primer/react";
-import { PlusIcon, TrashIcon, PencilIcon, CheckCircleIcon, XCircleIcon } from "@primer/octicons-react";
+import { Box, Heading, Text, Button, IconButton, Spinner } from "@primer/react";
+import {
+  PlusIcon,
+  TrashIcon,
+  PencilIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+} from "@primer/octicons-react";
 import { toast } from "sonner";
 import type { LLMModelConfig, EmbeddingModelConfig } from "../types";
 import { llmConfigApi } from "../services/llmConfigApi";
-import LLMModelFormModal from "../components/settings/LLMModelFormModal";
-import EmbeddingModelFormModal from "../components/settings/EmbeddingModelFormModal";
+import LLMFormModal from "../components/settings/LLMFormModal";
+import EmbeddingFormModal from "../components/settings/EmbeddingFormModal";
 
 export default function Settings() {
   const [llmModels, setLlmModels] = useState<LLMModelConfig[]>([]);
@@ -133,7 +139,7 @@ export default function Settings() {
   };
 
   return (
-    <Box sx={{ p: 4, maxWidth: 1200, mx: "auto" }}>
+    <Box>
       <Heading sx={{ mb: 4, color: "fg.default" }}>Settings</Heading>
 
       {/* llm models section */}
@@ -158,27 +164,38 @@ export default function Settings() {
           </Button>
         </Box>
 
-        <Box sx={{ border: "1px solid", borderColor: "border.default", borderRadius: 2, bg: "canvas.subtle" }}>
-          {llmModels.length === 0 ? (
-            <Box sx={{ p: 4, textAlign: "center" }}>
-              <Text sx={{ color: "fg.muted" }}>no llm models configured</Text>
-            </Box>
-          ) : (
-            llmModels.map((model) => (
+        {llmModels.length === 0 ? (
+          <Box
+            sx={{
+              p: 4,
+              textAlign: "center",
+              border: "1px solid",
+              borderColor: "border.default",
+              borderRadius: 2,
+              bg: "canvas.subtle",
+            }}
+          >
+            <Text sx={{ color: "fg.muted" }}>no llm models configured</Text>
+          </Box>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {llmModels.map((model) => (
               <Box
                 key={model.name}
                 sx={{
                   p: 3,
-                  borderBottom: "1px solid",
+                  border: "1px solid",
                   borderColor: "border.default",
-                  "&:last-child": { borderBottom: "none" },
-                  bg: "canvas.default",
+                  borderRadius: 2,
+                  bg: "canvas.subtle",
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "start", justifyContent: "space-between" }}>
                   <Box sx={{ flex: 1 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
-                      <Text sx={{ fontWeight: "bold", fontSize: 2, color: "fg.default" }}>{model.name}</Text>
+                      <Text sx={{ fontWeight: "bold", fontSize: 2, color: "fg.default" }}>
+                        {model.name}
+                      </Text>
                       <Box
                         sx={{
                           px: 2,
@@ -208,21 +225,41 @@ export default function Settings() {
                         </Box>
                       )}
                     </Box>
-                    <Text sx={{ fontSize: 1, color: "fg.muted", mb: 1 }}>
-                      model: {model.model_name}
-                    </Text>
-                    <Text sx={{ fontSize: 1, color: "fg.muted", fontFamily: "mono" }}>
-                      {model.endpoint}
-                    </Text>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 1 }}>
+                      <Text sx={{ fontSize: 1, color: "fg.muted", mb: 1 }}>
+                        model: {model.model_name}
+                      </Text>
+                      <Text sx={{ fontSize: 1, color: "fg.muted", fontFamily: "mono" }}>
+                        {model.endpoint}
+                      </Text>
+                    </Box>
                   </Box>
 
                   <Box sx={{ display: "flex", gap: 2 }}>
                     <Button
                       size="small"
+                      variant="outline"
                       onClick={() => handleTestLlm(model)}
                       disabled={testingLlm === model.name}
+                      sx={{
+                        color: testingLlm === model.name ? "fg.muted" : "success.fg",
+                        borderColor:
+                          testingLlm === model.name ? "border.default" : "success.emphasis",
+                        "&:hover:not(:disabled)": {
+                          bg: "success.subtle",
+                          borderColor: "success.emphasis",
+                          color: "success.fg",
+                        },
+                      }}
                     >
-                      {testingLlm === model.name ? "testing..." : "test"}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        {testingLlm === model.name ? (
+                          <Spinner size="small" />
+                        ) : (
+                          <CheckCircleIcon size={16} />
+                        )}
+                        <Text>{testingLlm === model.name ? "testing..." : "test"}</Text>
+                      </Box>
                     </Button>
                     <IconButton
                       icon={PencilIcon}
@@ -243,9 +280,9 @@ export default function Settings() {
                   </Box>
                 </Box>
               </Box>
-            ))
-          )}
-        </Box>
+            ))}
+          </Box>
+        )}
       </Box>
 
       {/* embedding models section */}
@@ -270,27 +307,38 @@ export default function Settings() {
           </Button>
         </Box>
 
-        <Box sx={{ border: "1px solid", borderColor: "border.default", borderRadius: 2, bg: "canvas.subtle" }}>
-          {embeddingModels.length === 0 ? (
-            <Box sx={{ p: 4, textAlign: "center" }}>
-              <Text sx={{ color: "fg.muted" }}>no embedding models configured</Text>
-            </Box>
-          ) : (
-            embeddingModels.map((model) => (
+        {embeddingModels.length === 0 ? (
+          <Box
+            sx={{
+              p: 4,
+              textAlign: "center",
+              border: "1px solid",
+              borderColor: "border.default",
+              borderRadius: 2,
+              bg: "canvas.subtle",
+            }}
+          >
+            <Text sx={{ color: "fg.muted" }}>no embedding models configured</Text>
+          </Box>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {embeddingModels.map((model) => (
               <Box
                 key={model.name}
                 sx={{
                   p: 3,
-                  borderBottom: "1px solid",
+                  border: "1px solid",
                   borderColor: "border.default",
-                  "&:last-child": { borderBottom: "none" },
-                  bg: "canvas.default",
+                  borderRadius: 2,
+                  bg: "canvas.subtle",
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "start", justifyContent: "space-between" }}>
                   <Box sx={{ flex: 1 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
-                      <Text sx={{ fontWeight: "bold", fontSize: 2, color: "fg.default" }}>{model.name}</Text>
+                      <Text sx={{ fontWeight: "bold", fontSize: 2, color: "fg.default" }}>
+                        {model.name}
+                      </Text>
                       <Box
                         sx={{
                           px: 2,
@@ -317,10 +365,28 @@ export default function Settings() {
                   <Box sx={{ display: "flex", gap: 2 }}>
                     <Button
                       size="small"
+                      variant="outline"
                       onClick={() => handleTestEmbedding(model)}
                       disabled={testingEmbedding === model.name}
+                      sx={{
+                        color: testingEmbedding === model.name ? "fg.muted" : "success.fg",
+                        borderColor:
+                          testingEmbedding === model.name ? "border.default" : "success.emphasis",
+                        "&:hover:not(:disabled)": {
+                          bg: "success.subtle",
+                          borderColor: "success.emphasis",
+                          color: "success.fg",
+                        },
+                      }}
                     >
-                      {testingEmbedding === model.name ? "testing..." : "test"}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        {testingEmbedding === model.name ? (
+                          <Spinner size="small" />
+                        ) : (
+                          <CheckCircleIcon size={16} />
+                        )}
+                        <Text>{testingEmbedding === model.name ? "testing..." : "test"}</Text>
+                      </Box>
                     </Button>
                     <IconButton
                       icon={PencilIcon}
@@ -341,14 +407,14 @@ export default function Settings() {
                   </Box>
                 </Box>
               </Box>
-            ))
-          )}
-        </Box>
+            ))}
+          </Box>
+        )}
       </Box>
 
       {/* modals */}
       {llmModalOpen && (
-        <LLMModelFormModal
+        <LLMFormModal
           isOpen={llmModalOpen}
           onClose={() => {
             setLlmModalOpen(false);
@@ -360,7 +426,7 @@ export default function Settings() {
       )}
 
       {embeddingModalOpen && (
-        <EmbeddingModelFormModal
+        <EmbeddingFormModal
           isOpen={embeddingModalOpen}
           onClose={() => {
             setEmbeddingModalOpen(false);

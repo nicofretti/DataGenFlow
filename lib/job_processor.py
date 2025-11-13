@@ -198,10 +198,11 @@ async def _process_job(
 
                 except Exception as e:
                     records_failed += 1
+                    error_msg = str(e)
                     logger.error(f"[Job {job_id}] Execution {execution_index} failed: {e}")
 
                     await _update_job_status(
-                        job_queue, storage, job_id, records_failed=records_failed
+                        job_queue, storage, job_id, records_failed=records_failed, error=error_msg
                     )
 
                     continue

@@ -1,7 +1,14 @@
 import { useState, createContext, useContext } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
 import { Box, IconButton, ThemeProvider, useTheme, Heading, Text } from "@primer/react";
-import { SunIcon, MoonIcon, BeakerIcon, ChecklistIcon, WorkflowIcon, GearIcon } from "@primer/octicons-react";
+import {
+  SunIcon,
+  MoonIcon,
+  BeakerIcon,
+  ChecklistIcon,
+  WorkflowIcon,
+  GearIcon,
+} from "@primer/octicons-react";
 import Generator from "./pages/Generator";
 import Review from "./pages/Review";
 import Pipelines from "./pages/Pipelines";
@@ -163,7 +170,7 @@ export default function App() {
       storageKey="colorMode"
     >
       <ThemeProvider colorMode={colorMode}>
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <JobProvider>
             <NavigationContext.Provider value={{ hideNavigation, setHideNavigation }}>
               <Navigation />

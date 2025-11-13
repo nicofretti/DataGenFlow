@@ -51,6 +51,7 @@ class Storage:
                     progress REAL DEFAULT 0.0,
                     current_block TEXT,
                     current_step TEXT,
+                    error TEXT,
                     started_at TIMESTAMP NOT NULL,
                     completed_at TIMESTAMP,
                     created_at TIMESTAMP NOT NULL,
@@ -163,6 +164,9 @@ class Storage:
 
         if "created_at" not in job_column_names:
             await db.execute("ALTER TABLE jobs ADD COLUMN created_at TIMESTAMP")
+
+        if "error" not in job_column_names:
+            await db.execute("ALTER TABLE jobs ADD COLUMN error TEXT")
 
     async def _migrate_env_to_db(self, db: Connection) -> None:
         """migrate .env config to database if no models configured"""
@@ -532,6 +536,7 @@ class Storage:
                 "progress": row_dict.get("progress", 0.0),
                 "current_block": row_dict.get("current_block"),
                 "current_step": row_dict.get("current_step"),
+                "error": row_dict.get("error"),
                 "started_at": row_dict["started_at"],
                 "completed_at": row_dict["completed_at"],
                 "created_at": row_dict.get("created_at"),
@@ -572,6 +577,7 @@ class Storage:
                         "progress": row_dict.get("progress", 0.0),
                         "current_block": row_dict.get("current_block"),
                         "current_step": row_dict.get("current_step"),
+                        "error": row_dict.get("error"),
                         "started_at": row_dict["started_at"],
                         "completed_at": row_dict["completed_at"],
                         "created_at": row_dict.get("created_at"),
@@ -595,6 +601,7 @@ class Storage:
             "progress",
             "current_block",
             "current_step",
+            "error",
             "completed_at",
         }
         update_fields = {k: v for k, v in updates.items() if k in valid_fields}
@@ -619,6 +626,7 @@ class Storage:
 
     async def list_llm_models(self) -> list[dict[str, Any]]:
         """list all configured llm models"""
+
         async def _list(db: Connection) -> list[dict[str, Any]]:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM llm_models")
@@ -629,6 +637,7 @@ class Storage:
 
     async def get_llm_model(self, name: str) -> dict[str, Any] | None:
         """get llm model config by name"""
+
         async def _get(db: Connection) -> dict[str, Any] | None:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM llm_models WHERE name = ?", (name,))
@@ -639,6 +648,7 @@ class Storage:
 
     async def save_llm_model(self, config: dict[str, Any]) -> None:
         """create or update llm model config (upsert)"""
+
         async def _save(db: Connection) -> None:
             await db.execute(
                 """
@@ -663,6 +673,7 @@ class Storage:
 
     async def delete_llm_model(self, name: str) -> bool:
         """delete llm model config"""
+
         async def _delete(db: Connection) -> bool:
             cursor = await db.execute("DELETE FROM llm_models WHERE name = ?", (name,))
             return cursor.rowcount > 0
@@ -671,6 +682,7 @@ class Storage:
 
     async def list_embedding_models(self) -> list[dict[str, Any]]:
         """list all configured embedding models"""
+
         async def _list(db: Connection) -> list[dict[str, Any]]:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM embedding_models")
@@ -681,6 +693,7 @@ class Storage:
 
     async def get_embedding_model(self, name: str) -> dict[str, Any] | None:
         """get embedding model config by name"""
+
         async def _get(db: Connection) -> dict[str, Any] | None:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM embedding_models WHERE name = ?", (name,))
@@ -691,6 +704,7 @@ class Storage:
 
     async def save_embedding_model(self, config: dict[str, Any]) -> None:
         """create or update embedding model config (upsert)"""
+
         async def _save(db: Connection) -> None:
             await db.execute(
                 """
@@ -717,6 +731,7 @@ class Storage:
 
     async def delete_embedding_model(self, name: str) -> bool:
         """delete embedding model config"""
+
         async def _delete(db: Connection) -> bool:
             cursor = await db.execute("DELETE FROM embedding_models WHERE name = ?", (name,))
             return cursor.rowcount > 0

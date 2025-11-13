@@ -65,10 +65,7 @@ class TextGenerator(BaseBlock):
         # get llm config and prepare call
         llm_config = await _llm_config_manager.get_llm_model(self.model_name)
         llm_params = _llm_config_manager.prepare_llm_call(
-            llm_config,
-            messages=messages,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens
+            llm_config, messages=messages, temperature=self.temperature, max_tokens=self.max_tokens
         )
 
         logger.info(f"Calling LiteLLM with model={llm_params.get('model')}")

@@ -20,11 +20,13 @@ logger = logging.getLogger(__name__)
 
 class LLMConfigError(PipelineError):
     """base exception for llm config errors"""
+
     pass
 
 
 class LLMConfigNotFoundError(LLMConfigError):
     """raised when requested model config doesn't exist"""
+
     pass
 
 
@@ -48,8 +50,7 @@ class LLMConfigManager:
             if config_dict:
                 return LLMModelConfig(**config_dict)
             raise LLMConfigNotFoundError(
-                f"llm model '{name}' not found",
-                detail={"requested_name": name}
+                f"llm model '{name}' not found", detail={"requested_name": name}
             )
 
         # try default model
@@ -70,12 +71,12 @@ class LLMConfigManager:
                 provider=provider,
                 endpoint=settings.LLM_ENDPOINT,
                 api_key=settings.LLM_API_KEY if settings.LLM_API_KEY else None,
-                model_name=settings.LLM_MODEL
+                model_name=settings.LLM_MODEL,
             )
 
         raise LLMConfigNotFoundError(
             "no llm models configured and no .env fallback available",
-            detail={"checked": ["database", "env"]}
+            detail={"checked": ["database", "env"]},
         )
 
     async def list_llm_models(self) -> list[LLMModelConfig]:
@@ -91,10 +92,7 @@ class LLMConfigManager:
         """delete llm model config"""
         success = await self.storage.delete_llm_model(name)
         if not success:
-            raise LLMConfigNotFoundError(
-                f"llm model '{name}' not found",
-                detail={"name": name}
-            )
+            raise LLMConfigNotFoundError(f"llm model '{name}' not found", detail={"name": name})
 
     async def test_llm_connection(self, config: LLMModelConfig) -> ConnectionTestResult:
         """test llm connection with simple prompt
@@ -107,21 +105,17 @@ class LLMConfigManager:
                 config,
                 messages=[{"role": "user", "content": "Say hello"}],
                 max_tokens=10,
-                timeout=10
+                timeout=10,
             )
             await litellm.acompletion(**llm_params)
             latency_ms = int((time.time() - start_time) * 1000)
             return ConnectionTestResult(
-                success=True,
-                message="connection successful",
-                latency_ms=latency_ms
+                success=True, message="connection successful", latency_ms=latency_ms
             )
         except Exception as e:
             latency_ms = int((time.time() - start_time) * 1000)
             return ConnectionTestResult(
-                success=False,
-                message=f"connection failed: {str(e)}",
-                latency_ms=latency_ms
+                success=False, message=f"connection failed: {str(e)}", latency_ms=latency_ms
             )
 
     async def get_embedding_model(self, name: str | None = None) -> EmbeddingModelConfig:
@@ -137,8 +131,7 @@ class LLMConfigManager:
             if config_dict:
                 return EmbeddingModelConfig(**config_dict)
             raise LLMConfigNotFoundError(
-                f"embedding model '{name}' not found",
-                detail={"requested_name": name}
+                f"embedding model '{name}' not found", detail={"requested_name": name}
             )
 
         # try default model
@@ -152,8 +145,7 @@ class LLMConfigManager:
             return EmbeddingModelConfig(**all_models[0])
 
         raise LLMConfigNotFoundError(
-            "no embedding models configured",
-            detail={"checked": ["database"]}
+            "no embedding models configured", detail={"checked": ["database"]}
         )
 
     async def list_embedding_models(self) -> list[EmbeddingModelConfig]:
@@ -170,8 +162,7 @@ class LLMConfigManager:
         success = await self.storage.delete_embedding_model(name)
         if not success:
             raise LLMConfigNotFoundError(
-                f"embedding model '{name}' not found",
-                detail={"name": name}
+                f"embedding model '{name}' not found", detail={"name": name}
             )
 
     async def test_embedding_connection(self, config: EmbeddingModelConfig) -> ConnectionTestResult:
@@ -188,16 +179,12 @@ class LLMConfigManager:
             await litellm.aembedding(**embedding_params)
             latency_ms = int((time.time() - start_time) * 1000)
             return ConnectionTestResult(
-                success=True,
-                message="connection successful",
-                latency_ms=latency_ms
+                success=True, message="connection successful", latency_ms=latency_ms
             )
         except Exception as e:
             latency_ms = int((time.time() - start_time) * 1000)
             return ConnectionTestResult(
-                success=False,
-                message=f"connection failed: {str(e)}",
-                latency_ms=latency_ms
+                success=False, message=f"connection failed: {str(e)}", latency_ms=latency_ms
             )
 
     def prepare_llm_call(self, config: LLMModelConfig, **litellm_params) -> dict[str, Any]:
@@ -223,7 +210,9 @@ class LLMConfigManager:
 
         return params
 
-    def _prepare_embedding_call(self, config: EmbeddingModelConfig, input_text: str) -> dict[str, Any]:
+    def _prepare_embedding_call(
+        self, config: EmbeddingModelConfig, input_text: str
+    ) -> dict[str, Any]:
         """convert embedding config to litellm parameters
 
         uses same provider-specific logic as prepare_llm_call

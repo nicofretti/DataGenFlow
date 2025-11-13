@@ -1,8 +1,4 @@
-import type {
-  ConnectionTestResult,
-  EmbeddingModelConfig,
-  LLMModelConfig,
-} from "../types";
+import type { ConnectionTestResult, EmbeddingModelConfig, LLMModelConfig } from "../types";
 
 const API_BASE = "/api";
 
