@@ -1,13 +1,23 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from lib.blocks.builtin.text_generator import TextGenerator
+from models import LLMModelConfig, LLMProvider
 
 
 @pytest.mark.asyncio
 @patch("litellm.acompletion")
-async def test_text_generator_basic(mock_completion):
+@patch("app.llm_config_manager")
+async def test_text_generator_basic(mock_config_manager, mock_completion):
+    mock_config_manager.get_llm_model = AsyncMock(
+        return_value=LLMModelConfig(
+            name="test", provider=LLMProvider.OPENAI, endpoint="http://test", model_name="gpt-4"
+        )
+    )
+    mock_config_manager.prepare_llm_call = MagicMock(
+        return_value={"model": "gpt-4", "messages": []}
+    )
     mock_completion.return_value = MagicMock(
         choices=[MagicMock(message=MagicMock(content="Generated text"))]
     )
@@ -23,7 +33,16 @@ async def test_text_generator_basic(mock_completion):
 
 @pytest.mark.asyncio
 @patch("litellm.acompletion")
-async def test_text_generator_with_prompts(mock_completion):
+@patch("app.llm_config_manager")
+async def test_text_generator_with_prompts(mock_config_manager, mock_completion):
+    mock_config_manager.get_llm_model = AsyncMock(
+        return_value=LLMModelConfig(
+            name="test", provider=LLMProvider.OPENAI, endpoint="http://test", model_name="gpt-4"
+        )
+    )
+    mock_config_manager.prepare_llm_call = MagicMock(
+        return_value={"model": "gpt-4", "messages": []}
+    )
     mock_completion.return_value = MagicMock(
         choices=[MagicMock(message=MagicMock(content="Response"))]
     )

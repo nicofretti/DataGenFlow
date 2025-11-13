@@ -187,7 +187,7 @@ class LLMConfigManager:
                 success=False, message=f"connection failed: {str(e)}", latency_ms=latency_ms
             )
 
-    def prepare_llm_call(self, config: LLMModelConfig, **litellm_params) -> dict[str, Any]:
+    def prepare_llm_call(self, config: LLMModelConfig, **litellm_params: Any) -> dict[str, Any]:
         """convert config to litellm parameters based on provider
 
         ollama needs special handling because litellm expects "ollama/" prefix

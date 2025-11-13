@@ -36,9 +36,10 @@ export function JobProvider({ children }: { children: ReactNode }) {
     // polling starts when:
     // 1. no job exists (null) - to detect when new jobs are created
     // 2. new running job appears with different ID - to track new job progress
+    const currentJobState = currentJobRef.current;
     const shouldPoll =
-      !currentJob || // no job - poll to detect new ones
-      (currentJob.status === "running" && pollingJobIdRef.current !== currentJob.id); // new running job
+      !currentJobState || // no job - poll to detect new ones
+      (currentJobState.status === "running" && pollingJobIdRef.current !== currentJobState.id); // new running job
 
     if (!shouldPoll) {
       // don't poll if job is completed/failed/cancelled and we're already tracking it
@@ -46,8 +47,8 @@ export function JobProvider({ children }: { children: ReactNode }) {
     }
 
     // mark this job as being polled to prevent duplicate intervals
-    if (currentJob) {
-      pollingJobIdRef.current = currentJob.id;
+    if (currentJobState) {
+      pollingJobIdRef.current = currentJobState.id;
     }
 
     let isStopped = false;
@@ -113,7 +114,8 @@ export function JobProvider({ children }: { children: ReactNode }) {
       isStopped = true;
       clearInterval(interval);
     };
-  }, [currentJob?.id, currentJob?.status]);
+  }, [currentJob?.id, currentJob?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Intentionally not including full currentJob to avoid re-running on every state update
 
   // refresh job status manually
   const refreshJob = async () => {

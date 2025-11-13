@@ -103,6 +103,7 @@ export default function LLMFormModal({ isOpen, onClose, onSave, initialData }: P
       handleClose();
     } catch (error) {
       // error handled by parent
+      console.error(error);
     } finally {
       setSaving(false);
     }
@@ -184,7 +185,7 @@ export default function LLMFormModal({ isOpen, onClose, onSave, initialData }: P
           )}
           {provider === "ollama" && (
             <FormControl.Caption sx={{ color: "fg.muted" }}>
-              ollama doesn't require an api key
+              ollama doesn&#39;t require an api key
             </FormControl.Caption>
           )}
         </FormControl>

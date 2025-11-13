@@ -1,20 +1,17 @@
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import litellm
 from jinja2 import Environment, meta
 
 from lib.blocks.base import BaseBlock
-from lib.llm_config import LLMConfigManager
-from lib.storage import Storage
 from lib.template_renderer import render_template
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    pass
 
-# module-level instances to avoid recreating on each block execution
-_storage = Storage()
-_llm_config_manager = LLMConfigManager(_storage)
+logger = logging.getLogger(__name__)
 
 
 class StructuredGenerator(BaseBlock):
@@ -48,6 +45,9 @@ class StructuredGenerator(BaseBlock):
         self.user_prompt = user_prompt
 
     async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        # late import to avoid circular dependency
+        from app import llm_config_manager
+
         # use config user_prompt or data user_prompt
         prompt_template = self.user_prompt or data.get(
             "user_prompt", "Generate data according to schema"
@@ -70,8 +70,8 @@ class StructuredGenerator(BaseBlock):
             response_format = {"type": "json_object"}
 
         # get llm config and prepare call
-        llm_config = await _llm_config_manager.get_llm_model(self.model_name)
-        llm_params = _llm_config_manager.prepare_llm_call(
+        llm_config = await llm_config_manager.get_llm_model(self.model_name)
+        llm_params = llm_config_manager.prepare_llm_call(
             llm_config,
             messages=messages,
             temperature=self.temperature,

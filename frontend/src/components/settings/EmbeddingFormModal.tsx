@@ -116,6 +116,7 @@ export default function EmbeddingFormModal({ isOpen, onClose, onSave, initialDat
       handleClose();
     } catch (error) {
       // error handled by parent
+      console.error("Failed to save embedding model config:", error);
     } finally {
       setSaving(false);
     }
@@ -198,7 +199,7 @@ export default function EmbeddingFormModal({ isOpen, onClose, onSave, initialDat
           )}
           {provider === "ollama" && (
             <FormControl.Caption sx={{ color: "fg.muted" }}>
-              ollama doesn't require an api key
+              ollama doesn&#39t require an api key
             </FormControl.Caption>
           )}
         </FormControl>

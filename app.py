@@ -14,7 +14,7 @@ from lib.blocks.registry import registry
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 from lib.job_processor import process_job_in_thread
 from lib.job_queue import JobQueue
-from lib.llm_config import LLMConfigError, LLMConfigManager, LLMConfigNotFoundError
+from lib.llm_config import LLMConfigManager, LLMConfigNotFoundError
 from lib.schema_utils import compute_accumulated_state_schema
 from lib.storage import Storage
 from lib.templates import template_registry
@@ -230,7 +230,8 @@ async def _parse_json_file(content: bytes) -> tuple[list[dict[str, Any]], int]:
 
     if not isinstance(data, (list, dict)):
         raise HTTPException(
-            status_code=400, detail="The JSON file must contain an object or an array of objects."
+            status_code=400,
+            detail="The JSON file must contain an object or an array of objects.",
         )
 
     seeds = data if isinstance(data, list) else [data]
@@ -242,7 +243,8 @@ async def _parse_json_file(content: bytes) -> tuple[list[dict[str, Any]], int]:
             )
         if "metadata" not in seed:
             raise HTTPException(
-                status_code=400, detail=f"Seed {i + 1} is missing the required 'metadata' field."
+                status_code=400,
+                detail=f"Seed {i + 1} is missing the required 'metadata' field.",
             )
 
     total = sum(
@@ -677,7 +679,9 @@ async def delete_embedding_model(name: str) -> dict[str, str]:
 
 
 @api_router.post("/embedding-models/test")
-async def test_embedding_connection(config: EmbeddingModelConfig) -> ConnectionTestResult:
+async def test_embedding_connection(
+    config: EmbeddingModelConfig,
+) -> ConnectionTestResult:
     """test embedding connection"""
     return await llm_config_manager.test_embedding_connection(config)
 

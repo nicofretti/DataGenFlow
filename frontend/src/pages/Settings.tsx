@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { Box, Heading, Text, Button, IconButton, Spinner } from "@primer/react";
-import {
-  PlusIcon,
-  TrashIcon,
-  PencilIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-} from "@primer/octicons-react";
+import { PlusIcon, TrashIcon, PencilIcon, CheckCircleIcon } from "@primer/octicons-react";
 import { toast } from "sonner";
 import type { LLMModelConfig, EmbeddingModelConfig } from "../types";
 import { llmConfigApi } from "../services/llmConfigApi";
@@ -238,7 +232,7 @@ export default function Settings() {
                   <Box sx={{ display: "flex", gap: 2 }}>
                     <Button
                       size="small"
-                      variant="outline"
+                      variant="default"
                       onClick={() => handleTestLlm(model)}
                       disabled={testingLlm === model.name}
                       sx={{
@@ -365,7 +359,7 @@ export default function Settings() {
                   <Box sx={{ display: "flex", gap: 2 }}>
                     <Button
                       size="small"
-                      variant="outline"
+                      variant="default"
                       onClick={() => handleTestEmbedding(model)}
                       disabled={testingEmbedding === model.name}
                       sx={{

@@ -323,7 +323,10 @@ class Storage:
         return await self._execute_with_connection(_update)
 
     async def update_record_accumulated_state(
-        self, record_id: int, accumulated_state_updates: dict[str, Any], **standard_updates: Any
+        self,
+        record_id: int,
+        accumulated_state_updates: dict[str, Any],
+        **standard_updates: Any,
     ) -> bool:
         # first get the record to access its trace
         record = await self.get_by_id(record_id)
@@ -708,7 +711,8 @@ class Storage:
         async def _save(db: Connection) -> None:
             await db.execute(
                 """
-                INSERT INTO embedding_models (name, provider, endpoint, api_key, model_name, dimensions)
+                INSERT INTO embedding_models
+                    (name, provider, endpoint, api_key, model_name, dimensions)
                 VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(name) DO UPDATE SET
                     provider = excluded.provider,
