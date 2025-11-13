@@ -55,3 +55,33 @@ class RecordUpdate(BaseModel):
 class SeedValidationRequest(BaseModel):
     pipeline_id: int
     seeds: list[dict[str, Any]]
+
+
+class LLMProvider(str, Enum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+    OLLAMA = "ollama"
+
+
+class LLMModelConfig(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    provider: LLMProvider
+    endpoint: str = Field(..., min_length=1)
+    api_key: str | None = None
+    model_name: str = Field(..., min_length=1)
+
+
+class EmbeddingModelConfig(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    provider: LLMProvider
+    endpoint: str = Field(..., min_length=1)
+    api_key: str | None = None
+    model_name: str = Field(..., min_length=1)
+    dimensions: int | None = None
+
+
+class ConnectionTestResult(BaseModel):
+    success: bool
+    message: str
+    latency_ms: int | None = None

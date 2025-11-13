@@ -49,7 +49,7 @@ build-ui:
 	cd frontend && yarn build
 
 run: build-ui
-	uv run python app.py --host 0.0.0.0
+	uv run python app.py --host 0.0.0.0:9100
 
 mock-llm:
 	uv run python mock_llm.py
