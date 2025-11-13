@@ -27,7 +27,7 @@ Most templates use a simplified seed format with a `content` field:
 
 ### JSON Extraction
 
-📘 **[Complete Guide](template-json-extraction)** | [View Template](../lib/templates/json_generation.yaml)
+📘 **[Complete Guide](template_json_extraction)** | [View Template](../lib/templates/json_generation.yaml)
 
 **Purpose:** Extract structured information from text content as JSON.
 
@@ -59,7 +59,7 @@ Most templates use a simplified seed format with a `content` field:
 
 ### Text Classification
 
-📘 **[Complete Guide](template-text-classification)** | [View Template](../lib/templates/text_classification.yaml)
+📘 **[Complete Guide](template_text_classification)** | [View Template](../lib/templates/text_classification.yaml)
 
 **Purpose:** Classify text into predefined categories with confidence scores.
 
@@ -96,7 +96,7 @@ Most templates use a simplified seed format with a `content` field:
 
 ### Q&A Generation
 
-📘 **[Complete Guide](template-qa-generation)** | [View Template](../lib/templates/qa_generation.yaml)
+📘 **[Complete Guide](template_qa_generation)** | [View Template](../lib/templates/qa_generation.yaml)
 
 **Purpose:** Generate question-answer pairs from markdown documents. Automatically chunks long documents by structure and generates Q&A pairs for each section.
 
@@ -175,9 +175,9 @@ blocks:
 
 Detailed guides for each template:
 
-- 📘 **[JSON Extraction Template](template-json-extraction)** - Complete guide with examples and customization
-- 📘 **[Text Classification Template](template-text-classification)** - Full configuration reference and use cases
-- 📘 **[Q&A Generation Template](template-qa-generation)** - Advanced usage with markdown file upload
+- 📘 **[JSON Extraction Template](template_json_extraction)** - Complete guide with examples and customization
+- 📘 **[Text Classification Template](template_text_classification)** - Full configuration reference and use cases
+- 📘 **[Q&A Generation Template](template_qa_generation)** - Advanced usage with markdown file upload
 
 ## Related Documentation
 
