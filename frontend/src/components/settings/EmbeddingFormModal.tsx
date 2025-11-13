@@ -199,7 +199,7 @@ export default function EmbeddingFormModal({ isOpen, onClose, onSave, initialDat
           )}
           {provider === "ollama" && (
             <FormControl.Caption sx={{ color: "fg.muted" }}>
-              ollama doesn&#39t require an api key
+              ollama doesn&#39;t require an api key
             </FormControl.Caption>
           )}
         </FormControl>
