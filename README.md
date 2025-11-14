@@ -191,7 +191,7 @@ Why this matters:
 
 **Debugging Custom Blocks**
 
-Need to debug your custom block? Use the included `debug_pipeline.py` script with VS Code debugger. See [Developer Documentation](DEVELOPERS.md#debugging-custom-blocks) for details.
+Need to debug your custom block? Use the included `debug_pipeline.py` script with VS Code debugger. See [Developer Documentation](DEVELOPERS#debugging-custom-blocks) for details.
 
 📚 Complete guide: [Custom Block Development](docs/how_to_create_blocks.md)
 

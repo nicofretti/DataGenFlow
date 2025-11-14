@@ -1,4 +1,16 @@
-# JSON Extraction Template
+---
+title: JSON Extraction Template
+description: Extract structured information from unstructured text
+---
+
+## Table of Contents
+- [Overview](#overview)
+- [Pipeline Architecture](#pipeline-architecture)
+- [Seed Format](#seed-format)
+- [Output Format](#output-format)
+- [Use Cases](#use-cases)
+- [Customization](#customization)
+- [Related Documentation](#related-documentation)
 
 ## Overview
 

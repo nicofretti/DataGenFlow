@@ -1,4 +1,7 @@
-# How to Create Custom Blocks
+---
+title: How to Create Custom Blocks
+description: Extend DataGenFlow with custom blocks for your specific use cases
+---
 
 This guide shows you how to extend DataGenFlow with custom blocks.
 

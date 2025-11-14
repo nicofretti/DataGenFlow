@@ -1,4 +1,19 @@
-# Q&A Generation Template
+---
+title: Q&A Generation Template
+description: Generate question-answer pairs from content
+---
+
+## Table of Contents
+- [Overview](#overview)
+- [Pipeline Architecture](#pipeline-architecture)
+- [Seed Format](#seed-format)
+- [Output Format](#output-format)
+- [Use Cases](#use-cases)
+- [Markdown File Upload Feature](#markdown-file-upload-feature)
+- [Customization](#customization)
+- [Example Workflow](#example-workflow)
+- [Performance Tips](#performance-tips)
+- [Related Documentation](#related-documentation)
 
 ## Overview
 

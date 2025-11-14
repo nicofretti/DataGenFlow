@@ -1,4 +1,18 @@
-# Text Classification Template
+---
+title: Text Classification Template
+description: Classify text into predefined categories with confidence scores
+---
+
+## Table of Contents
+- [Overview](#overview)
+- [Pipeline Architecture](#pipeline-architecture)
+- [Seed Format](#seed-format)
+- [Output Format](#output-format)
+- [Default Categories](#default-categories)
+- [Use Cases](#use-cases)
+- [Customization](#customization)
+- [Common Use Case Examples](#common-use-case-examples)
+- [Related Documentation](#related-documentation)
 
 ## Overview
 
