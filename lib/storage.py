@@ -51,6 +51,7 @@ class Storage:
                     progress REAL DEFAULT 0.0,
                     current_block TEXT,
                     current_step TEXT,
+                    error TEXT,
                     started_at TIMESTAMP NOT NULL,
                     completed_at TIMESTAMP,
                     created_at TIMESTAMP NOT NULL,
@@ -85,9 +86,35 @@ class Storage:
                 CREATE INDEX IF NOT EXISTS idx_created_at ON records(created_at)
             """
             )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS llm_models (
+                    name TEXT PRIMARY KEY,
+                    provider TEXT NOT NULL,
+                    endpoint TEXT NOT NULL,
+                    api_key TEXT,
+                    model_name TEXT NOT NULL
+                )
+            """
+            )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS embedding_models (
+                    name TEXT PRIMARY KEY,
+                    provider TEXT NOT NULL,
+                    endpoint TEXT NOT NULL,
+                    api_key TEXT,
+                    model_name TEXT NOT NULL,
+                    dimensions INTEGER
+                )
+            """
+            )
 
             # migrate existing tables
             await self._migrate_schema(db)
+
+            # auto-migration from .env
+            await self._migrate_env_to_db(db)
 
             await db.commit()
         finally:
@@ -137,6 +164,43 @@ class Storage:
 
         if "created_at" not in job_column_names:
             await db.execute("ALTER TABLE jobs ADD COLUMN created_at TIMESTAMP")
+
+        if "error" not in job_column_names:
+            await db.execute("ALTER TABLE jobs ADD COLUMN error TEXT")
+
+    async def _migrate_env_to_db(self, db: Connection) -> None:
+        """migrate .env config to database if no models configured"""
+        # check if any llm models exist
+        cursor = await db.execute("SELECT COUNT(*) FROM llm_models")
+        count_row = await cursor.fetchone()
+        model_count = count_row[0] if count_row else 0
+
+        if model_count == 0 and settings.LLM_MODEL:
+            # detect provider from endpoint
+            endpoint_lower = settings.LLM_ENDPOINT.lower()
+            if "11434" in endpoint_lower or "ollama" in endpoint_lower:
+                provider = "ollama"
+            elif "anthropic" in endpoint_lower:
+                provider = "anthropic"
+            elif "generativelanguage" in endpoint_lower or "gemini" in endpoint_lower:
+                provider = "gemini"
+            else:
+                provider = "openai"
+
+            # create default model from .env
+            await db.execute(
+                """
+                INSERT INTO llm_models (name, provider, endpoint, api_key, model_name)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    "default",
+                    provider,
+                    settings.LLM_ENDPOINT,
+                    settings.LLM_API_KEY if settings.LLM_API_KEY else None,
+                    settings.LLM_MODEL,
+                ),
+            )
 
     async def _execute_with_connection(self, func: Callable[[Connection], Any]) -> Any:
         if self._conn:
@@ -259,7 +323,10 @@ class Storage:
         return await self._execute_with_connection(_update)
 
     async def update_record_accumulated_state(
-        self, record_id: int, accumulated_state_updates: dict[str, Any], **standard_updates: Any
+        self,
+        record_id: int,
+        accumulated_state_updates: dict[str, Any],
+        **standard_updates: Any,
     ) -> bool:
         # first get the record to access its trace
         record = await self.get_by_id(record_id)
@@ -472,6 +539,7 @@ class Storage:
                 "progress": row_dict.get("progress", 0.0),
                 "current_block": row_dict.get("current_block"),
                 "current_step": row_dict.get("current_step"),
+                "error": row_dict.get("error"),
                 "started_at": row_dict["started_at"],
                 "completed_at": row_dict["completed_at"],
                 "created_at": row_dict.get("created_at"),
@@ -512,6 +580,7 @@ class Storage:
                         "progress": row_dict.get("progress", 0.0),
                         "current_block": row_dict.get("current_block"),
                         "current_step": row_dict.get("current_step"),
+                        "error": row_dict.get("error"),
                         "started_at": row_dict["started_at"],
                         "completed_at": row_dict["completed_at"],
                         "created_at": row_dict.get("created_at"),
@@ -535,6 +604,7 @@ class Storage:
             "progress",
             "current_block",
             "current_step",
+            "error",
             "completed_at",
         }
         update_fields = {k: v for k, v in updates.items() if k in valid_fields}
@@ -556,6 +626,121 @@ class Storage:
         if self._conn:
             await self._conn.close()
             self._conn = None
+
+    async def list_llm_models(self) -> list[dict[str, Any]]:
+        """list all configured llm models"""
+
+        async def _list(db: Connection) -> list[dict[str, Any]]:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM llm_models")
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+        return await self._execute_with_connection(_list)
+
+    async def get_llm_model(self, name: str) -> dict[str, Any] | None:
+        """get llm model config by name"""
+
+        async def _get(db: Connection) -> dict[str, Any] | None:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM llm_models WHERE name = ?", (name,))
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+        return await self._execute_with_connection(_get)
+
+    async def save_llm_model(self, config: dict[str, Any]) -> None:
+        """create or update llm model config (upsert)"""
+
+        async def _save(db: Connection) -> None:
+            await db.execute(
+                """
+                INSERT INTO llm_models (name, provider, endpoint, api_key, model_name)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(name) DO UPDATE SET
+                    provider = excluded.provider,
+                    endpoint = excluded.endpoint,
+                    api_key = excluded.api_key,
+                    model_name = excluded.model_name
+                """,
+                (
+                    config["name"],
+                    config["provider"],
+                    config["endpoint"],
+                    config.get("api_key"),
+                    config["model_name"],
+                ),
+            )
+
+        await self._execute_with_connection(_save)
+
+    async def delete_llm_model(self, name: str) -> bool:
+        """delete llm model config"""
+
+        async def _delete(db: Connection) -> bool:
+            cursor = await db.execute("DELETE FROM llm_models WHERE name = ?", (name,))
+            return cursor.rowcount > 0
+
+        return await self._execute_with_connection(_delete)
+
+    async def list_embedding_models(self) -> list[dict[str, Any]]:
+        """list all configured embedding models"""
+
+        async def _list(db: Connection) -> list[dict[str, Any]]:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM embedding_models")
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+        return await self._execute_with_connection(_list)
+
+    async def get_embedding_model(self, name: str) -> dict[str, Any] | None:
+        """get embedding model config by name"""
+
+        async def _get(db: Connection) -> dict[str, Any] | None:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM embedding_models WHERE name = ?", (name,))
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+        return await self._execute_with_connection(_get)
+
+    async def save_embedding_model(self, config: dict[str, Any]) -> None:
+        """create or update embedding model config (upsert)"""
+
+        async def _save(db: Connection) -> None:
+            await db.execute(
+                """
+                INSERT INTO embedding_models
+                    (name, provider, endpoint, api_key, model_name, dimensions)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(name) DO UPDATE SET
+                    provider = excluded.provider,
+                    endpoint = excluded.endpoint,
+                    api_key = excluded.api_key,
+                    model_name = excluded.model_name,
+                    dimensions = excluded.dimensions
+                """,
+                (
+                    config["name"],
+                    config["provider"],
+                    config["endpoint"],
+                    config.get("api_key"),
+                    config["model_name"],
+                    config.get("dimensions"),
+                ),
+            )
+
+        await self._execute_with_connection(_save)
+
+    async def delete_embedding_model(self, name: str) -> bool:
+        """delete embedding model config"""
+
+        async def _delete(db: Connection) -> bool:
+            cursor = await db.execute("DELETE FROM embedding_models WHERE name = ?", (name,))
+            return cursor.rowcount > 0
+
+        return await self._execute_with_connection(_delete)
 
     def _row_to_record(self, row: aiosqlite.Row) -> Record:
         return Record(

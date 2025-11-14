@@ -6,8 +6,8 @@ Keep everything simple, consistent, and easy to maintain.
 - llm/project_technical_guide.md: used only to track current project status across multiple sessions to avoid re-exploration. Never commit it. You have to update gradually.
 - llm/frontend_technical_guide.md: describes UI design and layout decisions. Never commit it. You have to update gradually.
 - llm/backend_technical_guide.md: describes backend logic and architecture. Never commit it. You have to update gradually.
-- for tasks related to backend ensure to follow the backend-code-guide.md
-- for tasks related to frontend ensure to follow the frontend-code-guide.md
+- for tasks related to backend ensure to follow the backend_code_guide.md
+- for tasks related to frontend ensure to follow the frontend_code_guide.md
 
 ---
 

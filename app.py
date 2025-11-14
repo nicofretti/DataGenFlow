@@ -14,14 +14,25 @@ from lib.blocks.registry import registry
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 from lib.job_processor import process_job_in_thread
 from lib.job_queue import JobQueue
+from lib.llm_config import LLMConfigManager, LLMConfigNotFoundError
 from lib.schema_utils import compute_accumulated_state_schema
 from lib.storage import Storage
 from lib.templates import template_registry
 from lib.workflow import Pipeline as WorkflowPipeline
-from models import Record, RecordStatus, RecordUpdate, SeedInput, SeedValidationRequest
+from models import (
+    ConnectionTestResult,
+    EmbeddingModelConfig,
+    LLMModelConfig,
+    Record,
+    RecordStatus,
+    RecordUpdate,
+    SeedInput,
+    SeedValidationRequest,
+)
 
 storage = Storage()
 job_queue = JobQueue()
+llm_config_manager = LLMConfigManager(storage)
 
 
 def is_multiplier_pipeline(blocks: list[dict[str, Any]]) -> bool:
@@ -219,7 +230,8 @@ async def _parse_json_file(content: bytes) -> tuple[list[dict[str, Any]], int]:
 
     if not isinstance(data, (list, dict)):
         raise HTTPException(
-            status_code=400, detail="The JSON file must contain an object or an array of objects."
+            status_code=400,
+            detail="The JSON file must contain an object or an array of objects.",
         )
 
     seeds = data if isinstance(data, list) else [data]
@@ -231,7 +243,8 @@ async def _parse_json_file(content: bytes) -> tuple[list[dict[str, Any]], int]:
             )
         if "metadata" not in seed:
             raise HTTPException(
-                status_code=400, detail=f"Seed {i + 1} is missing the required 'metadata' field."
+                status_code=400,
+                detail=f"Seed {i + 1} is missing the required 'metadata' field.",
             )
 
     total = sum(
@@ -420,7 +433,22 @@ async def download_export(
 
 @api_router.get("/blocks")
 async def list_blocks() -> list[dict[str, Any]]:
-    return registry.list_blocks()
+    """list all registered blocks with dynamically injected model options"""
+    blocks = registry.list_blocks()
+
+    # get available llm models
+    llm_models = await llm_config_manager.list_llm_models()
+    model_names = [model.name for model in llm_models]
+
+    # inject model options into TextGenerator and StructuredGenerator schemas
+    for block in blocks:
+        if block.get("type") in ["TextGenerator", "StructuredGenerator"]:
+            if "config_schema" in block and "properties" in block["config_schema"]:
+                if "model" in block["config_schema"]["properties"]:
+                    # add enum with available model names
+                    block["config_schema"]["properties"]["model"]["enum"] = model_names
+
+    return blocks
 
 
 @api_router.post("/pipelines")
@@ -548,6 +576,114 @@ async def delete_pipeline(pipeline_id: int) -> dict[str, bool]:
         job_queue.delete_job(job["id"])
 
     return {"success": True}
+
+
+@api_router.get("/llm-models")
+async def list_llm_models() -> list[LLMModelConfig]:
+    """list all configured llm models"""
+    return await llm_config_manager.list_llm_models()
+
+
+@api_router.get("/llm-models/{name}")
+async def get_llm_model(name: str) -> LLMModelConfig:
+    """get llm model config by name"""
+    try:
+        return await llm_config_manager.get_llm_model(name)
+    except LLMConfigNotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
+
+
+@api_router.post("/llm-models")
+async def create_llm_model(config: LLMModelConfig) -> dict[str, str]:
+    """create or update llm model config"""
+    try:
+        await llm_config_manager.save_llm_model(config)
+        return {"message": "llm model saved successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.put("/llm-models/{name}")
+async def update_llm_model(name: str, config: LLMModelConfig) -> dict[str, str]:
+    """update llm model config"""
+    if name != config.name:
+        raise HTTPException(status_code=400, detail="name in path must match name in body")
+    try:
+        await llm_config_manager.save_llm_model(config)
+        return {"message": "llm model updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.delete("/llm-models/{name}")
+async def delete_llm_model(name: str) -> dict[str, str]:
+    """delete llm model config"""
+    try:
+        await llm_config_manager.delete_llm_model(name)
+        return {"message": "llm model deleted successfully"}
+    except LLMConfigNotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
+
+
+@api_router.post("/llm-models/test")
+async def test_llm_connection(config: LLMModelConfig) -> ConnectionTestResult:
+    """test llm connection"""
+    return await llm_config_manager.test_llm_connection(config)
+
+
+@api_router.get("/embedding-models")
+async def list_embedding_models() -> list[EmbeddingModelConfig]:
+    """list all configured embedding models"""
+    return await llm_config_manager.list_embedding_models()
+
+
+@api_router.get("/embedding-models/{name}")
+async def get_embedding_model(name: str) -> EmbeddingModelConfig:
+    """get embedding model config by name"""
+    try:
+        return await llm_config_manager.get_embedding_model(name)
+    except LLMConfigNotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
+
+
+@api_router.post("/embedding-models")
+async def create_embedding_model(config: EmbeddingModelConfig) -> dict[str, str]:
+    """create or update embedding model config"""
+    try:
+        await llm_config_manager.save_embedding_model(config)
+        return {"message": "embedding model saved successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.put("/embedding-models/{name}")
+async def update_embedding_model(name: str, config: EmbeddingModelConfig) -> dict[str, str]:
+    """update embedding model config"""
+    if name != config.name:
+        raise HTTPException(status_code=400, detail="name in path must match name in body")
+    try:
+        await llm_config_manager.save_embedding_model(config)
+        return {"message": "embedding model updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.delete("/embedding-models/{name}")
+async def delete_embedding_model(name: str) -> dict[str, str]:
+    """delete embedding model config"""
+    try:
+        await llm_config_manager.delete_embedding_model(name)
+        return {"message": "embedding model deleted successfully"}
+    except LLMConfigNotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
+
+
+@api_router.post("/embedding-models/test")
+async def test_embedding_connection(
+    config: EmbeddingModelConfig,
+) -> ConnectionTestResult:
+    """test embedding connection"""
+    return await llm_config_manager.test_embedding_connection(config)
 
 
 @api_router.get("/templates")

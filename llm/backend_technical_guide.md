@@ -1,4 +1,4 @@
->!Important
+> **Important**
 > The file should reflect the current backend status for remembering purposes
 > to describe the actual api design, endpoints and implementation decisions. It must be technical and include the minimal number of words
 

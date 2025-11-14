@@ -1,13 +1,23 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from lib.blocks.builtin.structured_generator import StructuredGenerator
+from models import LLMModelConfig, LLMProvider
 
 
 @pytest.mark.asyncio
 @patch("litellm.acompletion")
-async def test_structured_generator(mock_completion):
+@patch("app.llm_config_manager")
+async def test_structured_generator(mock_config_manager, mock_completion):
+    mock_config_manager.get_llm_model = AsyncMock(
+        return_value=LLMModelConfig(
+            name="test", provider=LLMProvider.OPENAI, endpoint="http://test", model_name="gpt-4"
+        )
+    )
+    mock_config_manager.prepare_llm_call = MagicMock(
+        return_value={"model": "gpt-4", "messages": []}
+    )
     # mock response with JSON
     mock_completion.return_value = MagicMock(
         choices=[MagicMock(message=MagicMock(content='{"name": "John", "age": 30}'))]
@@ -29,7 +39,16 @@ async def test_structured_generator(mock_completion):
 
 @pytest.mark.asyncio
 @patch("litellm.acompletion")
-async def test_structured_generator_with_prompt(mock_completion):
+@patch("app.llm_config_manager")
+async def test_structured_generator_with_prompt(mock_config_manager, mock_completion):
+    mock_config_manager.get_llm_model = AsyncMock(
+        return_value=LLMModelConfig(
+            name="test", provider=LLMProvider.OPENAI, endpoint="http://test", model_name="gpt-4"
+        )
+    )
+    mock_config_manager.prepare_llm_call = MagicMock(
+        return_value={"model": "gpt-4", "messages": []}
+    )
     mock_completion.return_value = MagicMock(
         choices=[MagicMock(message=MagicMock(content='{"result": "test"}'))]
     )
@@ -52,8 +71,17 @@ async def test_structured_generator_schema():
 
 @pytest.mark.asyncio
 @patch("litellm.acompletion")
-async def test_structured_generator_with_enum_enforcement(mock_completion):
+@patch("app.llm_config_manager")
+async def test_structured_generator_with_enum_enforcement(mock_config_manager, mock_completion):
     """test that structured generator enforces enum values in schema"""
+    mock_config_manager.get_llm_model = AsyncMock(
+        return_value=LLMModelConfig(
+            name="test", provider=LLMProvider.OPENAI, endpoint="http://test", model_name="gpt-4"
+        )
+    )
+    mock_config_manager.prepare_llm_call = MagicMock(
+        return_value={"model": "gpt-4", "messages": []}
+    )
     # mock response with category from enum
     mock_completion.return_value = MagicMock(
         choices=[MagicMock(message=MagicMock(content='{"category": "positive", "score": 0.9}'))]

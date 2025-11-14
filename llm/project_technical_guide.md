@@ -1,6 +1,6 @@
->!Important
+> **Important**
 > The file should reflect the current status of the project for remembering purposes
-> to describe the actual design, decisions and implementations. It must be tecnical and include the minimal number of words
+> to describe the actual design, decisions and implementations. It must be technical and include the minimal number of words
 
 # technical reference
 

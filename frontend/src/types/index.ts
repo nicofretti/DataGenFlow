@@ -67,3 +67,28 @@ export interface BlockSchema {
   outputs: string[];
   config_schema?: any;
 }
+
+export type LLMProvider = "openai" | "anthropic" | "gemini" | "ollama";
+
+export interface LLMModelConfig {
+  name: string;
+  provider: LLMProvider;
+  endpoint: string;
+  api_key: string | null;
+  model_name: string;
+}
+
+export interface EmbeddingModelConfig {
+  name: string;
+  provider: LLMProvider;
+  endpoint: string;
+  api_key: string | null;
+  model_name: string;
+  dimensions: number | null;
+}
+
+export interface ConnectionTestResult {
+  success: boolean;
+  message: string;
+  latency_ms: number | null;
+}

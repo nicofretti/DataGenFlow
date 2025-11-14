@@ -1,10 +1,18 @@
 import { useState, createContext, useContext } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
 import { Box, IconButton, ThemeProvider, useTheme, Heading, Text } from "@primer/react";
-import { SunIcon, MoonIcon, BeakerIcon, ChecklistIcon, WorkflowIcon } from "@primer/octicons-react";
+import {
+  SunIcon,
+  MoonIcon,
+  BeakerIcon,
+  ChecklistIcon,
+  WorkflowIcon,
+  GearIcon,
+} from "@primer/octicons-react";
 import Generator from "./pages/Generator";
 import Review from "./pages/Review";
 import Pipelines from "./pages/Pipelines";
+import Settings from "./pages/Settings";
 import GlobalJobIndicator from "./components/GlobalJobIndicator";
 import { JobProvider } from "./contexts/JobContext";
 import { useTheme as shadcnUseTheme, ThemeProvider as ShadcnThemeProvider } from "next-themes";
@@ -32,6 +40,7 @@ function Navigation() {
     { path: "/pipelines", label: "Pipelines", icon: WorkflowIcon },
     { path: "/", label: "Generator", icon: BeakerIcon },
     { path: "/review", label: "Review", icon: ChecklistIcon },
+    { path: "/settings", label: "Settings", icon: GearIcon },
   ];
 
   const handleToggleTheme = () => {
@@ -132,6 +141,7 @@ function Navigation() {
             <Route path="/" element={<Generator />} />
             <Route path="/review" element={<Review />} />
             <Route path="/pipelines" element={<Pipelines />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </Box>
       </Box>
@@ -160,7 +170,7 @@ export default function App() {
       storageKey="colorMode"
     >
       <ThemeProvider colorMode={colorMode}>
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <JobProvider>
             <NavigationContext.Provider value={{ hideNavigation, setHideNavigation }}>
               <Navigation />

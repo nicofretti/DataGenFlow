@@ -3,7 +3,7 @@ import asyncio
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
 
-PIPELINE_ID = 33
+PIPELINE_ID = 26
 SEED_DATA = {
     "repetitions": 1,
     "metadata": {

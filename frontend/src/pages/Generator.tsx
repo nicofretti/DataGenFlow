@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Box,
   Heading,
@@ -25,7 +24,6 @@ interface SeedData {
 }
 
 export default function Generator() {
-  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentJob, setCurrentJob } = useJob();
   const [file, setFile] = useState<File | null>(null);
@@ -69,9 +67,9 @@ export default function Generator() {
         setValidationResult(result);
 
         if (result.valid) {
-          toast.success("✅ All seeds are valid. Ready to generate!");
+          toast.success("All seeds are valid. Ready to generate!");
         } else {
-          toast.error("❌ Seed validation failed");
+          toast.error("Seed validation failed");
         }
 
         if (result.warnings && result.warnings.length > 0) {
@@ -305,6 +303,7 @@ export default function Generator() {
         toast.error(
           `Generation failed: ${error.detail || error.message || "Unknown error occurred."}`
         );
+        setGenerating(false);
         return;
       }
 
@@ -314,14 +313,12 @@ export default function Generator() {
       const jobRes = await fetch(`/api/jobs/${job_id}`);
       const job = await jobRes.json();
       setCurrentJob(job);
+
+      // the useEffect will handle setting generating state based on job status
     } catch (error) {
       const message = error instanceof Error ? error.message : "Network error occurred";
       toast.error(`Generation failed: ${message}`);
-    } finally {
-      // always reset generating if there's no active job
-      if (!currentJob || currentJob.status !== "running") {
-        setGenerating(false);
-      }
+      setGenerating(false);
     }
   };
 
@@ -431,12 +428,6 @@ export default function Generator() {
             {currentJob.status === "running" && (
               <Button variant="danger" onClick={handleCancel} leadingVisual={XIcon}>
                 Cancel Job
-              </Button>
-            )}
-
-            {currentJob.status === "completed" && (
-              <Button variant="primary" onClick={() => navigate("/review")}>
-                View Results
               </Button>
             )}
           </Box>

@@ -53,6 +53,6 @@ async def test_workflow_uses_block_configs():
     # verify block was initialized with config
     assert len(pipeline._block_instances) == 1
     block = pipeline._block_instances[0]
-    assert block.model == "llama2"
+    assert block.model_name == "llama2"
     assert block.temperature == 0.9
     assert block.max_tokens == 500

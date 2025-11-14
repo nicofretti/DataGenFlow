@@ -1,12 +1,14 @@
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import litellm
 from jinja2 import Environment, meta
 
-from config import settings
 from lib.blocks.base import BaseBlock
 from lib.template_renderer import render_template
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +21,7 @@ class TextGenerator(BaseBlock):
     outputs = ["assistant", "system", "user"]
 
     _config_descriptions = {
+        "model": "Select LLM model to use (leave empty for default)",
         "system_prompt": (
             "Jinja2 template. Reference fields with {{ field_name }} or {{ metadata.field_name }}"
         ),
@@ -35,32 +38,16 @@ class TextGenerator(BaseBlock):
         system_prompt: str = "",
         user_prompt: str = "",
     ):
-        self.model = model or settings.LLM_MODEL
+        self.model_name = model  # model name or None for default
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
 
-    def _prepare_llm_config(self) -> tuple[str, str, str | None]:
-        """returns (model, api_base, api_key) for litellm"""
-        is_ollama = "11434" in settings.LLM_ENDPOINT
-
-        if is_ollama:
-            # add ollama/ prefix if not already present
-            model = f"ollama/{self.model}" if "/" not in self.model else self.model
-            # extract base url (remove /v1/chat/completions or /api/generate)
-            import re
-
-            api_base = re.sub(r"/(v1/chat/completions|api/generate).*$", "", settings.LLM_ENDPOINT)
-            api_key = None
-        else:
-            model = self.model
-            api_base = settings.LLM_ENDPOINT
-            api_key = settings.LLM_API_KEY
-
-        return model, api_base, api_key
-
     async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        # late import to avoid circular dependency
+        from app import llm_config_manager
+
         # use config prompts or data prompts
         system_template = self.system_prompt or data.get("system", "")
         user_template = self.user_prompt or data.get("user", "")
@@ -75,20 +62,16 @@ class TextGenerator(BaseBlock):
         if user:
             messages.append({"role": "user", "content": user})
 
-        # prepare llm configuration
-        model, api_base, api_key = self._prepare_llm_config()
+        # get llm config and prepare call
+        llm_config = await llm_config_manager.get_llm_model(self.model_name)
+        llm_params = llm_config_manager.prepare_llm_call(
+            llm_config, messages=messages, temperature=self.temperature, max_tokens=self.max_tokens
+        )
 
-        logger.info(f"Calling LiteLLM with model={model}, api_base={api_base}")
+        logger.info(f"Calling LiteLLM with model={llm_params.get('model')}")
 
         # call litellm with prepared config
-        response = await litellm.acompletion(
-            model=model,
-            messages=messages,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            api_base=api_base,
-            api_key=api_key,
-        )
+        response = await litellm.acompletion(**llm_params)
 
         assistant = response.choices[0].message.content
 
