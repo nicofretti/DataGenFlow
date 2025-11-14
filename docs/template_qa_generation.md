@@ -3,6 +3,8 @@ title: Q&A Generation Template
 description: Generate question-answer pairs from content
 ---
 
+# Q&A Generation Template
+
 ## Table of Contents
 - [Overview](#overview)
 - [Pipeline Architecture](#pipeline-architecture)

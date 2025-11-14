@@ -3,6 +3,8 @@ title: JSON Extraction Template
 description: Extract structured information from unstructured text
 ---
 
+# JSON Extraction Template
+
 ## Table of Contents
 - [Overview](#overview)
 - [Pipeline Architecture](#pipeline-architecture)

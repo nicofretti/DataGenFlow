@@ -3,6 +3,8 @@ title: Overview
 description: Transform complex data generation workflows into intuitive visual pipelines
 ---
 
+# Overview
+
 DataGenFlow transforms complex data generation workflows into intuitive visual pipelines. A minimal tool designed to help you generate, validate, and export quality data with full transparency.
 
 ## Table of Contents

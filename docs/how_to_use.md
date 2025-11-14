@@ -3,6 +3,8 @@ title: How to Use DataGenFlow
 description: Complete guide to creating datasets powered by LLMs
 ---
 
+# How to Use DataGenFlow
+
 This guide walks you through using DataGenFlow to create datasets powered by LLMs.
 
 ## Table of Contents

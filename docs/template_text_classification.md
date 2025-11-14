@@ -3,6 +3,8 @@ title: Text Classification Template
 description: Classify text into predefined categories with confidence scores
 ---
 
+# Text Classification Template
+
 ## Table of Contents
 - [Overview](#overview)
 - [Pipeline Architecture](#pipeline-architecture)
