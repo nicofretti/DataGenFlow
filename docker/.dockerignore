@@ -19,7 +19,6 @@ yarn-debug.log*
 yarn-error.log*
 frontend/build/
 frontend/node_modules/
-website/node_modules/
 
 # IDE
 .vscode/

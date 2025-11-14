@@ -1,4 +1,4 @@
-.PHONY: check-deps install dev dev-ui dev-backend run-dev build-ui run mock-llm clean lint format lint-frontend format-frontend lint-website format-website format-all lint-all typecheck typecheck-frontend typecheck-website typecheck-all test test-integration build-website pre-merge setup
+.PHONY: check-deps install dev dev-ui dev-backend run-dev build-ui run mock-llm clean lint format lint-frontend format-frontend format-all lint-all typecheck typecheck-frontend typecheck-all test test-integration pre-merge setup
 
 # check if required dependencies are installed
 check-deps:
@@ -73,15 +73,9 @@ lint-frontend:
 format-frontend:
 	cd frontend && yarn format
 
-lint-website:
-	cd website && yarn lint
+format-all: format format-frontend
 
-format-website:
-	cd website && yarn format
-
-format-all: format format-frontend format-website
-
-lint-all: lint lint-frontend lint-website
+lint-all: lint lint-frontend
 
 typecheck:
 	uv run mypy .
@@ -89,19 +83,13 @@ typecheck:
 typecheck-frontend:
 	cd frontend && yarn type-check
 
-typecheck-website:
-	cd website && yarn type-check
-
-typecheck-all: typecheck typecheck-frontend typecheck-website
+typecheck-all: typecheck typecheck-frontend
 
 test:
 	uv run pytest
 
 test-integration:
 	uv run pytest -m integration -v
-
-build-website:
-	cd website && yarn build
 
 pre-merge: format-all lint-all typecheck-all test 
 	@echo "✅ Pre-merge checks completed successfully. Ready to merge!"

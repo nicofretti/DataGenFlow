@@ -5,7 +5,7 @@ description: Guidelines for writing markdown documentation for DataGenFlow
 
 # Markdown Style Guide
 
-This guide defines the markdown formatting standards for DataGenFlow documentation to ensure consistent rendering on the website.
+This guide defines the markdown formatting standards for DataGenFlow documentation to ensure consistent rendering.
 
 ## Table of Contents
 - [Document Structure](#document-structure)
@@ -283,7 +283,7 @@ Images in `/images/` directory:
 
 ## Code Copy Feature
 
-All code blocks on the website automatically include a "Copy" button in the top-right corner. Users can click this button to copy the entire code block to their clipboard.
+All code blocks in the documentation automatically include a "Copy" button in the top-right corner. Users can click this button to copy the entire code block to their clipboard.
 
 **This happens automatically** - you don't need to add anything special to your markdown. Just use proper code blocks with language specification:
 
@@ -314,14 +314,13 @@ Before publishing documentation:
 
 ## Testing Your Markdown
 
-1. Run the development server: `cd website && yarn dev`
-2. Navigate to your documentation page
-3. Verify:
-   - Table of contents links work
-   - Code blocks render with syntax highlighting
-   - Admonitions are styled correctly
-   - Images load properly
-   - All links work (internal and external)
+1. Review your markdown file locally
+2. Verify:
+   - Table of contents links use correct anchor format
+   - Code blocks have language identifiers
+   - Admonitions use proper format (`> **Note:**`)
+   - Internal links omit `.md` extension
+   - Headings follow logical hierarchy
 
 ---
 

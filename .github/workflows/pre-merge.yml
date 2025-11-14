@@ -45,18 +45,11 @@ jobs:
         working-directory: ./frontend
         run: yarn install
 
-      - name: Install website dependencies
-        working-directory: ./website
-        run: yarn install
-
       - name: Run linting checks
         run: make lint-all
 
       - name: Run type checks
         run: make typecheck-all
-
-      - name: Run website checks
-        run: make typecheck-website
 
       - name: Run tests
         run: make test
