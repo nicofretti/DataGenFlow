@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 from typing import Any, Callable
 
@@ -7,6 +8,8 @@ from aiosqlite import Connection
 
 from config import settings
 from models import Record, RecordStatus
+
+logger = logging.getLogger(__name__)
 
 
 class Storage:
@@ -379,7 +382,8 @@ class Storage:
                     await db.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
                     await db.execute("COMMIT")
                     return count
-                except Exception:
+                except Exception as e:
+                    logger.exception(f"transaction failed during delete_all_records for job_id={job_id}")
                     await db.execute("ROLLBACK")
                     raise
             else:
@@ -499,7 +503,8 @@ class Storage:
                 cursor = await db.execute("DELETE FROM pipelines WHERE id = ?", (pipeline_id,))
                 await db.execute("COMMIT")
                 return cursor.rowcount > 0
-            except Exception:
+            except Exception as e:
+                logger.exception(f"transaction failed during delete_pipeline for pipeline_id={pipeline_id}")
                 await db.execute("ROLLBACK")
                 raise
 

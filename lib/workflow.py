@@ -156,7 +156,7 @@ class Pipeline:
                 logger.error(f"[{trace_id}] {block_name} validation error at step {i + 1}")
                 raise
             except Exception as e:
-                logger.error(f"[{trace_id}] {block_name} failed at step {i + 1}: {str(e)}")
+                logger.exception(f"[{trace_id}] {block_name} failed at step {i + 1}")
                 raise BlockExecutionError(
                     f"Block '{block_name}' failed at step {i + 1}: {str(e)}",
                     detail={
@@ -200,7 +200,7 @@ class Pipeline:
                 }
             )
         except Exception as e:
-            logger.error(f"[{trace_id}] {block_name} failed at seed {seed_idx + 1}: {str(e)}")
+            logger.exception(f"[{trace_id}] {block_name} failed at seed {seed_idx + 1}")
             trace.append(
                 {"block_type": block_name, "input": block_input, "output": None, "error": str(e)}
             )
@@ -271,7 +271,7 @@ class Pipeline:
 
             return (accumulated_data, trace, trace_id)
         except Exception as e:
-            logger.error(f"[{trace_id}] Seed {seed_idx + 1}/{total_seeds} failed: {str(e)}")
+            logger.exception(f"[{trace_id}] Seed {seed_idx + 1}/{total_seeds} failed")
             if job_id and job_queue:
                 current_job = job_queue.get_job(job_id)
                 if current_job:

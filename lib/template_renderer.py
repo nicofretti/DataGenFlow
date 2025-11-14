@@ -1,6 +1,9 @@
+import logging
 from typing import Any
 
 from jinja2 import Environment, StrictUndefined, TemplateSyntaxError, UndefinedError
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateRenderer:
@@ -44,7 +47,8 @@ class TemplateRenderer:
         except UndefinedError as e:
             raise ValueError(f"undefined variable in template: {e.message}")
         except Exception as e:
-            raise ValueError(f"template rendering error: {str(e)}")
+            logger.exception("template rendering error")
+            raise ValueError(f"template rendering error: {str(e)}") from e
 
 
 # singleton instance

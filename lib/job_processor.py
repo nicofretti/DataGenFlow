@@ -62,9 +62,8 @@ def _run_job_async(
         # properly shutdown async generators before closing
         try:
             loop.run_until_complete(loop.shutdown_asyncgens())
-        except Exception:
-            # if shutting down async generators fails, ignore and proceed to close
-            pass
+        except Exception as e:
+            logger.warning(f"failed to shutdown async generators: {e}")
         loop.close()
 
 
@@ -99,8 +98,11 @@ async def _process_job(
         if not seed_path.exists():
             raise FileNotFoundError(f"Seed file not found: {seed_file_path}")
 
-        with open(seed_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        def _read_seed_file():
+            with open(seed_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+
+        data = await asyncio.to_thread(_read_seed_file)
 
         seeds_data = data if isinstance(data, list) else [data]
 
@@ -209,8 +211,8 @@ async def _process_job(
 
         try:
             seed_path.unlink()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"failed to delete seed file {seed_path}: {e}")
 
         final_status = job_queue.get_job(job_id)
         if final_status and final_status.get("status") != "cancelled":
@@ -228,8 +230,8 @@ async def _process_job(
             )
 
     except Exception as e:
+        logger.exception(f"[Job {job_id}] Failed")
         error_msg = str(e)
-        logger.error(f"[Job {job_id}] Failed: {error_msg}")
 
         completed_at = datetime.now().isoformat()
         await _update_job_status(
