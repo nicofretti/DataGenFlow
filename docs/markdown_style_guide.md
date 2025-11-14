@@ -1,3 +1,8 @@
+---
+title: Markdown Style Guide
+description: Guidelines for writing markdown documentation for DataGenFlow
+---
+
 # Markdown Style Guide
 
 This guide defines the markdown formatting standards for DataGenFlow documentation to ensure consistent rendering on the website.
@@ -16,7 +21,7 @@ This guide defines the markdown formatting standards for DataGenFlow documentati
 
 ## Document Structure
 
-### Frontmatter (Optional)
+### Frontmatter
 
 Add YAML frontmatter at the top of the document for metadata:
 
