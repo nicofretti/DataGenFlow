@@ -34,39 +34,39 @@ class MarkdownMultiplierBlock(BaseMultiplierBlock):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
-    async def execute(self, data: dict[str, Any]) -> list[dict[str, Any]]:  # type: ignore[override]
-        file_content = data.get("file_content", "")
+    def _parse_with_sentence_splitter(self, file_content: str) -> list[Any]:
+        """parse content using sentence splitter"""
+        parser = SentenceSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
+        return parser.get_nodes_from_documents([Document(text=file_content)])
 
-        if self.parser_type == "sentence":
-            parser = SentenceSplitter(
-                chunk_size=self.chunk_size,
-                chunk_overlap=self.chunk_overlap,
-            )
-            nodes = parser.get_nodes_from_documents([Document(text=file_content)])
-            return [{"chunk_text": node.text, "chunk_index": idx} for idx, node in enumerate(nodes)]  # type: ignore[attr-defined]
-
+    def _parse_with_markdown(self, file_content: str) -> list[Any]:
+        """parse content using markdown parser with optional sentence splitting"""
         md_parser = MarkdownNodeParser()
         md_nodes = md_parser.get_nodes_from_documents([Document(text=file_content)])
 
         if self.chunk_size == 0:
-            return [
-                {"chunk_text": node.text, "chunk_index": idx}  # type: ignore[attr-defined]
-                for idx, node in enumerate(md_nodes)
-            ]
+            return md_nodes
 
-        sentence_parser = SentenceSplitter(
-            chunk_size=self.chunk_size,
-            chunk_overlap=self.chunk_overlap,
-        )
+        sentence_parser = SentenceSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
         final_nodes = []
         for md_node in md_nodes:
             sub_nodes = sentence_parser.get_nodes_from_documents([Document(text=md_node.text)])  # type: ignore[attr-defined]
             final_nodes.extend(sub_nodes)
+        return final_nodes
 
-        return [
-            {"chunk_text": node.text, "chunk_index": idx}  # type: ignore[attr-defined]
-            for idx, node in enumerate(final_nodes)
-        ]
+    def _format_nodes(self, nodes: list[Any]) -> list[dict[str, Any]]:
+        """format nodes to output dict format"""
+        return [{"chunk_text": node.text, "chunk_index": idx} for idx, node in enumerate(nodes)]  # type: ignore[attr-defined]
+
+    async def execute(self, data: dict[str, Any]) -> list[dict[str, Any]]:  # type: ignore[override]
+        file_content = data.get("file_content", "")
+
+        if self.parser_type == "sentence":
+            nodes = self._parse_with_sentence_splitter(file_content)
+        else:
+            nodes = self._parse_with_markdown(file_content)
+
+        return self._format_nodes(nodes)
 
     @classmethod
     def get_required_fields(cls, config: dict[str, Any]) -> list[str]:

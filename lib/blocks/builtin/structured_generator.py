@@ -44,32 +44,53 @@ class StructuredGenerator(BaseBlock):
         self.max_tokens = max_tokens
         self.user_prompt = user_prompt
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        # late import to avoid circular dependency
-        from app import llm_config_manager
-
-        # use config user_prompt or data user_prompt
+    def _prepare_prompt(self, data: dict[str, Any]) -> str:
+        """render jinja2 template with data context"""
         prompt_template = self.user_prompt or data.get(
             "user_prompt", "Generate data according to schema"
         )
+        return render_template(prompt_template, data)
 
-        # render the Jinja2 template with data context
-        user_prompt = render_template(prompt_template, data)
-
-        messages = [{"role": "user", "content": user_prompt}]
-
-        # prepare response_format with schema enforcement
-        response_format: dict[str, Any]
+    def _prepare_response_format(self) -> dict[str, Any]:
+        """prepare response format with schema enforcement"""
         if self.json_schema:
-            response_format = {
+            return {
                 "type": "json_schema",
                 "json_schema": {"name": "response", "schema": self.json_schema, "strict": True},
             }
-        else:
-            # fallback to basic json mode
-            response_format = {"type": "json_object"}
+        return {"type": "json_object"}
 
-        # get llm config and prepare call
+    async def _call_llm_with_fallback(
+        self, llm_params: dict[str, Any]
+    ) -> Any:
+        """call llm with fallback to basic json_object on schema errors"""
+        logger.info(f"Calling LiteLLM with model={llm_params.get('model')}")
+        try:
+            return await litellm.acompletion(**llm_params)
+        except Exception as e:
+            logger.warning(f"Schema enforcement failed, falling back to json_object: {e}")
+            llm_params["response_format"] = {"type": "json_object"}
+            return await litellm.acompletion(**llm_params)
+
+    def _parse_json_response(self, content: str) -> dict[str, Any]:
+        """parse json from llm response with fallback for code blocks"""
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            import re
+
+            json_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", content, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group(1))
+            return {"raw_response": content}
+
+    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        from app import llm_config_manager
+
+        user_prompt = self._prepare_prompt(data)
+        messages = [{"role": "user", "content": user_prompt}]
+        response_format = self._prepare_response_format()
+
         llm_config = await llm_config_manager.get_llm_model(self.model_name)
         llm_params = llm_config_manager.prepare_llm_call(
             llm_config,
@@ -79,30 +100,9 @@ class StructuredGenerator(BaseBlock):
             response_format=response_format,
         )
 
-        logger.info(f"Calling LiteLLM with model={llm_params.get('model')}")
-
-        try:
-            response = await litellm.acompletion(**llm_params)
-        except Exception as e:
-            # fallback to basic json_object if structured outputs not supported
-            logger.warning(f"Schema enforcement failed, falling back to json_object: {e}")
-            llm_params["response_format"] = {"type": "json_object"}
-            response = await litellm.acompletion(**llm_params)
-
+        response = await self._call_llm_with_fallback(llm_params)
         content = response.choices[0].message.content
-
-        # parse JSON response
-        try:
-            generated = json.loads(content)
-        except json.JSONDecodeError:
-            # fallback: extract JSON from markdown code blocks
-            import re
-
-            json_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", content, re.DOTALL)
-            if json_match:
-                generated = json.loads(json_match.group(1))
-            else:
-                generated = {"raw_response": content}
+        generated = self._parse_json_response(content)
 
         return {"generated": generated}
 
@@ -119,5 +119,6 @@ class StructuredGenerator(BaseBlock):
             ast = env.parse(user_prompt)
             variables = meta.find_undeclared_variables(ast)
             return sorted(list(variables))
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to parse Jinja2 template for required fields: {e}")
             return []

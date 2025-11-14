@@ -44,25 +44,31 @@ class TextGenerator(BaseBlock):
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        # late import to avoid circular dependency
-        from app import llm_config_manager
-
-        # use config prompts or data prompts
+    def _prepare_prompts(self, data: dict[str, Any]) -> tuple[str, str]:
+        """render jinja2 templates with data context"""
         system_template = self.system_prompt or data.get("system", "")
         user_template = self.user_prompt or data.get("user", "")
 
-        # render Jinja2 templates with data context
         system = render_template(system_template, data) if system_template else ""
         user = render_template(user_template, data) if user_template else ""
 
+        return system, user
+
+    def _build_messages(self, system: str, user: str) -> list[dict[str, str]]:
+        """build messages array from prompts"""
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
         if user:
             messages.append({"role": "user", "content": user})
+        return messages
 
-        # get llm config and prepare call
+    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        from app import llm_config_manager
+
+        system, user = self._prepare_prompts(data)
+        messages = self._build_messages(system, user)
+
         llm_config = await llm_config_manager.get_llm_model(self.model_name)
         llm_params = llm_config_manager.prepare_llm_call(
             llm_config, messages=messages, temperature=self.temperature, max_tokens=self.max_tokens
@@ -70,11 +76,13 @@ class TextGenerator(BaseBlock):
 
         logger.info(f"Calling LiteLLM with model={llm_params.get('model')}")
 
-        # call litellm with prepared config
-        response = await litellm.acompletion(**llm_params)
+        try:
+            response = await litellm.acompletion(**llm_params)
+        except Exception as e:
+            logger.error(f"LLM call failed for {self.name}: {e}")
+            raise
 
         assistant = response.choices[0].message.content
-
         return {"assistant": assistant, "system": system, "user": user}
 
     @classmethod

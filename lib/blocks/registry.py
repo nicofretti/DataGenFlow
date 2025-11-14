@@ -1,9 +1,12 @@
 import importlib
 import inspect
+import logging
 from pathlib import Path
 from typing import Any
 
 from lib.blocks.base import BaseBlock, BaseMultiplierBlock
+
+logger = logging.getLogger(__name__)
 
 
 class BlockRegistry:
@@ -38,8 +41,8 @@ class BlockRegistry:
                             BaseMultiplierBlock,
                         ):
                             self._blocks[obj.__name__] = obj
-                except Exception:
-                    # skip modules that fail to import
+                except Exception as e:
+                    logger.warning(f"failed to load block module {module_name}: {e}")
                     continue
 
     def get_block_class(self, block_type: str) -> type[BaseBlock] | None:
