@@ -47,7 +47,7 @@ make run-dev
 # Open http://localhost:8000
 ```
 
-**That's it!** No complex configuration, no external dependencies required.
+**That's it!** No complex configuration, no external services required beyond your LLM endpoint.
 
 ## How It Works
 
@@ -154,7 +154,7 @@ Start with ready-to-use blocks:
 - Rouge Score: Calculate ROUGE similarity scores
 
 **Seeders:**
-- Markdown Multiplier: Split markdown documents into chunks for processing
+- Markdown Chunker: Split markdown documents into chunks for processing
 
 #### Extend with Custom Blocks
 
