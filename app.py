@@ -34,6 +34,9 @@ storage = Storage()
 job_queue = JobQueue()
 llm_config_manager = LLMConfigManager(storage)
 
+# security: file upload size limit
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
 
 def is_multiplier_pipeline(blocks: list[dict[str, Any]]) -> bool:
     if not blocks:
@@ -171,8 +174,10 @@ async def generate_from_file(
 
     pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
 
-    # parse seed file
-    content = await file.read()
+    # parse seed file with size limit
+    content = await file.read(MAX_FILE_SIZE + 1)
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail=f"file too large (max {MAX_FILE_SIZE // (1024*1024)}MB)")
     data = json.loads(content)
     seeds = [SeedInput(**item) for item in (data if isinstance(data, list) else [data])]
 
@@ -204,7 +209,7 @@ async def generate_from_file(
                 success += 1
             except Exception as e:
                 failed += 1
-                logger.error(f"pipeline execution failed: {e}")
+                logger.exception("pipeline execution failed")
 
     return {"total": total, "success": success, "failed": failed}
 
@@ -266,7 +271,8 @@ async def _create_temp_seed_file(
         os.write(fd, json.dumps(seeds).encode("utf-8") if is_markdown else content)
         os.close(fd)
         return Path(tmp_path)
-    except Exception:
+    except Exception as e:
+        logger.exception(f"failed to create temp seed file for pipeline {pipeline_id}")
         os.close(fd)
         raise
 
@@ -289,7 +295,9 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
             "Cancel it first or wait for completion.",
         )
 
-    content = await file.read()
+    content = await file.read(MAX_FILE_SIZE + 1)
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail=f"file too large (max {MAX_FILE_SIZE // (1024*1024)}MB)")
     seeds, total_samples = await (
         _parse_markdown_file(content) if is_markdown else _parse_json_file(content)
     )
@@ -509,10 +517,10 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
         # Let HTTPException propagate to FastAPI
         raise
     except BlockNotFoundError as e:
-        logger.error(f"BlockNotFoundError in pipeline {pipeline_id}: {e.message}")
+        logger.exception(f"BlockNotFoundError in pipeline {pipeline_id}")
         return JSONResponse(status_code=400, content={"error": e.message, "detail": e.detail})
     except (BlockExecutionError, ValidationError) as e:
-        logger.error(f"{e.__class__.__name__} in pipeline {pipeline_id}: {e.message}")
+        logger.exception(f"{e.__class__.__name__} in pipeline {pipeline_id}")
         return JSONResponse(status_code=400, content={"error": e.message, "detail": e.detail})
     except Exception as e:
         logger.exception(f"Unexpected error executing pipeline {pipeline_id}")
@@ -600,6 +608,7 @@ async def create_llm_model(config: LLMModelConfig) -> dict[str, str]:
         await llm_config_manager.save_llm_model(config)
         return {"message": "llm model saved successfully"}
     except Exception as e:
+        logger.exception("failed to save llm model")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -612,6 +621,7 @@ async def update_llm_model(name: str, config: LLMModelConfig) -> dict[str, str]:
         await llm_config_manager.save_llm_model(config)
         return {"message": "llm model updated successfully"}
     except Exception as e:
+        logger.exception(f"failed to update llm model {name}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -653,6 +663,7 @@ async def create_embedding_model(config: EmbeddingModelConfig) -> dict[str, str]
         await llm_config_manager.save_embedding_model(config)
         return {"message": "embedding model saved successfully"}
     except Exception as e:
+        logger.exception("failed to save embedding model")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -665,6 +676,7 @@ async def update_embedding_model(name: str, config: EmbeddingModelConfig) -> dic
         await llm_config_manager.save_embedding_model(config)
         return {"message": "embedding model updated successfully"}
     except Exception as e:
+        logger.exception(f"failed to update embedding model {name}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
