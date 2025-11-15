@@ -37,6 +37,8 @@ frontend/package-lock.json
 point.md
 plan.md
 docs/plans/
+.md
+REVIEW.md
 
 *storybook.log
 storybook-static
