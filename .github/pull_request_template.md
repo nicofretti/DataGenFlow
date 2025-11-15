@@ -1,25 +1,19 @@
 <!--
-Title Format: <icon> <type>: <short description>
-Examples:
+Title Format: copy the one of the issue keep this format
   🚀 feat: add retry logic to LLM block
   🧩 fix: block configuration not visible in edit mode
   📐 refactor: simplify block renderer logic
   📚 docs: add block creation guide
-
-Choose the appropriate issue template for detailed sections:
-- 🚀 Feature (new functionality)
-- 🧩 Fix (bug fixes)
-- 📐 Refactor (code improvements)
-- 📚 Documentation (doc updates)
+  ...
 -->
 
 ### Description
-<!-- Brief description of what this PR does -->
+<!-- Brief description of what this PR does better a list of few bullet points--> 
 
 
 ### Related Issue
-<!-- Link to related issue if applicable type #n where n is the issue number -->
-Closes #
+<!-- Reference the issue this PR addresses, #1 #2 and so on -->
+- closes #
 
 ### Checklist
 - [ ] Code follows project style guidelines
