@@ -173,10 +173,15 @@ export default function Generator() {
   const fetchPipelines = async () => {
     try {
       const res = await fetch("/api/pipelines");
+      if (!res.ok) {
+        throw new Error(`http ${res.status}`);
+      }
       const data = await res.json();
       setPipelines(data);
-    } catch {
-      // silent fail - will show empty pipeline list
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "unknown error";
+      console.error("failed to load pipelines:", err);
+      toast.error(`failed to load pipelines: ${message}`);
     }
   };
 

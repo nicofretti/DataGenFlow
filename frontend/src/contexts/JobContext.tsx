@@ -82,8 +82,8 @@ export function JobProvider({ children }: { children: ReactNode }) {
                 const finalJob = await finalRes.json();
                 setCurrentJob(finalJob);
               }
-            } catch {
-              // keep existing state if final fetch fails
+            } catch (err) {
+              console.error("failed to fetch final job status:", err);
             }
           }
           // CRITICAL: always stop polling when there's no active job
@@ -93,8 +93,8 @@ export function JobProvider({ children }: { children: ReactNode }) {
           isStopped = true;
           return true;
         }
-      } catch {
-        // silent fail - polling will retry
+      } catch (err) {
+        console.error("job polling failed (will retry):", err);
       }
       return false;
     };

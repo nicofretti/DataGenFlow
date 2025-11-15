@@ -24,9 +24,12 @@ import ConfigureFieldsModal from "../components/ConfigureFieldsModal";
 import SingleRecordView from "../components/SingleRecordView";
 import TableRecordView from "../components/TableRecordView";
 import RecordDetailsModal from "../components/RecordDetailsModal";
+import KeyboardShortcut from "../components/KeyboardShortcut";
 import { useJob } from "../contexts/JobContext";
 import type { RecordData, Pipeline, Job } from "../types";
 import { toast } from "sonner";
+import { usePersistedState } from "../hooks/usePersistedState";
+import { recordsApi } from "../services/recordsApi";
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -42,10 +45,7 @@ export default function Review() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<number | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
-  const [viewMode, setViewMode] = useState<"single" | "table">(() => {
-    const saved = localStorage.getItem("review_view_mode");
-    return (saved as "single" | "table") || "table";
-  });
+  const [viewMode, setViewMode] = usePersistedState<"single" | "table">("review_view_mode", "table");
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(10);
   const [selectedRecordForDetails, setSelectedRecordForDetails] = useState<RecordData | null>(null);
@@ -62,44 +62,52 @@ export default function Review() {
     }
   }, [currentRecord, viewMode]);
 
-  useEffect(() => {
-    localStorage.setItem("review_view_mode", viewMode);
-  }, [viewMode]);
-
   const loadPipelines = useCallback(async () => {
     try {
       const res = await fetch("/api/pipelines");
+      if (!res.ok) {
+        throw new Error(`http ${res.status}`);
+      }
       const data = await res.json();
       setPipelines(data);
     } catch (err) {
-      console.error("Failed to load pipelines:", err);
-      // pipelines filter is optional, continue without it
+      const message = err instanceof Error ? err.message : "unknown error";
+      console.error("failed to load pipelines:", err);
+      toast.error(`failed to load pipelines: ${message}`);
     }
   }, []);
 
   const loadCurrentPipeline = useCallback(async (pipelineId: number) => {
     try {
       const res = await fetch(`/api/pipelines/${pipelineId}`);
+      if (!res.ok) {
+        throw new Error(`http ${res.status}`);
+      }
       const data = await res.json();
       setCurrentPipeline(data);
       if (!data.validation_config) {
         setShowConfigModal(true);
       }
     } catch (err) {
-      console.error("Failed to load pipeline details:", err);
-      // pipeline details are optional, continue without them
+      const message = err instanceof Error ? err.message : "unknown error";
+      console.error("failed to load pipeline details:", err);
+      toast.error(`failed to load pipeline details: ${message}`);
     }
   }, []);
 
   const loadJobs = useCallback(async (pipelineId: number) => {
     try {
       const res = await fetch(`/api/jobs?pipeline_id=${pipelineId}`);
+      if (!res.ok) {
+        throw new Error(`http ${res.status}`);
+      }
       const data = await res.json();
       const jobsWithRecords = data.filter((job: Job) => job.records_generated > 0);
       setJobs(jobsWithRecords);
     } catch (err) {
-      console.error("Failed to load jobs:", err);
-      // jobs filter is optional, continue without it
+      const message = err instanceof Error ? err.message : "unknown error";
+      console.error("failed to load jobs:", err);
+      toast.error(`failed to load jobs: ${message}`);
     }
   }, []);
 
@@ -109,19 +117,25 @@ export default function Review() {
       return;
     }
 
-    let url = `/api/records?status=${filterStatus}&limit=100&pipeline_id=${selectedPipeline}`;
-    if (selectedJob) {
-      url += `&job_id=${selectedJob}`;
-    }
-    const res = await fetch(url, { cache: "no-store" });
-    const data = await res.json();
-    setRecords(data);
+    try {
+      const data = await recordsApi.getRecords({
+        status: filterStatus,
+        limit: 100,
+        pipelineId: selectedPipeline,
+        jobId: selectedJob || undefined,
+      });
+      setRecords(data);
 
-    if (viewMode === "single" && currentRecordIdRef.current !== null) {
-      const newIndex = data.findIndex((r: RecordData) => r.id === currentRecordIdRef.current);
-      if (newIndex !== -1) {
-        setCurrentIndex(newIndex);
+      if (viewMode === "single" && currentRecordIdRef.current !== null) {
+        const newIndex = data.findIndex((r: RecordData) => r.id === currentRecordIdRef.current);
+        if (newIndex !== -1) {
+          setCurrentIndex(newIndex);
+        }
       }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "unknown error";
+      console.error("failed to load records:", err);
+      toast.error(`failed to load records: ${message}`);
     }
   }, [filterStatus, selectedJob, selectedPipeline, viewMode]);
 
@@ -131,30 +145,35 @@ export default function Review() {
       return;
     }
 
-    const pipelineParam = `&pipeline_id=${selectedPipeline}`;
-    const jobParam = selectedJob ? `&job_id=${selectedJob}` : "";
-    const [pending, accepted, rejected] = await Promise.all([
-      fetch(`/api/records?status=pending${pipelineParam}${jobParam}`).then((r) => r.json()),
-      fetch(`/api/records?status=accepted${pipelineParam}${jobParam}`).then((r) => r.json()),
-      fetch(`/api/records?status=rejected${pipelineParam}${jobParam}`).then((r) => r.json()),
-    ]);
-    setStats({
-      pending: pending.length,
-      accepted: accepted.length,
-      rejected: rejected.length,
-    });
+    try {
+      const [pending, accepted, rejected] = await Promise.all([
+        recordsApi.getRecordsByStatus("pending", selectedPipeline, selectedJob || undefined),
+        recordsApi.getRecordsByStatus("accepted", selectedPipeline, selectedJob || undefined),
+        recordsApi.getRecordsByStatus("rejected", selectedPipeline, selectedJob || undefined),
+      ]);
+      setStats({
+        pending: pending.length,
+        accepted: accepted.length,
+        rejected: rejected.length,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "unknown error";
+      console.error("failed to load stats:", err);
+      toast.error(`failed to load stats: ${message}`);
+    }
   }, [selectedJob, selectedPipeline]);
 
   const updateStatus = useCallback(
     async (id: number, status: string) => {
-      await fetch(`/api/records/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-
-      await loadRecords();
-      await loadStats();
+      try {
+        await recordsApi.updateRecord(id, { status });
+        await loadRecords();
+        await loadStats();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "unknown error";
+        console.error("failed to update record status:", err);
+        toast.error(`failed to update record: ${message}`);
+      }
     },
     [loadRecords, loadStats]
   );
@@ -223,9 +242,10 @@ export default function Review() {
     }
 
     let mounted = true;
+    const controller = new AbortController();
 
     const poll = () => {
-      if (mounted) {
+      if (mounted && !controller.signal.aborted) {
         loadRecords();
         loadStats();
       }
@@ -236,6 +256,7 @@ export default function Review() {
 
     return () => {
       mounted = false;
+      controller.abort();
       clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -293,19 +314,18 @@ export default function Review() {
     if (!confirm(confirmMessage)) return;
 
     try {
-      const url = selectedJob ? `/api/records?job_id=${selectedJob}` : `/api/records`;
-      await fetch(url, { method: "DELETE" });
-
-      toast.success("All records deleted successfully");
+      await recordsApi.deleteAllRecords(selectedJob || undefined);
+      toast.success("all records deleted successfully");
       if (selectedJob && selectedPipeline) {
         setSelectedJob(null);
         await loadJobs(selectedPipeline);
       }
-
       loadRecords();
       loadStats();
-    } catch (error) {
-      toast.error(`Error: ${error}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "unknown error";
+      console.error("failed to delete records:", err);
+      toast.error(`failed to delete records: ${message}`);
     }
   };
 
@@ -459,114 +479,12 @@ export default function Review() {
             justifyContent: "center",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Box
-              as="kbd"
-              sx={{
-                padding: "2px 6px",
-                border: "1px solid",
-                borderColor: "border.default",
-                borderRadius: "3px",
-                fontSize: "11px",
-                fontFamily: "monospace",
-                color: "fg.default",
-                bg: "canvas.subtle",
-              }}
-            >
-              A
-            </Box>
-            <Text sx={{ color: "fg.default" }}>Accept</Text>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Box
-              as="kbd"
-              sx={{
-                padding: "2px 6px",
-                border: "1px solid",
-                borderColor: "border.default",
-                borderRadius: "3px",
-                fontSize: "11px",
-                fontFamily: "monospace",
-                color: "fg.default",
-                bg: "canvas.subtle",
-              }}
-            >
-              R
-            </Box>
-            <Text sx={{ color: "fg.default" }}>Reject</Text>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Box
-              as="kbd"
-              sx={{
-                padding: "2px 6px",
-                border: "1px solid",
-                borderColor: "border.default",
-                borderRadius: "3px",
-                fontSize: "11px",
-                fontFamily: "monospace",
-                color: "fg.default",
-                bg: "canvas.subtle",
-              }}
-            >
-              U
-            </Box>
-            <Text sx={{ color: "fg.default" }}>Set Pending</Text>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Box
-              as="kbd"
-              sx={{
-                padding: "2px 6px",
-                border: "1px solid",
-                borderColor: "border.default",
-                borderRadius: "3px",
-                fontSize: "11px",
-                fontFamily: "monospace",
-                color: "fg.default",
-                bg: "canvas.subtle",
-              }}
-            >
-              E
-            </Box>
-            <Text sx={{ color: "fg.default" }}>Edit</Text>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Box
-              as="kbd"
-              sx={{
-                padding: "2px 6px",
-                border: "1px solid",
-                borderColor: "border.default",
-                borderRadius: "3px",
-                fontSize: "11px",
-                fontFamily: "monospace",
-                color: "fg.default",
-                bg: "canvas.subtle",
-              }}
-            >
-              N
-            </Box>
-            <Text sx={{ color: "fg.default" }}>Next</Text>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Box
-              as="kbd"
-              sx={{
-                padding: "2px 6px",
-                border: "1px solid",
-                borderColor: "border.default",
-                borderRadius: "3px",
-                fontSize: "11px",
-                fontFamily: "monospace",
-                color: "fg.default",
-                bg: "canvas.subtle",
-              }}
-            >
-              P
-            </Box>
-            <Text sx={{ color: "fg.default" }}>Previous</Text>
-          </Box>
+          <KeyboardShortcut shortcut="A" label="Accept" />
+          <KeyboardShortcut shortcut="R" label="Reject" />
+          <KeyboardShortcut shortcut="U" label="Set Pending" />
+          <KeyboardShortcut shortcut="E" label="Edit" />
+          <KeyboardShortcut shortcut="N" label="Next" />
+          <KeyboardShortcut shortcut="P" label="Previous" />
         </Box>
       )}
 
@@ -625,13 +543,15 @@ export default function Review() {
           onReject={() => updateStatus(currentRecord.id, "rejected")}
           onSetPending={() => updateStatus(currentRecord.id, "pending")}
           onEdit={async (updates) => {
-            await fetch(`/api/records/${currentRecord.id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(updates),
-            });
-            await loadRecords();
-            await loadStats();
+            try {
+              await recordsApi.updateRecord(currentRecord.id, updates);
+              await loadRecords();
+              await loadStats();
+            } catch (err) {
+              const message = err instanceof Error ? err.message : "unknown error";
+              console.error("failed to update record:", err);
+              toast.error(`failed to update record: ${message}`);
+            }
           }}
           onRegisterStartEditing={(fn) => {
             startEditingRef.current = fn;
@@ -672,14 +592,16 @@ export default function Review() {
             setSelectedRecordForDetails(null);
           }}
           onEdit={async (updates) => {
-            await fetch(`/api/records/${selectedRecordForDetails.id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(updates),
-            });
-            await loadRecords();
-            await loadStats();
-            setSelectedRecordForDetails(null);
+            try {
+              await recordsApi.updateRecord(selectedRecordForDetails.id, updates);
+              await loadRecords();
+              await loadStats();
+              setSelectedRecordForDetails(null);
+            } catch (err) {
+              const message = err instanceof Error ? err.message : "unknown error";
+              console.error("failed to update record:", err);
+              toast.error(`failed to update record: ${message}`);
+            }
           }}
         />
       )}

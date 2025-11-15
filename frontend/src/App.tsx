@@ -17,6 +17,7 @@ import GlobalJobIndicator from "./components/GlobalJobIndicator";
 import { JobProvider } from "./contexts/JobContext";
 import { useTheme as shadcnUseTheme, ThemeProvider as ShadcnThemeProvider } from "next-themes";
 import { Toaster } from "./components/ui/sonner";
+import { usePersistedState } from "./hooks/usePersistedState";
 
 // context to control navigation visibility
 const NavigationContext = createContext<{
@@ -47,7 +48,6 @@ function Navigation() {
     const newMode = isDark ? "light" : "dark";
     setColorMode(newMode);
     setTheme(newMode);
-    localStorage.setItem("colorMode", newMode);
   };
 
   return (
@@ -150,15 +150,7 @@ function Navigation() {
 }
 
 export default function App() {
-  const [colorMode] = useState<"light" | "dark" | "auto">(() => {
-    // read from localStorage or default to light
-    const stored = localStorage.getItem("colorMode");
-    if (stored === "dark" || stored === "light" || stored === "auto") {
-      return stored;
-    }
-    return "light";
-  });
-
+  const [colorMode] = usePersistedState<"light" | "dark" | "auto">("colorMode", "light");
   const [hideNavigation, setHideNavigation] = useState(false);
 
   // @todo: remove primer in favor of shadcn themes

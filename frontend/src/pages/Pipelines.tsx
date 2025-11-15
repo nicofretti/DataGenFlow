@@ -35,18 +35,32 @@ export default function Pipelines() {
   }, [editing, setHideNavigation]);
 
   const loadPipelines = async () => {
-    const res = await fetch("/api/pipelines");
-    const data = await res.json();
-    setPipelines(data);
+    try {
+      const res = await fetch("/api/pipelines");
+      if (!res.ok) {
+        throw new Error(`http ${res.status}`);
+      }
+      const data = await res.json();
+      setPipelines(data);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "unknown error";
+      console.error("failed to load pipelines:", err);
+      toast.error(`failed to load pipelines: ${message}`);
+    }
   };
 
   const loadTemplates = async () => {
     try {
       const res = await fetch("/api/templates");
+      if (!res.ok) {
+        throw new Error(`http ${res.status}`);
+      }
       const data = await res.json();
       setTemplates(data);
-    } catch {
-      // templates are optional feature, don't disrupt user experience if unavailable
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "unknown error";
+      console.error("failed to load templates:", err);
+      toast.error(`failed to load templates: ${message}`);
     }
   };
 
@@ -65,7 +79,7 @@ export default function Pipelines() {
     }
   };
 
-  const savePipeline = async (pipeline: any) => {
+  const savePipeline = async (pipeline: Pipeline) => {
     try {
       if (editing?.mode === "new") {
         const res = await fetch("/api/pipelines", {
