@@ -260,7 +260,7 @@ export default function Settings() {
                         ) : (
                           <CheckCircleIcon size={16} />
                         )}
-                        <Text>{testingLlm === model.name ? "testing..." : "test"}</Text>
+                        <Text>{testingLlm === model.name ? "Testing..." : "Test"}</Text>
                       </Box>
                     </Button>
                     <IconButton

@@ -98,7 +98,7 @@ async def _process_job(
         if not seed_path.exists():
             raise FileNotFoundError(f"Seed file not found: {seed_file_path}")
 
-        def _read_seed_file():
+        def _read_seed_file() -> Any:
             with open(seed_path, "r", encoding="utf-8") as f:
                 return json.load(f)
 

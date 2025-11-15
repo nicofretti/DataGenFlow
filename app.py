@@ -177,7 +177,9 @@ async def generate_from_file(
     # parse seed file with size limit
     content = await file.read(MAX_FILE_SIZE + 1)
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail=f"file too large (max {MAX_FILE_SIZE // (1024*1024)}MB)")
+        raise HTTPException(
+            status_code=413, detail=f"file too large (max {MAX_FILE_SIZE // (1024 * 1024)}MB)"
+        )
     data = json.loads(content)
     seeds = [SeedInput(**item) for item in (data if isinstance(data, list) else [data])]
 
@@ -207,7 +209,7 @@ async def generate_from_file(
 
                 await storage.save_record(record, pipeline_id=pipeline_id)
                 success += 1
-            except Exception as e:
+            except Exception:
                 failed += 1
                 logger.exception("pipeline execution failed")
 
@@ -271,7 +273,7 @@ async def _create_temp_seed_file(
         os.write(fd, json.dumps(seeds).encode("utf-8") if is_markdown else content)
         os.close(fd)
         return Path(tmp_path)
-    except Exception as e:
+    except Exception:
         logger.exception(f"failed to create temp seed file for pipeline {pipeline_id}")
         os.close(fd)
         raise
@@ -297,7 +299,9 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
 
     content = await file.read(MAX_FILE_SIZE + 1)
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail=f"file too large (max {MAX_FILE_SIZE // (1024*1024)}MB)")
+        raise HTTPException(
+            status_code=413, detail=f"file too large (max {MAX_FILE_SIZE // (1024 * 1024)}MB)"
+        )
     seeds, total_samples = await (
         _parse_markdown_file(content) if is_markdown else _parse_json_file(content)
     )

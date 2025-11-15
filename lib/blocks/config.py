@@ -8,9 +8,9 @@ class BlockConfigSchema:
         param_name: str,
         param: inspect.Parameter,
         param_type: Any,
-        enum_values: dict,
-        field_refs: list,
-        field_descriptions: dict,
+        enum_values: dict[str, Any],
+        field_refs: list[str],
+        field_descriptions: dict[str, str],
     ) -> tuple[dict[str, Any], bool]:
         """build property definition for a single parameter"""
         property_def = BlockConfigSchema._get_property_def(param_type)
@@ -57,7 +57,7 @@ class BlockConfigSchema:
         return {"type": "object", "properties": properties, "required": required}
 
     @staticmethod
-    def _handle_union_type(args: tuple) -> dict[str, Any] | None:
+    def _handle_union_type(args: tuple[Any, ...]) -> dict[str, Any] | None:
         """handle union types by filtering out NoneType"""
         non_none_types = [arg for arg in args if arg is not type(None)]
         if len(non_none_types) == 1:
@@ -67,7 +67,7 @@ class BlockConfigSchema:
         return None
 
     @staticmethod
-    def _handle_list_type(args: tuple) -> dict[str, Any]:
+    def _handle_list_type(args: tuple[Any, ...]) -> dict[str, Any]:
         """handle list types with item schema"""
         item_type = args[0] if args else str
         return {"type": "array", "items": BlockConfigSchema._get_property_def(item_type)}

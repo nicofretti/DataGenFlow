@@ -382,8 +382,10 @@ class Storage:
                     await db.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
                     await db.execute("COMMIT")
                     return count
-                except Exception as e:
-                    logger.exception(f"transaction failed during delete_all_records for job_id={job_id}")
+                except Exception:
+                    logger.exception(
+                        f"transaction failed during delete_all_records for job_id={job_id}"
+                    )
                     await db.execute("ROLLBACK")
                     raise
             else:
@@ -503,8 +505,10 @@ class Storage:
                 cursor = await db.execute("DELETE FROM pipelines WHERE id = ?", (pipeline_id,))
                 await db.execute("COMMIT")
                 return cursor.rowcount > 0
-            except Exception as e:
-                logger.exception(f"transaction failed during delete_pipeline for pipeline_id={pipeline_id}")
+            except Exception:
+                logger.exception(
+                    f"transaction failed during delete_pipeline for pipeline_id={pipeline_id}"
+                )
                 await db.execute("ROLLBACK")
                 raise
 

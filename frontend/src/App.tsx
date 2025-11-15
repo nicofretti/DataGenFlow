@@ -1,6 +1,6 @@
 import { useState, createContext, useContext } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
-import { Box, IconButton, ThemeProvider, useTheme, Heading, Text } from "@primer/react";
+import { Box, IconButton, ThemeProvider, useTheme, Text } from "@primer/react";
 import {
   SunIcon,
   MoonIcon,
@@ -69,13 +69,11 @@ function Navigation() {
         >
           {/* brand */}
           <Box sx={{ p: 4, borderBottom: "1px solid", borderColor: "border.default" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2,  minHeight: 40 }}>
               <img
-                src="/logo.png"
+                src="/logo.svg"
                 alt="DataGenFlow Logo"
-                style={{ width: "40px", height: "40px" }}
               />
-              <Heading sx={{ fontSize: 3, color: "fg.default" }}>DataGenFlow</Heading>
             </Box>
             <GlobalJobIndicator />
           </Box>

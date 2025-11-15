@@ -45,7 +45,10 @@ export default function Review() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<number | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
-  const [viewMode, setViewMode] = usePersistedState<"single" | "table">("review_view_mode", "table");
+  const [viewMode, setViewMode] = usePersistedState<"single" | "table">(
+    "review_view_mode",
+    "table"
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(10);
   const [selectedRecordForDetails, setSelectedRecordForDetails] = useState<RecordData | null>(null);

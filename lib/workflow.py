@@ -270,7 +270,7 @@ class Pipeline:
                 )
 
             return (accumulated_data, trace, trace_id)
-        except Exception as e:
+        except Exception:
             logger.exception(f"[{trace_id}] Seed {seed_idx + 1}/{total_seeds} failed")
             if job_id and job_queue:
                 current_job = job_queue.get_job(job_id)

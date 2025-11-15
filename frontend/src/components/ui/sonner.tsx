@@ -26,10 +26,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
         unstyled: true,
         classNames: {
           default: "bg-popover text-popover-foreground",
-          error: "bg-red-400 text-white",
-          success: "bg-green-400 text-white",
-          warning: "bg-yellow-400",
-          info: "bg-blue-400",
+          error: "bg-destructive text-white dark:bg-destructive/60",
+          success: "bg-primary text-primary-foreground",
+          warning: "bg-accent text-accent-foreground",
+          info: "bg-secondary text-secondary-foreground",
           toast:
             "p-4 border border-border rounded-sm flex row gap-2 items-center min-w-[20rem] max-w-sm shadow-md text-sm z-100",
         },

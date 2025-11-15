@@ -47,7 +47,9 @@ class MarkdownMultiplierBlock(BaseMultiplierBlock):
         if self.chunk_size == 0:
             return md_nodes
 
-        sentence_parser = SentenceSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
+        sentence_parser = SentenceSplitter(
+            chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap
+        )
         final_nodes = []
         for md_node in md_nodes:
             sub_nodes = sentence_parser.get_nodes_from_documents([Document(text=md_node.text)])  # type: ignore[attr-defined]
@@ -56,7 +58,7 @@ class MarkdownMultiplierBlock(BaseMultiplierBlock):
 
     def _format_nodes(self, nodes: list[Any]) -> list[dict[str, Any]]:
         """format nodes to output dict format"""
-        return [{"chunk_text": node.text, "chunk_index": idx} for idx, node in enumerate(nodes)]  # type: ignore[attr-defined]
+        return [{"chunk_text": node.text, "chunk_index": idx} for idx, node in enumerate(nodes)]
 
     async def execute(self, data: dict[str, Any]) -> list[dict[str, Any]]:  # type: ignore[override]
         file_content = data.get("file_content", "")

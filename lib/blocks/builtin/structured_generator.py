@@ -60,9 +60,7 @@ class StructuredGenerator(BaseBlock):
             }
         return {"type": "json_object"}
 
-    async def _call_llm_with_fallback(
-        self, llm_params: dict[str, Any]
-    ) -> Any:
+    async def _call_llm_with_fallback(self, llm_params: dict[str, Any]) -> Any:
         """call llm with fallback to basic json_object on schema errors"""
         logger.info(f"Calling LiteLLM with model={llm_params.get('model')}")
         try:
@@ -75,13 +73,15 @@ class StructuredGenerator(BaseBlock):
     def _parse_json_response(self, content: str) -> dict[str, Any]:
         """parse json from llm response with fallback for code blocks"""
         try:
-            return json.loads(content)
+            result = json.loads(content)
+            return result if isinstance(result, dict) else {"raw_response": content}
         except json.JSONDecodeError:
             import re
 
             json_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", content, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group(1))
+                result = json.loads(json_match.group(1))
+                return result if isinstance(result, dict) else {"raw_response": content}
             return {"raw_response": content}
 
     async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
