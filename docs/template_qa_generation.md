@@ -29,10 +29,16 @@ This template converts markdown documentation into question-answer pairs. It aut
 ## Pipeline Architecture
 
 ```
-┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-│   Markdown   │──►│     Text     │──►│  Structured  │──►│     JSON     │
-│  Multiplier  │   │  Generator   │   │  Generator   │   │  Validator   │
-└──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘
+┌──────────────┐   ┌──────────────┐   
+│   Markdown   │──►│     Text     │──►
+│  Multiplier  │   │  Generator   │   
+└──────────────┘   └──────────────┘   
+
+┌──────────────┐   ┌──────────────┐
+│  Structured  │──►│     JSON     │
+│  Generator   │   │  Validator   │
+└──────────────┘   └──────────────┘
+
 
 Input: file_content
   ↓
