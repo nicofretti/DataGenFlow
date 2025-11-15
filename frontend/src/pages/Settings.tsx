@@ -27,7 +27,8 @@ export default function Settings() {
       const models = await llmConfigApi.listLLMModels();
       setLlmModels(models);
     } catch (error) {
-      toast.error(`failed to load llm models: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to load LLM models: ${message}`);
     }
   };
 
@@ -36,7 +37,8 @@ export default function Settings() {
       const models = await llmConfigApi.listEmbeddingModels();
       setEmbeddingModels(models);
     } catch (error) {
-      toast.error(`failed to load embedding models: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to load embedding models: ${message}`);
     }
   };
 
@@ -45,10 +47,11 @@ export default function Settings() {
 
     try {
       await llmConfigApi.deleteLLMModel(name);
-      toast.success("llm model deleted");
+      toast.success("LLM model deleted successfully");
       loadLlmModels();
     } catch (error) {
-      toast.error(`failed to delete: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to delete LLM model: ${message}`);
     }
   };
 
@@ -57,10 +60,11 @@ export default function Settings() {
 
     try {
       await llmConfigApi.deleteEmbeddingModel(name);
-      toast.success("embedding model deleted");
+      toast.success("Embedding model deleted successfully");
       loadEmbeddingModels();
     } catch (error) {
-      toast.error(`failed to delete: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to delete embedding model: ${message}`);
     }
   };
 
@@ -69,12 +73,13 @@ export default function Settings() {
     try {
       const result = await llmConfigApi.testLLMConnection(config);
       if (result.success) {
-        toast.success(`connection successful (${result.latency_ms}ms)`);
+        toast.success(`Connection test successful (${result.latency_ms}ms)`);
       } else {
-        toast.error(`connection failed: ${result.message}`);
+        toast.error(`Connection test failed: ${result.message}`);
       }
     } catch (error) {
-      toast.error(`test failed: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Connection test failed: ${message}`);
     } finally {
       setTestingLlm(null);
     }
@@ -85,12 +90,13 @@ export default function Settings() {
     try {
       const result = await llmConfigApi.testEmbeddingConnection(config);
       if (result.success) {
-        toast.success(`connection successful (${result.latency_ms}ms)`);
+        toast.success(`Connection test successful (${result.latency_ms}ms)`);
       } else {
-        toast.error(`connection failed: ${result.message}`);
+        toast.error(`Connection test failed: ${result.message}`);
       }
     } catch (error) {
-      toast.error(`test failed: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Connection test failed: ${message}`);
     } finally {
       setTestingEmbedding(null);
     }
@@ -100,16 +106,17 @@ export default function Settings() {
     try {
       if (editingLlm) {
         await llmConfigApi.updateLLMModel(editingLlm.name, config);
-        toast.success("llm model updated");
+        toast.success("LLM model updated successfully");
       } else {
         await llmConfigApi.saveLLMModel(config);
-        toast.success("llm model created");
+        toast.success("LLM model created successfully");
       }
       setLlmModalOpen(false);
       setEditingLlm(null);
       loadLlmModels();
     } catch (error) {
-      toast.error(`failed to save: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to save LLM model: ${message}`);
       throw error;
     }
   };
@@ -118,16 +125,17 @@ export default function Settings() {
     try {
       if (editingEmbedding) {
         await llmConfigApi.updateEmbeddingModel(editingEmbedding.name, config);
-        toast.success("embedding model updated");
+        toast.success("Embedding model updated successfully");
       } else {
         await llmConfigApi.saveEmbeddingModel(config);
-        toast.success("embedding model created");
+        toast.success("Embedding model created successfully");
       }
       setEmbeddingModalOpen(false);
       setEditingEmbedding(null);
       loadEmbeddingModels();
     } catch (error) {
-      toast.error(`failed to save: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to save LLM model: ${message}`);
       throw error;
     }
   };

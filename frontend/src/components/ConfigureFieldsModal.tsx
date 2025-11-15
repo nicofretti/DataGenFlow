@@ -59,9 +59,9 @@ export default function ConfigureFieldsModal({
 
       setLoading(false);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("failed to load available fields:", err);
-      toast.error(`failed to load available fields: ${message}`);
+      toast.error(`Failed to load field configuration: ${message}`);
       setLoading(false);
     }
   };
@@ -193,7 +193,9 @@ export default function ConfigureFieldsModal({
 
       onSave();
     } catch (err) {
-      toast.error(`Error saving configuration: ${err}`);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      console.error("failed to save field configuration:", err);
+      toast.error(`Failed to save field configuration: ${message}`);
     }
   };
 

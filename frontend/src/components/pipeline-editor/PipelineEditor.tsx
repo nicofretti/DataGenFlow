@@ -274,7 +274,9 @@ export default function PipelineEditor({
           setNodes([startNode, endNode]);
         }
       } catch (error) {
-        toast.error(`Failed to load blocks: ${error}`);
+        const message = error instanceof Error ? error.message : "Unknown error";
+        console.error("failed to load blocks:", error);
+        toast.error(`Failed to load blocks: ${message}`);
       }
     }
     fetchBlocks();
@@ -508,7 +510,9 @@ export default function PipelineEditor({
       await onSave({ name: pipelineName, ...pipeline });
       toast.success("Pipeline saved successfully");
     } catch (error) {
-      toast.error(`Failed to save pipeline: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error("failed to save pipeline:", error);
+      toast.error(`Failed to save pipeline: ${message}`);
     } finally {
       setSaving(false);
     }

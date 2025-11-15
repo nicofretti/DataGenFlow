@@ -71,9 +71,9 @@ export default function Review() {
       const data = await res.json();
       setPipelines(data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("failed to load pipelines:", err);
-      toast.error(`failed to load pipelines: ${message}`);
+      toast.error(`Failed to load pipelines: ${message}`);
     }
   }, []);
 
@@ -89,9 +89,9 @@ export default function Review() {
         setShowConfigModal(true);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("failed to load pipeline details:", err);
-      toast.error(`failed to load pipeline details: ${message}`);
+      toast.error(`Failed to load pipeline details: ${message}`);
     }
   }, []);
 
@@ -105,9 +105,9 @@ export default function Review() {
       const jobsWithRecords = data.filter((job: Job) => job.records_generated > 0);
       setJobs(jobsWithRecords);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("failed to load jobs:", err);
-      toast.error(`failed to load jobs: ${message}`);
+      toast.error(`Failed to load jobs: ${message}`);
     }
   }, []);
 
@@ -133,9 +133,9 @@ export default function Review() {
         }
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("failed to load records:", err);
-      toast.error(`failed to load records: ${message}`);
+      toast.error(`Failed to load records: ${message}`);
     }
   }, [filterStatus, selectedJob, selectedPipeline, viewMode]);
 
@@ -157,9 +157,9 @@ export default function Review() {
         rejected: rejected.length,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("failed to load stats:", err);
-      toast.error(`failed to load stats: ${message}`);
+      toast.error(`Failed to load stats: ${message}`);
     }
   }, [selectedJob, selectedPipeline]);
 
@@ -170,9 +170,9 @@ export default function Review() {
         await loadRecords();
         await loadStats();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "unknown error";
+        const message = err instanceof Error ? err.message : "Unknown error";
         console.error("failed to update record status:", err);
-        toast.error(`failed to update record: ${message}`);
+        toast.error(`Failed to update record: ${message}`);
       }
     },
     [loadRecords, loadStats]
@@ -315,7 +315,7 @@ export default function Review() {
 
     try {
       await recordsApi.deleteAllRecords(selectedJob || undefined);
-      toast.success("all records deleted successfully");
+      toast.success("All records deleted successfully");
       if (selectedJob && selectedPipeline) {
         setSelectedJob(null);
         await loadJobs(selectedPipeline);
@@ -323,9 +323,9 @@ export default function Review() {
       loadRecords();
       loadStats();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("failed to delete records:", err);
-      toast.error(`failed to delete records: ${message}`);
+      toast.error(`Failed to delete records: ${message}`);
     }
   };
 
@@ -548,9 +548,9 @@ export default function Review() {
               await loadRecords();
               await loadStats();
             } catch (err) {
-              const message = err instanceof Error ? err.message : "unknown error";
+              const message = err instanceof Error ? err.message : "Unknown error";
               console.error("failed to update record:", err);
-              toast.error(`failed to update record: ${message}`);
+              toast.error(`Failed to update record: ${message}`);
             }
           }}
           onRegisterStartEditing={(fn) => {
@@ -568,7 +568,7 @@ export default function Review() {
           onSave={() => {
             setShowConfigModal(false);
             loadCurrentPipeline(selectedPipeline);
-            toast.success("Field layout saved successfully");
+            toast.success("Field configuration saved successfully");
           }}
         />
       )}
@@ -598,9 +598,9 @@ export default function Review() {
               await loadStats();
               setSelectedRecordForDetails(null);
             } catch (err) {
-              const message = err instanceof Error ? err.message : "unknown error";
+              const message = err instanceof Error ? err.message : "Unknown error";
               console.error("failed to update record:", err);
-              toast.error(`failed to update record: ${message}`);
+              toast.error(`Failed to update record: ${message}`);
             }
           }}
         />

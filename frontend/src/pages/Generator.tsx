@@ -67,9 +67,9 @@ export default function Generator() {
         setValidationResult(result);
 
         if (result.valid) {
-          toast.success("All seeds are valid. Ready to generate!");
+          toast.success("All seeds validated successfully");
         } else {
-          toast.error("Seed validation failed");
+          toast.error("Seed validation failed - check errors below");
         }
 
         if (result.warnings && result.warnings.length > 0) {
@@ -79,7 +79,8 @@ export default function Generator() {
         }
       } catch (err) {
         console.error("Validation failed:", err);
-        toast.error("Validation error occurred");
+        const message = err instanceof Error ? err.message : "Unknown error";
+        toast.error(`Failed to validate seeds: ${message}`);
         setValidationResult(null);
       } finally {
         setIsValidating(false);
@@ -179,9 +180,9 @@ export default function Generator() {
       const data = await res.json();
       setPipelines(data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("failed to load pipelines:", err);
-      toast.error(`failed to load pipelines: ${message}`);
+      toast.error(`Failed to load pipelines: ${message}`);
     }
   };
 
@@ -242,7 +243,7 @@ export default function Generator() {
     if (isMarkdown) {
       const text = await selectedFile.text();
       if (!text.trim()) {
-        toast.error("Empty file: The markdown file is empty.");
+        toast.error("Empty file - Please upload a file with content");
         return;
       }
 
@@ -257,26 +258,21 @@ export default function Generator() {
 
       const seeds = Array.isArray(data) ? data : [data];
       if (seeds.length === 0) {
-        toast.error(
-          "Empty file: The file contains no seeds. Please add at least one seed with metadata."
-        );
+        toast.error("Empty file - Please add at least one seed with metadata");
         return;
       }
 
       for (let i = 0; i < seeds.length; i++) {
         if (!seeds[i].metadata) {
-          toast.error(`Invalid seed: Seed ${i + 1} is missing the required 'metadata' field.`);
+          toast.error(`Seed ${i + 1} is missing required 'metadata' field`);
           return;
         }
       }
 
       setFile(selectedFile);
     } catch (e) {
-      toast.error(
-        e instanceof Error
-          ? `Invalid JSON: ${e.message}`
-          : "The file is not valid JSON. Please check your file syntax."
-      );
+      const message = e instanceof Error ? e.message : "Please check your file syntax";
+      toast.error(`Invalid JSON: ${message}`);
       setValidationResult(null);
     }
   };
@@ -285,9 +281,7 @@ export default function Generator() {
     if (!file || !selectedPipeline) return;
 
     if (generating) {
-      toast.error(
-        "Job already running: A generation job is already in progress. Cancel it first or wait for completion."
-      );
+      toast.error("Job already running - Cancel current job or wait for completion");
       return;
     }
 
@@ -305,9 +299,8 @@ export default function Generator() {
 
       if (!res.ok) {
         const error = await res.json();
-        toast.error(
-          `Generation failed: ${error.detail || error.message || "Unknown error occurred."}`
-        );
+        const message = error.detail || error.message || "Unknown error";
+        toast.error(`Failed to start generation: ${message}`);
         setGenerating(false);
         return;
       }
@@ -321,8 +314,8 @@ export default function Generator() {
 
       // the useEffect will handle setting generating state based on job status
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Network error occurred";
-      toast.error(`Generation failed: ${message}`);
+      const message = error instanceof Error ? error.message : "Network error";
+      toast.error(`Failed to start generation: ${message}`);
       setGenerating(false);
     }
   };
@@ -336,7 +329,8 @@ export default function Generator() {
       setGenerating(false);
       toast.success("Job cancelled successfully");
     } catch (error) {
-      toast.error(`Failed to cancel: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to cancel job: ${message}`);
     }
   };
 

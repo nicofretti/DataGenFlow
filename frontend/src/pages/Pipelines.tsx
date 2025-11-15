@@ -43,9 +43,9 @@ export default function Pipelines() {
       const data = await res.json();
       setPipelines(data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("failed to load pipelines:", err);
-      toast.error(`failed to load pipelines: ${message}`);
+      toast.error(`Failed to load pipelines: ${message}`);
     }
   };
 
@@ -58,9 +58,9 @@ export default function Pipelines() {
       const data = await res.json();
       setTemplates(data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("failed to load templates:", err);
-      toast.error(`failed to load templates: ${message}`);
+      toast.error(`Failed to load templates: ${message}`);
     }
   };
 
@@ -72,10 +72,11 @@ export default function Pipelines() {
 
       if (!res.ok) throw new Error("Failed to create pipeline from template");
 
-      toast.success("Pipeline created from template");
+      toast.success("Pipeline created from template successfully");
       loadPipelines();
     } catch (error) {
-      toast.error(`Error: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to create pipeline from template: ${message}`);
     }
   };
 
@@ -118,7 +119,8 @@ export default function Pipelines() {
       toast.success("Pipeline deleted successfully");
       loadPipelines();
     } catch (error) {
-      toast.error(`Error: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to delete pipeline: ${message}`);
     }
   };
 
@@ -133,7 +135,8 @@ export default function Pipelines() {
       toast.success("All pipelines deleted successfully");
       loadPipelines();
     } catch (error) {
-      toast.error(`Error: ${error}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to delete pipelines: ${message}`);
     }
   };
 
