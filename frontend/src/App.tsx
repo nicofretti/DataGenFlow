@@ -69,11 +69,8 @@ function Navigation() {
         >
           {/* brand */}
           <Box sx={{ p: 4, borderBottom: "1px solid", borderColor: "border.default" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2,  minHeight: 40 }}>
-              <img
-                src="/logo.svg"
-                alt="DataGenFlow Logo"
-              />
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, minHeight: 40 }}>
+              <img src="/logo.svg" alt="DataGenFlow Logo" />
             </Box>
             <GlobalJobIndicator />
           </Box>
