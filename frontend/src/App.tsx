@@ -19,13 +19,17 @@ import { useTheme as shadcnUseTheme, ThemeProvider as ShadcnThemeProvider } from
 import { Toaster } from "./components/ui/sonner";
 import { usePersistedState } from "./hooks/usePersistedState";
 
-// context to control navigation visibility
+// context to control navigation visibility and theme
 const NavigationContext = createContext<{
   hideNavigation: boolean;
   setHideNavigation: (hide: boolean) => void;
+  persistedColorMode: "light" | "dark" | "auto";
+  setPersistedColorMode: (mode: "light" | "dark" | "auto") => void;
 }>({
   hideNavigation: false,
   setHideNavigation: () => {},
+  persistedColorMode: "light",
+  setPersistedColorMode: () => {},
 });
 
 export const useNavigation = () => useContext(NavigationContext);
@@ -35,7 +39,7 @@ function Navigation() {
   const { resolvedColorScheme, setColorMode } = useTheme();
   const { setTheme } = shadcnUseTheme();
   const isDark = resolvedColorScheme === "dark";
-  const { hideNavigation } = useNavigation();
+  const { hideNavigation, setPersistedColorMode } = useNavigation();
 
   const navItems = [
     { path: "/pipelines", label: "Pipelines", icon: WorkflowIcon },
@@ -48,6 +52,7 @@ function Navigation() {
     const newMode = isDark ? "light" : "dark";
     setColorMode(newMode);
     setTheme(newMode);
+    setPersistedColorMode(newMode);
   };
 
   return (
@@ -145,7 +150,7 @@ function Navigation() {
 }
 
 export default function App() {
-  const [colorMode] = usePersistedState<"light" | "dark" | "auto">("colorMode", "light");
+  const [colorMode, setPersistedColorMode] = usePersistedState<"light" | "dark" | "auto">("colorMode", "light");
   const [hideNavigation, setHideNavigation] = useState(false);
 
   // @todo: remove primer in favor of shadcn themes
@@ -159,7 +164,7 @@ export default function App() {
       <ThemeProvider colorMode={colorMode}>
         <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <JobProvider>
-            <NavigationContext.Provider value={{ hideNavigation, setHideNavigation }}>
+            <NavigationContext.Provider value={{ hideNavigation, setHideNavigation, persistedColorMode: colorMode, setPersistedColorMode }}>
               <Navigation />
             </NavigationContext.Provider>
             <Toaster />
