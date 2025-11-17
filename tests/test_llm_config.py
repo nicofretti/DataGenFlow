@@ -221,7 +221,7 @@ async def test_prepare_llm_call_anthropic(llm_config_manager):
 
     params = llm_config_manager.prepare_llm_call(config, messages=[])
 
-    assert params["model"] == "claude-3-opus-20240229"
+    assert params["model"] == "anthropic/claude-3-opus-20240229"
     assert params["api_base"] == "https://api.anthropic.com/v1/messages"
     assert params["api_key"] == "test-key"
 

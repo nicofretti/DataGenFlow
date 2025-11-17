@@ -150,7 +150,10 @@ function Navigation() {
 }
 
 export default function App() {
-  const [colorMode, setPersistedColorMode] = usePersistedState<"light" | "dark" | "auto">("colorMode", "light");
+  const [colorMode, setPersistedColorMode] = usePersistedState<"light" | "dark" | "auto">(
+    "colorMode",
+    "light"
+  );
   const [hideNavigation, setHideNavigation] = useState(false);
 
   // @todo: remove primer in favor of shadcn themes
@@ -164,7 +167,14 @@ export default function App() {
       <ThemeProvider colorMode={colorMode}>
         <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <JobProvider>
-            <NavigationContext.Provider value={{ hideNavigation, setHideNavigation, persistedColorMode: colorMode, setPersistedColorMode }}>
+            <NavigationContext.Provider
+              value={{
+                hideNavigation,
+                setHideNavigation,
+                persistedColorMode: colorMode,
+                setPersistedColorMode,
+              }}
+            >
               <Navigation />
             </NavigationContext.Provider>
             <Toaster />
