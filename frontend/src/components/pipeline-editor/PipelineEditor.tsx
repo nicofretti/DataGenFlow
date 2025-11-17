@@ -631,6 +631,7 @@ export default function PipelineEditor({
             nodesFocusable={true}
             elementsSelectable={true}
             deleteKeyCode="Delete"
+            panActivationKeyCode={null}
             fitView
           >
             <Background color={theme?.colors?.border.muted || "#e1e4e8"} gap={20} size={2} />

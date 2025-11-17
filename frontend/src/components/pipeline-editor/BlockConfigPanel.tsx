@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Box,
   Heading,
@@ -33,12 +33,45 @@ export default function BlockConfigPanel({
   const { resolvedColorScheme } = useTheme();
   const [wordWrap, setWordWrap] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [panelWidth, setPanelWidth] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
 
-  // sync formData when node config changes
+  // track if user has made edits to prevent parent updates from overwriting
+  const isEditingRef = useRef(false);
+  const prevNodeIdRef = useRef<string>(node.id);
+
+  // only sync formData when switching to a different node
+  // ignore parent config updates while user is editing
   useEffect(() => {
-    setFormData(config || {});
-    setErrors({});
+    if (prevNodeIdRef.current !== node.id) {
+      prevNodeIdRef.current = node.id;
+      isEditingRef.current = false;
+      setFormData(config || {});
+      setErrors({});
+    }
   }, [node.id, config]);
+
+  // handle resize
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = window.innerWidth - e.clientX;
+      setPanelWidth(Math.max(300, Math.min(800, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
 
   const handleChange = useCallback((key: string, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -172,9 +205,10 @@ export default function BlockConfigPanel({
           }}
         >
           <Editor
+            key={`${node.id}-${key}`}
             height="200px"
             defaultLanguage="python"
-            value={value}
+            defaultValue={value}
             onChange={(newValue) => handleChange(key, newValue || "")}
             theme={resolvedColorScheme === "dark" ? "vs-dark" : "light"}
             options={{
@@ -195,6 +229,8 @@ export default function BlockConfigPanel({
               overviewRulerLanes: 0,
               hideCursorInOverviewRuler: true,
               overviewRulerBorder: false,
+              insertSpaces: true,
+              renderWhitespace: true,
               wordWrap: wordWrap ? "on" : "off",
               fontSize: 13,
               fontFamily:
@@ -220,9 +256,10 @@ export default function BlockConfigPanel({
           }}
         >
           <Editor
+            key={`${node.id}-${key}`}
             height="300px"
             defaultLanguage="json"
-            value={jsonValue}
+            defaultValue={jsonValue}
             onChange={(newValue) => {
               // keep as string during editing, will be parsed on save
               handleChange(key, newValue || "");
@@ -289,7 +326,7 @@ export default function BlockConfigPanel({
   return (
     <Box
       sx={{
-        width: "400px",
+        width: `${panelWidth}px`,
         borderLeft: "1px solid",
         borderColor: "border.default",
         p: 3,
@@ -297,8 +334,27 @@ export default function BlockConfigPanel({
         height: "100%",
         display: "flex",
         flexDirection: "column",
+        position: "relative",
       }}
     >
+      {/* Resize handle */}
+      <Box
+        onMouseDown={() => setIsResizing(true)}
+        sx={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: "4px",
+          cursor: "col-resize",
+          bg: isResizing ? "accent.emphasis" : "transparent",
+          "&:hover": {
+            bg: "accent.muted",
+          },
+          transition: "background-color 0.1s ease",
+          zIndex: 10,
+        }}
+      />
       {/* Header */}
       <Box
         sx={{
