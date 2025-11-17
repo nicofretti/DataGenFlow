@@ -18,16 +18,16 @@ const PROVIDERS: { value: LLMProvider; label: string }[] = [
 
 const PROVIDER_DEFAULTS: Record<LLMProvider, { endpoint: string; model: string }> = {
   openai: {
-    endpoint: "https://api.openai.com/v1/chat/completions",
+    endpoint: "",
     model: "gpt-4",
   },
   anthropic: {
-    endpoint: "https://api.anthropic.com/v1/messages",
-    model: "claude-3-opus-20240229",
+    endpoint: "",
+    model: "claude-3-5-sonnet-20241022",
   },
   gemini: {
-    endpoint: "https://generativelanguage.googleapis.com/v1/models",
-    model: "gemini-pro",
+    endpoint: "",
+    model: "gemini-2.0-flash-exp",
   },
   ollama: {
     endpoint: "http://localhost:11434/v1/chat/completions",
@@ -76,7 +76,9 @@ export default function LLMFormModal({ isOpen, onClose, onSave, initialData }: P
     const newErrors: Record<string, string> = {};
 
     if (!name.trim()) newErrors.name = "name is required";
-    if (!endpoint.trim()) newErrors.endpoint = "endpoint is required";
+    if (provider === "ollama" && !endpoint.trim()) {
+      newErrors.endpoint = "endpoint is required for ollama";
+    }
     if (!modelName.trim()) newErrors.modelName = "model name is required";
     if (provider !== "ollama" && !apiKey.trim()) {
       newErrors.apiKey = "api key is required for this provider";
@@ -158,16 +160,27 @@ export default function LLMFormModal({ isOpen, onClose, onSave, initialData }: P
           </Select>
         </FormControl>
 
-        <FormControl required sx={{ mb: 3 }}>
-          <FormControl.Label sx={{ color: "fg.default" }}>Endpoint URL</FormControl.Label>
+        <FormControl required={provider === "ollama"} sx={{ mb: 3 }}>
+          <FormControl.Label sx={{ color: "fg.default" }}>
+            Endpoint URL {provider !== "ollama" && "(optional)"}
+          </FormControl.Label>
           <TextInput
             value={endpoint}
             onChange={(e) => setEndpoint(e.target.value)}
-            placeholder="https://api.openai.com/v1/chat/completions"
+            placeholder={
+              provider === "ollama"
+                ? "http://localhost:11434/v1/chat/completions"
+                : "leave empty to use default endpoint"
+            }
             block
           />
           {errors.endpoint && (
             <FormControl.Validation variant="error">{errors.endpoint}</FormControl.Validation>
+          )}
+          {provider !== "ollama" && (
+            <FormControl.Caption sx={{ color: "fg.muted" }}>
+              leave empty to use the provider&#39;s default endpoint
+            </FormControl.Caption>
           )}
         </FormControl>
 

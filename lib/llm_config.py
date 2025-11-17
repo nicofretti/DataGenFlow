@@ -190,8 +190,11 @@ class LLMConfigManager:
     def prepare_llm_call(self, config: LLMModelConfig, **litellm_params: Any) -> dict[str, Any]:
         """convert config to litellm parameters based on provider
 
-        ollama needs special handling because litellm expects "ollama/" prefix
-        and requires base url extraction from full endpoint
+        each provider has specific requirements:
+        - openai: no prefix, api_base optional
+        - anthropic: anthropic/ prefix, api_base optional
+        - gemini: gemini/ prefix for google ai studio, api_base optional
+        - ollama: ollama/ prefix, api_base required
         """
         params = litellm_params.copy()
 
@@ -199,12 +202,31 @@ class LLMConfigManager:
             # add ollama/ prefix to model name
             params["model"] = f"ollama/{config.model_name}"
             # extract base url from endpoint (remove /v1/chat/completions or similar)
-            base_url = re.sub(r"/v1/.*$", "", config.endpoint)
-            params["api_base"] = base_url
-            # ollama doesn't need api_key
-        else:
+            if config.endpoint:
+                base_url = re.sub(r"/v1/.*$", "", config.endpoint)
+                params["api_base"] = base_url
+        elif config.provider == LLMProvider.ANTHROPIC:
+            # add anthropic/ prefix to model name
+            params["model"] = f"anthropic/{config.model_name}"
+            # only set api_base if custom endpoint provided
+            if config.endpoint:
+                params["api_base"] = config.endpoint
+            if config.api_key:
+                params["api_key"] = config.api_key
+        elif config.provider == LLMProvider.GEMINI:
+            # add gemini/ prefix for google ai studio api
+            params["model"] = f"gemini/{config.model_name}"
+            # only set api_base if custom endpoint provided
+            if config.endpoint:
+                params["api_base"] = config.endpoint
+            if config.api_key:
+                params["api_key"] = config.api_key
+        else:  # OPENAI or others
+            # no prefix for openai models
             params["model"] = config.model_name
-            params["api_base"] = config.endpoint
+            # only set api_base if custom endpoint provided
+            if config.endpoint:
+                params["api_base"] = config.endpoint
             if config.api_key:
                 params["api_key"] = config.api_key
 
@@ -221,11 +243,31 @@ class LLMConfigManager:
 
         if config.provider == LLMProvider.OLLAMA:
             params["model"] = f"ollama/{config.model_name}"
-            base_url = re.sub(r"/v1/.*$", "", config.endpoint)
-            params["api_base"] = base_url
-        else:
+            if config.endpoint:
+                base_url = re.sub(r"/v1/.*$", "", config.endpoint)
+                params["api_base"] = base_url
+        elif config.provider == LLMProvider.ANTHROPIC:
+            # add anthropic/ prefix to model name
+            params["model"] = f"anthropic/{config.model_name}"
+            # only set api_base if custom endpoint provided
+            if config.endpoint:
+                params["api_base"] = config.endpoint
+            if config.api_key:
+                params["api_key"] = config.api_key
+        elif config.provider == LLMProvider.GEMINI:
+            # add gemini/ prefix for google ai studio api
+            params["model"] = f"gemini/{config.model_name}"
+            # only set api_base if custom endpoint provided
+            if config.endpoint:
+                params["api_base"] = config.endpoint
+            if config.api_key:
+                params["api_key"] = config.api_key
+        else:  # OPENAI or others
+            # no prefix for openai models
             params["model"] = config.model_name
-            params["api_base"] = config.endpoint
+            # only set api_base if custom endpoint provided
+            if config.endpoint:
+                params["api_base"] = config.endpoint
             if config.api_key:
                 params["api_key"] = config.api_key
 

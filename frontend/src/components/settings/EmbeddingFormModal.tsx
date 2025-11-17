@@ -21,17 +21,17 @@ const PROVIDER_DEFAULTS: Record<
   { endpoint: string; model: string; dimensions?: number }
 > = {
   openai: {
-    endpoint: "https://api.openai.com/v1/embeddings",
-    model: "text-embedding-ada-002",
+    endpoint: "",
+    model: "text-embedding-3-small",
     dimensions: 1536,
   },
   anthropic: {
-    endpoint: "https://api.anthropic.com/v1/embeddings",
-    model: "claude-embed",
+    endpoint: "",
+    model: "voyage-3",
   },
   gemini: {
-    endpoint: "https://generativelanguage.googleapis.com/v1/models",
-    model: "embedding-001",
+    endpoint: "",
+    model: "text-embedding-004",
   },
   ollama: {
     endpoint: "http://localhost:11434/v1/embeddings",
@@ -85,7 +85,9 @@ export default function EmbeddingFormModal({ isOpen, onClose, onSave, initialDat
     const newErrors: Record<string, string> = {};
 
     if (!name.trim()) newErrors.name = "name is required";
-    if (!endpoint.trim()) newErrors.endpoint = "endpoint is required";
+    if (provider === "ollama" && !endpoint.trim()) {
+      newErrors.endpoint = "endpoint is required for ollama";
+    }
     if (!modelName.trim()) newErrors.modelName = "model name is required";
     if (provider !== "ollama" && !apiKey.trim()) {
       newErrors.apiKey = "api key is required for this provider";
@@ -172,16 +174,27 @@ export default function EmbeddingFormModal({ isOpen, onClose, onSave, initialDat
           </Select>
         </FormControl>
 
-        <FormControl required sx={{ mb: 3 }}>
-          <FormControl.Label sx={{ color: "fg.default" }}>Endpoint URL</FormControl.Label>
+        <FormControl required={provider === "ollama"} sx={{ mb: 3 }}>
+          <FormControl.Label sx={{ color: "fg.default" }}>
+            Endpoint URL {provider !== "ollama" && "(optional)"}
+          </FormControl.Label>
           <TextInput
             value={endpoint}
             onChange={(e) => setEndpoint(e.target.value)}
-            placeholder="https://api.openai.com/v1/embeddings"
+            placeholder={
+              provider === "ollama"
+                ? "http://localhost:11434/v1/embeddings"
+                : "leave empty to use default endpoint"
+            }
             block
           />
           {errors.endpoint && (
             <FormControl.Validation variant="error">{errors.endpoint}</FormControl.Validation>
+          )}
+          {provider !== "ollama" && (
+            <FormControl.Caption sx={{ color: "fg.muted" }}>
+              leave empty to use the provider&#39;s default endpoint
+            </FormControl.Caption>
           )}
         </FormControl>
 

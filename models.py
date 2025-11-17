@@ -67,7 +67,7 @@ class LLMProvider(str, Enum):
 class LLMModelConfig(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     provider: LLMProvider
-    endpoint: str = Field(..., min_length=1)
+    endpoint: str | None = None
     api_key: str | None = None
     model_name: str = Field(..., min_length=1)
 
@@ -75,7 +75,7 @@ class LLMModelConfig(BaseModel):
 class EmbeddingModelConfig(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     provider: LLMProvider
-    endpoint: str = Field(..., min_length=1)
+    endpoint: str | None = None
     api_key: str | None = None
     model_name: str = Field(..., min_length=1)
     dimensions: int | None = None

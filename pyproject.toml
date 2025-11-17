@@ -25,6 +25,8 @@ dependencies = [
     "litellm>=1.78.5",
     "rouge-score>=0.1.2",
     "llama-index-core>=0.14.7",
+    "anthropic>=0.73.0",
+    "google-generativeai>=0.8.5",
 ]
 
 [tool.setuptools.packages.find]

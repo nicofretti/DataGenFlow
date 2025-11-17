@@ -387,7 +387,7 @@ export default function Settings() {
                         ) : (
                           <CheckCircleIcon size={16} />
                         )}
-                        <Text>{testingEmbedding === model.name ? "testing..." : "test"}</Text>
+                        <Text>{testingEmbedding === model.name ? "Testing..." : "Test"}</Text>
                       </Box>
                     </Button>
                     <IconButton
