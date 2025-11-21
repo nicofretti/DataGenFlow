@@ -438,6 +438,53 @@ export default function Review() {
         </FormControl>
       </Box>
 
+      {/* Usage Stats */}
+      {selectedJob && jobs.find((j) => j.id === selectedJob)?.usage && (
+        <Box
+          sx={{
+            mb: 3,
+            p: 3,
+            bg: "canvas.subtle",
+            borderRadius: 2,
+            border: "1px solid",
+            borderColor: "border.default",
+          }}
+        >
+          <Text sx={{ fontWeight: "bold", fontSize: 1, mb: 2, display: "block" }}>
+            Job Token Usage
+          </Text>
+          {(() => {
+            const job = jobs.find((j) => j.id === selectedJob);
+            if (!job?.usage) return null;
+            const totalTokens =
+              job.usage.input_tokens + job.usage.output_tokens + job.usage.cached_tokens;
+            return (
+              <>
+                <Text sx={{ fontSize: 1, color: "fg.muted", fontFamily: "mono", display: "block" }}>
+                  Total: {totalTokens.toLocaleString()} (in: {job.usage.input_tokens.toLocaleString()}
+                  , out: {job.usage.output_tokens.toLocaleString()}, cached:{" "}
+                  {job.usage.cached_tokens.toLocaleString()})
+                </Text>
+                {job.usage.end_time && (
+                  <Text
+                    sx={{
+                      fontSize: 1,
+                      color: "fg.muted",
+                      fontFamily: "mono",
+                      display: "block",
+                      mt: 1,
+                    }}
+                  >
+                    Duration: {((job.usage.end_time - job.usage.start_time) / 60).toFixed(2)}{" "}
+                    minutes
+                  </Text>
+                )}
+              </>
+            );
+          })()}
+        </Box>
+      )}
+
       <Box sx={{ mb: 3, display: "flex", justifyContent: "center" }}>
         <SegmentedControl
           aria-label="Filter by status"

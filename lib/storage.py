@@ -148,6 +148,9 @@ class Storage:
         if "validation_config" not in pipeline_column_names:
             await db.execute("ALTER TABLE pipelines ADD COLUMN validation_config TEXT")
 
+        if "constraints" not in pipeline_column_names:
+            await db.execute("ALTER TABLE pipelines ADD COLUMN constraints TEXT")
+
         # migrate jobs table
         cursor = await db.execute("PRAGMA table_info(jobs)")
         job_columns = await cursor.fetchall()
@@ -170,6 +173,9 @@ class Storage:
 
         if "error" not in job_column_names:
             await db.execute("ALTER TABLE jobs ADD COLUMN error TEXT")
+
+        if "usage" not in job_column_names:
+            await db.execute("ALTER TABLE jobs ADD COLUMN usage TEXT")
 
     async def _migrate_env_to_db(self, db: Connection) -> None:
         """migrate .env config to database if no models configured"""
@@ -537,7 +543,7 @@ class Storage:
 
             # handle columns that might not exist in older databases
             row_dict = dict(row)
-            return {
+            result = {
                 "id": row_dict["id"],
                 "pipeline_id": row_dict["pipeline_id"],
                 "status": row_dict["status"],
@@ -553,6 +559,15 @@ class Storage:
                 "completed_at": row_dict["completed_at"],
                 "created_at": row_dict.get("created_at"),
             }
+
+            # parse usage json if present
+            if row_dict.get("usage"):
+                try:
+                    result["usage"] = json.loads(row_dict["usage"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            return result
 
         return await self._execute_with_connection(_get)
 
@@ -577,24 +592,31 @@ class Storage:
             result = []
             for row in rows:
                 row_dict = dict(row)
-                result.append(
-                    {
-                        "id": row_dict["id"],
-                        "pipeline_id": row_dict["pipeline_id"],
-                        "status": row_dict["status"],
-                        "total_seeds": row_dict["total_seeds"],
-                        "current_seed": row_dict.get("current_seed", 0),
-                        "records_generated": row_dict["records_generated"],
-                        "records_failed": row_dict["records_failed"],
-                        "progress": row_dict.get("progress", 0.0),
-                        "current_block": row_dict.get("current_block"),
-                        "current_step": row_dict.get("current_step"),
-                        "error": row_dict.get("error"),
-                        "started_at": row_dict["started_at"],
-                        "completed_at": row_dict["completed_at"],
-                        "created_at": row_dict.get("created_at"),
-                    }
-                )
+                job_dict = {
+                    "id": row_dict["id"],
+                    "pipeline_id": row_dict["pipeline_id"],
+                    "status": row_dict["status"],
+                    "total_seeds": row_dict["total_seeds"],
+                    "current_seed": row_dict.get("current_seed", 0),
+                    "records_generated": row_dict["records_generated"],
+                    "records_failed": row_dict["records_failed"],
+                    "progress": row_dict.get("progress", 0.0),
+                    "current_block": row_dict.get("current_block"),
+                    "current_step": row_dict.get("current_step"),
+                    "error": row_dict.get("error"),
+                    "started_at": row_dict["started_at"],
+                    "completed_at": row_dict["completed_at"],
+                    "created_at": row_dict.get("created_at"),
+                }
+
+                # parse usage json if present
+                if row_dict.get("usage"):
+                    try:
+                        job_dict["usage"] = json.loads(row_dict["usage"])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+                result.append(job_dict)
             return result
 
         return await self._execute_with_connection(_list)
@@ -615,6 +637,7 @@ class Storage:
             "current_step",
             "error",
             "completed_at",
+            "usage",
         }
         update_fields = {k: v for k, v in updates.items() if k in valid_fields}
 

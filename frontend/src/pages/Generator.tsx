@@ -14,7 +14,7 @@ import {
 import { PlayIcon, XIcon, UploadIcon } from "@primer/octicons-react";
 import { useJob } from "../contexts/JobContext";
 import type { Pipeline } from "../types";
-import { getElapsedTime } from "../utils/format";
+import { getElapsedTime, getElapsedTimeBetween } from "../utils/format";
 import { getStatusColor } from "../utils/status";
 import { toast } from "sonner";
 
@@ -334,6 +334,8 @@ export default function Generator() {
     }
   };
 
+  console.log(currentJob?.usage)
+
   return (
     <Box>
       <Box sx={{ mb: 4 }}>
@@ -415,6 +417,48 @@ export default function Generator() {
             <Text sx={{ fontSize: 1, color: "fg.muted", mb: 2, display: "block" }}>
               Running for {getElapsedTime(currentJob.started_at)}
             </Text>
+          )}
+
+          {currentJob.usage &&
+            currentJob.usage.input_tokens !== undefined &&
+            currentJob.usage.output_tokens !== undefined &&
+            currentJob.usage.cached_tokens !== undefined && (
+              <Box
+                sx={{
+                  p: 2,
+                  bg: "canvas.subtle",
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "border.default",
+                  mb: 2,
+                }}
+              >
+                <Text sx={{ fontWeight: "bold", fontSize: 1, mb: 1, display: "block" }}>
+                  Metrics:
+                </Text>
+                <Text sx={{ fontSize: 1, color: "fg.muted", fontFamily: "mono" }}>
+                  Total tokens:{" "}
+                  {(
+                    currentJob.usage.input_tokens +
+                    currentJob.usage.output_tokens +
+                    currentJob.usage.cached_tokens
+                  ).toLocaleString()}{" "}
+                  (in: {currentJob.usage.input_tokens.toLocaleString()}, out:{" "}
+                  {currentJob.usage.output_tokens.toLocaleString()}, cached:{" "}
+                  {currentJob.usage.cached_tokens.toLocaleString()})
+                </Text>
+                <Text sx={{ fontSize: 1, color: "fg.muted", fontFamily: "mono" }}>
+                  Time elapsed: {currentJob.usage.start_time && currentJob.usage.end_time
+                    ? getElapsedTimeBetween(currentJob.usage.end_time, currentJob.usage.start_time)
+                    : "N/A"}
+                </Text>
+              </Box>
+            )}
+
+          {currentJob.status === "stopped" && (
+            <Flash variant="warning" sx={{ mb: 2 }}>
+              Job stopped: constraint limit reached
+            </Flash>
           )}
 
           {currentJob.error && (

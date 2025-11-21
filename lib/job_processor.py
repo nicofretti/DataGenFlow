@@ -1,12 +1,14 @@
 import asyncio
 import json
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from loguru import logger
 
+from lib.entities import pipeline
 from lib.job_queue import JobQueue
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
@@ -88,10 +90,21 @@ async def _process_job(
             )
             return
 
-        pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
+        pipeline_obj = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
 
-        has_multiplier = len(pipeline._block_instances) > 0 and getattr(
-            pipeline._block_instances[0], "is_multiplier", False
+        # load constraints from pipeline
+        constraints = None
+        if pipeline_data["definition"].get("constraints"):
+            try:
+                constraints = pipeline.Constraints(**pipeline_data["definition"]["constraints"])
+            except (ValueError, KeyError) as e:
+                logger.warning(f"Invalid constraints for pipeline {pipeline_id}: {e}")
+
+        # initialize usage tracker
+        accumulated_usage = pipeline.Usage()
+
+        has_multiplier = len(pipeline_obj._block_instances) > 0 and getattr(
+            pipeline_obj._block_instances[0], "is_multiplier", False
         )
 
         seed_path = Path(seed_file_path)
@@ -149,7 +162,7 @@ async def _process_job(
 
                 try:
                     if has_multiplier:
-                        results = await pipeline.execute(
+                        results = await pipeline_obj.execute(
                             metadata,
                             job_id=job_id,
                             job_queue=job_queue,
@@ -157,6 +170,26 @@ async def _process_job(
                             pipeline_id=pipeline_id,
                         )
                         assert isinstance(results, list)
+                        # multiplier results already saved in workflow
+                        for exec_result in results:
+                            if exec_result.usage:
+                                accumulated_usage.input_tokens += exec_result.usage.get(
+                                    "input_tokens", 0
+                                )
+                                accumulated_usage.output_tokens += exec_result.usage.get(
+                                    "output_tokens", 0
+                                )
+                                accumulated_usage.cached_tokens += exec_result.usage.get(
+                                    "cached_tokens", 0
+                                )
+
+                        # update usage after processing multiplier seed
+                        await _update_job_status(
+                            job_queue,
+                            storage,
+                            job_id,
+                            usage=json.dumps(accumulated_usage.model_dump()),
+                        )
                     else:
                         progress = execution_index / total_executions
                         await _update_job_status(
@@ -172,20 +205,24 @@ async def _process_job(
                             ),
                         )
 
-                        exec_result = await pipeline.execute(
+                        exec_result = await pipeline_obj.execute(
                             metadata,
                             job_id=job_id,
                             job_queue=job_queue,
                             storage=storage,
                             pipeline_id=pipeline_id,
                         )
-                        assert isinstance(exec_result, tuple)
-                        result, trace, trace_id = exec_result
+
+                        # extract usage from result
+                        if exec_result.usage:
+                            accumulated_usage.input_tokens += exec_result.usage.get("input_tokens", 0)
+                            accumulated_usage.output_tokens += exec_result.usage.get("output_tokens", 0)
+                            accumulated_usage.cached_tokens += exec_result.usage.get("cached_tokens", 0)
 
                         record = Record(
                             metadata=metadata,
-                            output=json.dumps(result),
-                            trace=trace,
+                            output=json.dumps(exec_result.result),
+                            trace=exec_result.trace,
                         )
 
                         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
@@ -196,7 +233,24 @@ async def _process_job(
                             storage,
                             job_id,
                             records_generated=records_generated,
+                            usage=json.dumps(accumulated_usage.model_dump()),
                         )
+
+                    # check constraints after each execution
+                    if constraints:
+                        exceeded, constraint_name = constraints.is_exceeded(accumulated_usage)
+                        if exceeded:
+                            logger.info(f"[Job {job_id}] stopped: {constraint_name} exceeded")
+                            accumulated_usage.end_time = time.time()
+                            await _update_job_status(
+                                job_queue,
+                                storage,
+                                job_id,
+                                status="stopped",
+                                completed_at=datetime.now().isoformat(),
+                                usage=json.dumps(accumulated_usage.model_dump()),
+                            )
+                            break
 
                 except Exception as e:
                     records_failed += 1
@@ -215,7 +269,8 @@ async def _process_job(
             logger.warning(f"failed to delete seed file {seed_path}: {e}")
 
         final_status = job_queue.get_job(job_id)
-        if final_status and final_status.get("status") != "cancelled":
+        if final_status and final_status.get("status") not in ("cancelled", "stopped"):
+            accumulated_usage.end_time = time.time()
             completed_at = datetime.now().isoformat()
             await _update_job_status(
                 job_queue,
@@ -224,6 +279,7 @@ async def _process_job(
                 status="completed",
                 progress=1.0,
                 completed_at=completed_at,
+                usage=json.dumps(accumulated_usage.model_dump()),
             )
             logger.info(
                 f"[Job {job_id}] Completed: {records_generated} generated, {records_failed} failed"

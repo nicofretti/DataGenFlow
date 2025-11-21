@@ -5,6 +5,7 @@ import uuid
 from typing import Any
 
 from lib.blocks.registry import registry
+from lib.entities import pipeline
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 from models import Record
 
@@ -84,13 +85,12 @@ class Pipeline:
         job_queue: Any = None,
         storage: Any = None,
         pipeline_id: int | None = None,
-    ) -> (
-        tuple[dict[str, Any], list[dict[str, Any]], str]
-        | list[tuple[dict[str, Any], list[dict[str, Any]], str]]
-    ):
+    ) -> pipeline.ExecutionResult | list[pipeline.ExecutionResult]:
         if not self._block_instances:
             trace_id = str(uuid.uuid4())
-            return initial_data, [], trace_id
+            return pipeline.ExecutionResult(
+                result=initial_data, trace=[], trace_id=trace_id, usage={}
+            )
 
         first_block = self._block_instances[0]
         is_multiplier = getattr(first_block, "is_multiplier", False)
@@ -108,9 +108,10 @@ class Pipeline:
         job_id: int | None = None,
         job_queue: Any = None,
         storage: Any = None,
-    ) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+    ) -> pipeline.ExecutionResult:
         trace_id = str(uuid.uuid4())
         accumulated_data = initial_data.copy()
+        accumulated_usage = pipeline.Usage()
         trace = []
 
         logger.info(
@@ -138,6 +139,18 @@ class Pipeline:
                 execution_time = time.time() - start_time
 
                 logger.debug(f"[{trace_id}] {block_name} completed in {execution_time:.3f}s")
+
+                # extract usage if present
+                if "_usage" in result:
+                    try:
+                        block_usage = pipeline.Usage(**result.pop("_usage"))
+                        accumulated_usage.input_tokens += block_usage.input_tokens
+                        accumulated_usage.output_tokens += block_usage.output_tokens
+                        accumulated_usage.cached_tokens += block_usage.cached_tokens
+                    except (ValueError, KeyError) as e:
+                        # log but don't fail - block didn't return valid usage
+                        logger.warning(f"Invalid usage from {block_name}: {e}")
+                        result.pop("_usage", None)
 
                 self._validate_output(block, result)
                 accumulated_data.update(result)
@@ -168,12 +181,18 @@ class Pipeline:
                 )
 
         logger.info(f"[{trace_id}] Pipeline '{self.name}' completed successfully")
-        return accumulated_data, trace, trace_id
+        return pipeline.ExecutionResult(
+            result=accumulated_data,
+            trace=trace,
+            trace_id=trace_id,
+            usage=accumulated_usage.model_dump(),
+        )
 
     async def _execute_block_in_seed(
         self,
         block: Any,
         accumulated_data: dict[str, Any],
+        accumulated_usage: pipeline.Usage,
         trace: list[dict[str, Any]],
         block_idx: int,
         trace_id: str,
@@ -188,6 +207,18 @@ class Pipeline:
         try:
             result = await block.execute(accumulated_data)
             block_execution_time = time.time() - block_start_time
+
+            # extract usage if present
+            if "_usage" in result:
+                try:
+                    block_usage = pipeline.Usage(**result.pop("_usage"))
+                    accumulated_usage.input_tokens += block_usage.input_tokens
+                    accumulated_usage.output_tokens += block_usage.output_tokens
+                    accumulated_usage.cached_tokens += block_usage.cached_tokens
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Invalid usage from {block_name}: {e}")
+                    result.pop("_usage", None)
+
             self._validate_output(block, result)
             accumulated_data.update(result)
             trace.append(
@@ -241,10 +272,11 @@ class Pipeline:
         storage: Any,
         pipeline_id: int | None,
         total_seeds: int,
-    ) -> tuple[dict[str, Any], list[dict[str, Any]], str] | None:
+    ) -> pipeline.ExecutionResult | None:
         """process one seed through all remaining blocks"""
         trace_id = str(uuid.uuid4())
         accumulated_data = seed_data.copy()
+        accumulated_usage = pipeline.Usage()
         trace: list[dict[str, Any]] = []
 
         try:
@@ -261,7 +293,14 @@ class Pipeline:
                     current_step=step,
                 )
                 await self._execute_block_in_seed(
-                    block, accumulated_data, trace, i, trace_id, seed_idx, len(remaining_blocks)
+                    block,
+                    accumulated_data,
+                    accumulated_usage,
+                    trace,
+                    i,
+                    trace_id,
+                    seed_idx,
+                    len(remaining_blocks),
                 )
 
             if storage and pipeline_id and job_id:
@@ -269,7 +308,12 @@ class Pipeline:
                     initial_data, accumulated_data, trace, pipeline_id, job_id, job_queue, storage
                 )
 
-            return (accumulated_data, trace, trace_id)
+            return pipeline.ExecutionResult(
+                result=accumulated_data,
+                trace=trace,
+                trace_id=trace_id,
+                usage=accumulated_usage.model_dump(),
+            )
         except Exception:
             logger.exception(f"[{trace_id}] Seed {seed_idx + 1}/{total_seeds} failed")
             if job_id and job_queue:
@@ -306,7 +350,7 @@ class Pipeline:
         job_queue: Any = None,
         storage: Any = None,
         pipeline_id: int | None = None,
-    ) -> list[tuple[dict[str, Any], list[dict[str, Any]], str]]:
+    ) -> list[pipeline.ExecutionResult]:
         """execute pipeline with multiplier first block that generates multiple seeds"""
         first_block = self._block_instances[0]
         remaining_blocks = self._block_instances[1:]
