@@ -90,12 +90,12 @@ async def _process_job(
             )
             return
 
-        pipeline_obj = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
+        pipeline_obj = WorkflowPipeline.load_from_dict(pipeline_data.definition)
 
         # load constraints from pipeline (always create object, even if empty)
-        if pipeline_data["definition"].get("constraints"):
+        if pipeline_data.definition.get("constraints"):
             try:
-                constraints = pipeline.Constraints(**pipeline_data["definition"]["constraints"])
+                constraints = pipeline.Constraints(**pipeline_data.definition["constraints"])
             except (ValueError, KeyError) as e:
                 logger.warning(f"Invalid constraints for pipeline {pipeline_id}: {e}")
                 constraints = pipeline.Constraints()

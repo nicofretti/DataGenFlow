@@ -85,3 +85,33 @@ class ConnectionTestResult(BaseModel):
     success: bool
     message: str
     latency_ms: int | None = None
+
+
+class Job(BaseModel):
+    """job record from database"""
+
+    id: int
+    pipeline_id: int
+    status: str
+    total_seeds: int
+    current_seed: int = 0
+    records_generated: int = 0
+    records_failed: int = 0
+    progress: float = 0.0
+    current_block: str | None = None
+    current_step: str | None = None
+    error: str | None = None
+    started_at: str
+    completed_at: str | None = None
+    created_at: str | None = None
+    usage: dict[str, Any] | None = None
+
+
+class PipelineRecord(BaseModel):
+    """pipeline record from database"""
+
+    id: int
+    name: str
+    definition: dict[str, Any]
+    created_at: str
+    validation_config: dict[str, Any] | None = None

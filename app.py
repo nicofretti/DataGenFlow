@@ -22,7 +22,9 @@ from lib.workflow import Pipeline as WorkflowPipeline
 from models import (
     ConnectionTestResult,
     EmbeddingModelConfig,
+    Job,
     LLMModelConfig,
+    PipelineRecord,
     Record,
     RecordStatus,
     RecordUpdate,
@@ -126,7 +128,7 @@ async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
     if not pipeline_data:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
-    blocks = pipeline_data["definition"]["blocks"]
+    blocks = pipeline_data.definition["blocks"]
     if not blocks:
         raise HTTPException(status_code=400, detail="pipeline has no blocks")
 
@@ -172,7 +174,7 @@ async def generate_from_file(
     if not pipeline_data:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
-    pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
+    pipeline = WorkflowPipeline.load_from_dict(pipeline_data.definition)
 
     # parse seed file with size limit
     content = await file.read(MAX_FILE_SIZE + 1)
@@ -476,7 +478,7 @@ async def create_pipeline(pipeline_data: dict[str, Any]) -> dict[str, Any]:
 
 
 @api_router.get("/pipelines")
-async def list_pipelines() -> list[dict[str, Any]]:
+async def list_pipelines() -> list[PipelineRecord]:
     return await storage.list_pipelines()
 
 
@@ -486,10 +488,11 @@ async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
     if not pipeline:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
-    blocks = pipeline.get("definition", {}).get("blocks", [])
-    pipeline["first_block_is_multiplier"] = is_multiplier_pipeline(blocks)
+    blocks = pipeline.definition.get("blocks", [])
+    pipeline_dict = pipeline.model_dump()
+    pipeline_dict["first_block_is_multiplier"] = is_multiplier_pipeline(blocks)
 
-    return pipeline
+    return pipeline_dict
 
 
 @api_router.put("/pipelines/{pipeline_id}")
@@ -514,7 +517,7 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
         if not pipeline_data:
             raise HTTPException(status_code=404, detail="pipeline not found")
 
-        pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
+        pipeline = WorkflowPipeline.load_from_dict(pipeline_data.definition)
         result, trace, trace_id = await pipeline.execute(data)
         return {"result": result, "trace": trace, "trace_id": trace_id}
     except HTTPException:
@@ -538,7 +541,7 @@ async def get_accumulated_state_schema(pipeline_id: int) -> dict[str, list[str]]
     if not pipeline_data:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
-    blocks = pipeline_data["definition"]["blocks"]
+    blocks = pipeline_data.definition["blocks"]
     fields = compute_accumulated_state_schema(blocks)
     return {"fields": fields}
 
@@ -585,7 +588,7 @@ async def delete_pipeline(pipeline_id: int) -> dict[str, bool]:
 
     # remove jobs from in-memory queue
     for job in jobs:
-        job_queue.delete_job(job["id"])
+        job_queue.delete_job(job.id)
 
     return {"success": True}
 

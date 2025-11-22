@@ -7,7 +7,7 @@ import aiosqlite
 from aiosqlite import Connection
 
 from config import settings
-from models import Record, RecordStatus
+from models import Job, PipelineRecord, Record, RecordStatus
 
 logger = logging.getLogger(__name__)
 
@@ -438,40 +438,40 @@ class Storage:
 
         return await self._execute_with_connection(_save)
 
-    async def get_pipeline(self, pipeline_id: int) -> dict[str, Any] | None:
-        async def _get(db: Connection) -> dict[str, Any] | None:
+    async def get_pipeline(self, pipeline_id: int) -> PipelineRecord | None:
+        async def _get(db: Connection) -> PipelineRecord | None:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM pipelines WHERE id = ?", (pipeline_id,))
             row = await cursor.fetchone()
             if not row:
                 return None
-            return {
-                "id": row["id"],
-                "name": row["name"],
-                "definition": json.loads(row["definition"]),
-                "created_at": row["created_at"],
-                "validation_config": (
+            return PipelineRecord(
+                id=row["id"],
+                name=row["name"],
+                definition=json.loads(row["definition"]),
+                created_at=row["created_at"],
+                validation_config=(
                     json.loads(row["validation_config"]) if row["validation_config"] else None
                 ),
-            }
+            )
 
         return await self._execute_with_connection(_get)
 
-    async def list_pipelines(self) -> list[dict[str, Any]]:
-        async def _list(db: Connection) -> list[dict[str, Any]]:
+    async def list_pipelines(self) -> list[PipelineRecord]:
+        async def _list(db: Connection) -> list[PipelineRecord]:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM pipelines ORDER BY created_at DESC")
             rows = await cursor.fetchall()
             return [
-                {
-                    "id": row["id"],
-                    "name": row["name"],
-                    "definition": json.loads(row["definition"]),
-                    "created_at": row["created_at"],
-                    "validation_config": (
+                PipelineRecord(
+                    id=row["id"],
+                    name=row["name"],
+                    definition=json.loads(row["definition"]),
+                    created_at=row["created_at"],
+                    validation_config=(
                         json.loads(row["validation_config"]) if row["validation_config"] else None
                     ),
-                }
+                )
                 for row in rows
             ]
 
@@ -533,8 +533,8 @@ class Storage:
 
         return await self._execute_with_connection(_create)
 
-    async def get_job(self, job_id: int) -> dict[str, Any] | None:
-        async def _get(db: Connection) -> dict[str, Any] | None:
+    async def get_job(self, job_id: int) -> Job | None:
+        async def _get(db: Connection) -> Job | None:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM jobs WHERE id = ?", (job_id,))
             row = await cursor.fetchone()
@@ -543,38 +543,37 @@ class Storage:
 
             # handle columns that might not exist in older databases
             row_dict = dict(row)
-            result = {
-                "id": row_dict["id"],
-                "pipeline_id": row_dict["pipeline_id"],
-                "status": row_dict["status"],
-                "total_seeds": row_dict["total_seeds"],
-                "current_seed": row_dict.get("current_seed", 0),
-                "records_generated": row_dict["records_generated"],
-                "records_failed": row_dict["records_failed"],
-                "progress": row_dict.get("progress", 0.0),
-                "current_block": row_dict.get("current_block"),
-                "current_step": row_dict.get("current_step"),
-                "error": row_dict.get("error"),
-                "started_at": row_dict["started_at"],
-                "completed_at": row_dict["completed_at"],
-                "created_at": row_dict.get("created_at"),
-            }
 
             # parse usage json if present
+            usage = None
             if row_dict.get("usage"):
                 try:
-                    result["usage"] = json.loads(row_dict["usage"])
+                    usage = json.loads(row_dict["usage"])
                 except (json.JSONDecodeError, TypeError):
                     pass
 
-            return result
+            return Job(
+                id=row_dict["id"],
+                pipeline_id=row_dict["pipeline_id"],
+                status=row_dict["status"],
+                total_seeds=row_dict["total_seeds"],
+                current_seed=row_dict.get("current_seed", 0),
+                records_generated=row_dict["records_generated"],
+                records_failed=row_dict["records_failed"],
+                progress=row_dict.get("progress", 0.0),
+                current_block=row_dict.get("current_block"),
+                current_step=row_dict.get("current_step"),
+                error=row_dict.get("error"),
+                started_at=row_dict["started_at"],
+                completed_at=row_dict["completed_at"],
+                created_at=row_dict.get("created_at"),
+                usage=usage,
+            )
 
         return await self._execute_with_connection(_get)
 
-    async def list_jobs(
-        self, pipeline_id: int | None = None, limit: int = 10
-    ) -> list[dict[str, Any]]:
-        async def _list(db: Connection) -> list[dict[str, Any]]:
+    async def list_jobs(self, pipeline_id: int | None = None, limit: int = 10) -> list[Job]:
+        async def _list(db: Connection) -> list[Job]:
             db.row_factory = aiosqlite.Row
             if pipeline_id:
                 cursor = await db.execute(
@@ -588,35 +587,37 @@ class Storage:
                 )
             rows = await cursor.fetchall()
 
-            # convert rows to dicts to use .get() method
             result = []
             for row in rows:
                 row_dict = dict(row)
-                job_dict = {
-                    "id": row_dict["id"],
-                    "pipeline_id": row_dict["pipeline_id"],
-                    "status": row_dict["status"],
-                    "total_seeds": row_dict["total_seeds"],
-                    "current_seed": row_dict.get("current_seed", 0),
-                    "records_generated": row_dict["records_generated"],
-                    "records_failed": row_dict["records_failed"],
-                    "progress": row_dict.get("progress", 0.0),
-                    "current_block": row_dict.get("current_block"),
-                    "current_step": row_dict.get("current_step"),
-                    "error": row_dict.get("error"),
-                    "started_at": row_dict["started_at"],
-                    "completed_at": row_dict["completed_at"],
-                    "created_at": row_dict.get("created_at"),
-                }
 
                 # parse usage json if present
+                usage = None
                 if row_dict.get("usage"):
                     try:
-                        job_dict["usage"] = json.loads(row_dict["usage"])
+                        usage = json.loads(row_dict["usage"])
                     except (json.JSONDecodeError, TypeError):
                         pass
 
-                result.append(job_dict)
+                result.append(
+                    Job(
+                        id=row_dict["id"],
+                        pipeline_id=row_dict["pipeline_id"],
+                        status=row_dict["status"],
+                        total_seeds=row_dict["total_seeds"],
+                        current_seed=row_dict.get("current_seed", 0),
+                        records_generated=row_dict["records_generated"],
+                        records_failed=row_dict["records_failed"],
+                        progress=row_dict.get("progress", 0.0),
+                        current_block=row_dict.get("current_block"),
+                        current_step=row_dict.get("current_step"),
+                        error=row_dict.get("error"),
+                        started_at=row_dict["started_at"],
+                        completed_at=row_dict["completed_at"],
+                        created_at=row_dict.get("created_at"),
+                        usage=usage,
+                    )
+                )
             return result
 
         return await self._execute_with_connection(_list)
