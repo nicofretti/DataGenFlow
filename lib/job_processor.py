@@ -276,6 +276,9 @@ async def _process_job(
                             usage=json.dumps(accumulated_usage.model_dump()),
                         )
 
+                    # constraint checking for normal pipelines
+                    # note: multiplier pipelines check constraints in workflow.py
+                    # both paths use Constraints.is_exceeded() for consistency
                     # check constraints after each execution
                     if constraints:
                         exceeded, constraint_name = constraints.is_exceeded(accumulated_usage)

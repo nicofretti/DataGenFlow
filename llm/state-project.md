@@ -13,7 +13,10 @@
 - **execution trace**: full history with input/output/accumulated_state/execution_time per step
 - **trace_id**: unique identifier per execution for log correlation
 - **usage tracking**: automatic token usage tracking (input/output/cached tokens + timing)
-- **pipeline constraints**: optional limits (max tokens, max execution time) enforced during job processing
+- **pipeline constraints**: optional limits (max tokens, max execution time) stop job when exceeded
+  - constraints stored in pipeline.definition["constraints"]
+  - enforced in two paths: workflow.py (multiplier) and job_processor.py (normal)
+  - job status becomes "stopped" with constraint error message
 - **pipeline_output**: special field for visualization (any block can set, defaults to assistant or last block's first output)
 - **error handling**: structured exceptions with context (BlockNotFoundError, BlockExecutionError, ValidationError)
 - **pipeline templates**: pre-configured pipelines for quick start

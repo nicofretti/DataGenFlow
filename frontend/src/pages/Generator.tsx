@@ -152,7 +152,8 @@ export default function Generator() {
           const data = JSON.parse(text);
           const seeds = Array.isArray(data) ? data : [data];
           await validateSeeds(seeds);
-        } catch {
+        } catch (err) {
+          console.error("validation failed during revalidation:", err);
           setValidationResult(null);
         }
       } else {

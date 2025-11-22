@@ -417,6 +417,10 @@ class Pipeline:
             if result:
                 results.append(result)
 
+            # constraint checking for multiplier pipelines
+            # note: normal pipelines check constraints in job_processor.py
+            # this is by design - two execution paths,
+            # same constraint logic via Constraints.is_exceeded()
             # check constraints after each seed
             if job_id and job_queue:
                 current_job = job_queue.get_job(job_id)
