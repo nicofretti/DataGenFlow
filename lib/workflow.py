@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import uuid
+from datetime import datetime
 from typing import Any
 
 from lib.blocks.registry import registry
@@ -101,7 +102,9 @@ class Pipeline:
                 initial_data, job_id, job_queue, storage, pipeline_id, constraints
             )
 
-        return await self._execute_normal_pipeline(initial_data, job_id, job_queue, storage)
+        return await self._execute_normal_pipeline(
+            initial_data, job_id, job_queue, storage
+        )
 
     async def _execute_normal_pipeline(
         self,
@@ -139,7 +142,9 @@ class Pipeline:
                 result = await block.execute(accumulated_data)
                 execution_time = time.time() - start_time
 
-                logger.debug(f"[{trace_id}] {block_name} completed in {execution_time:.3f}s")
+                logger.debug(
+                    f"[{trace_id}] {block_name} completed in {execution_time:.3f}s"
+                )
 
                 # extract usage if present
                 if "_usage" in result:
@@ -167,7 +172,9 @@ class Pipeline:
                 )
             except ValidationError:
                 # re-raise validation errors as-is
-                logger.error(f"[{trace_id}] {block_name} validation error at step {i + 1}")
+                logger.error(
+                    f"[{trace_id}] {block_name} validation error at step {i + 1}"
+                )
                 raise
             except Exception as e:
                 logger.exception(f"[{trace_id}] {block_name} failed at step {i + 1}")
@@ -234,7 +241,12 @@ class Pipeline:
         except Exception as e:
             logger.exception(f"[{trace_id}] {block_name} failed at seed {seed_idx + 1}")
             trace.append(
-                {"block_type": block_name, "input": block_input, "output": None, "error": str(e)}
+                {
+                    "block_type": block_name,
+                    "input": block_input,
+                    "output": None,
+                    "error": str(e),
+                }
             )
             raise
 
@@ -249,7 +261,9 @@ class Pipeline:
         storage: Any,
     ) -> None:
         """save completed seed result and update counters"""
-        record = Record(metadata=initial_data, output=json.dumps(accumulated_data), trace=trace)
+        record = Record(
+            metadata=initial_data, output=json.dumps(accumulated_data), trace=trace
+        )
         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
 
         if job_queue:
@@ -306,12 +320,17 @@ class Pipeline:
 
             if storage and pipeline_id and job_id:
                 await self._save_seed_result(
-                    initial_data, accumulated_data, trace, pipeline_id, job_id, job_queue, storage
+                    initial_data,
+                    accumulated_data,
+                    trace,
+                    pipeline_id,
+                    job_id,
+                    job_queue,
+                    storage,
                 )
 
                 # update cumulative usage in job after each seed
                 if job_queue:
-                    import json
 
                     current_job = job_queue.get_job(job_id)
                     if current_job and current_job.get("usage"):
@@ -432,16 +451,15 @@ class Pipeline:
                             usage_data = json.loads(usage_data)
                         current_usage = pipeline.Usage(**usage_data)
 
-                        exceeded, constraint_name = constraints.is_exceeded(current_usage)
+                        exceeded, constraint_name = constraints.is_exceeded(
+                            current_usage
+                        )
                         if exceeded:
                             logger.info(
                                 f"[Job {job_id}] Multiplier pipeline stopped: "
                                 f"{constraint_name} exceeded"
                             )
                             current_usage.end_time = time.time()
-
-                            # update job status to stopped
-                            from datetime import datetime
 
                             await self._update_job_progress(
                                 job_id,
@@ -454,9 +472,13 @@ class Pipeline:
                             )
                             break
                     except (ValueError, KeyError, json.JSONDecodeError) as e:
-                        logger.warning(f"Failed to check constraints for job {job_id}: {e}")
+                        logger.warning(
+                            f"Failed to check constraints for job {job_id}: {e}"
+                        )
 
-        logger.info(f"Multiplier pipeline '{self.name}' completed with {len(results)} results")
+        logger.info(
+            f"Multiplier pipeline '{self.name}' completed with {len(results)} results"
+        )
         return results
 
     def to_dict(self) -> dict[str, Any]:
