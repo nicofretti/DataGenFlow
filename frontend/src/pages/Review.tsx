@@ -20,8 +20,8 @@ import {
   DownloadIcon,
   GearIcon,
   KebabHorizontalIcon,
-  ArrowDownIcon,
   ArrowUpIcon,
+  ArrowDownIcon,
   ZapIcon,
 } from "@primer/octicons-react";
 import ConfigureFieldsModal from "../components/ConfigureFieldsModal";
@@ -443,7 +443,7 @@ export default function Review() {
       </Box>
 
       {/* Usage Stats */}
-      {selectedJob && jobs.find((j) => j.id === selectedJob)?.usage && (
+      {viewMode === "table" && selectedJob && jobs.find((j) => j.id === selectedJob)?.usage && (
         <Box
           sx={{
             mb: 3,
@@ -522,6 +522,7 @@ export default function Review() {
           })()}
         </Box>
       )}
+
 
       <Box sx={{ mb: 3, display: "flex", justifyContent: "center" }}>
         <SegmentedControl

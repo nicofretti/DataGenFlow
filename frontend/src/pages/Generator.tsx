@@ -17,13 +17,11 @@ import {
   XIcon,
   UploadIcon,
   ClockIcon,
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ZapIcon,
+  SparklesFillIcon
 } from "@primer/octicons-react";
 import { useJob } from "../contexts/JobContext";
 import type { Pipeline } from "../types";
-import { getElapsedTime, getElapsedTimeBetween } from "../utils/format";
+import { getElapsedTime } from "../utils/format";
 import { getStatusColor } from "../utils/status";
 import { toast } from "sonner";
 
@@ -369,7 +367,83 @@ export default function Generator() {
             sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}
           >
             <Heading sx={{ fontSize: 2, color: "fg.default" }}>Job Progress</Heading>
-            <Label variant={getStatusColor(currentJob.status)}>{currentJob.status}</Label>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+              {currentJob.usage &&
+                currentJob.usage.input_tokens !== undefined &&
+                currentJob.usage.output_tokens !== undefined &&
+                currentJob.usage.cached_tokens !== undefined && (
+                  <>
+                    <Tooltip
+                      aria-label={`Token Usage: ↓ Input: ${currentJob.usage.input_tokens.toLocaleString()} ↑ Output: ${currentJob.usage.output_tokens.toLocaleString()} ⚡ Cached: ${currentJob.usage.cached_tokens.toLocaleString()}`}
+                      direction="s"
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          px: 2,
+                          py: 1,
+                          bg: "canvas.subtle",
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: "border.default",
+                        }}
+                      >
+                        <Box sx={{ color: "fg.muted" }}>
+                          <SparklesFillIcon size={12} />
+                        </Box>
+                        <Text sx={{ fontSize: 1, fontFamily: "mono", color: "fg.default" }}>
+                          {(
+                            currentJob.usage.input_tokens +
+                            currentJob.usage.output_tokens +
+                            currentJob.usage.cached_tokens
+                          ).toLocaleString()}
+                          {" "}tk
+                        </Text>
+                      </Box>
+                    </Tooltip>
+                    <Tooltip
+                      aria-label="Total time taken for pipeline execution"
+                      direction="s"
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          px: 2,
+                          py: 1,
+                          bg: "canvas.subtle",
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: "border.default",
+                        }}
+                      >
+                        <Box sx={{ color: "fg.muted" }}>
+                          <ClockIcon size={12} />
+                        </Box>
+                        <Text sx={{ fontSize: 1, fontFamily: "mono", color: "fg.default" }}>
+                          {currentJob.status === "running" && currentJob.started_at
+                            ? getElapsedTime(currentJob.started_at)
+                            : currentJob.usage.end_time && currentJob.usage.start_time
+                            ? (() => {
+                                const elapsed = currentJob.usage.end_time - currentJob.usage.start_time;
+                                const minutes = Math.floor(elapsed / 60);
+                                const seconds = Math.floor(elapsed % 60);
+                                if (minutes > 0) {
+                                  return `${minutes}m ${seconds}s`;
+                                }
+                                return `${seconds}s`;
+                              })()
+                            : "N/A"}
+                        </Text>
+                      </Box>
+                    </Tooltip>
+                  </>
+                )}
+              <Label variant={getStatusColor(currentJob.status)}>{currentJob.status}</Label>
+            </Box>
           </Box>
 
           <ProgressBar
@@ -378,117 +452,25 @@ export default function Generator() {
             sx={{ mb: 3 }}
           />
 
-          <Box
-            sx={{
-              p: 3,
-              bg: "canvas.subtle",
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "border.default",
-              mb: 3,
-            }}
-          >
-            {/* Main Stats Section */}
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3 }}>
-              <Box sx={{ textAlign: "center" }}>
-                <Text sx={{ fontSize: 3, fontWeight: "bold", color: "fg.default", display: "block" }}>
-                  {currentJob.current_seed} / {currentJob.total_seeds}
-                </Text>
-                <Text sx={{ fontSize: 1, color: "fg.muted" }}>Seed in Processing</Text>
-              </Box>
-              <Box sx={{ textAlign: "center" }}>
-                <Text sx={{ fontSize: 3, fontWeight: "bold", color: "success.fg", display: "block" }}>
-                  {currentJob.records_generated}
-                </Text>
-                <Text sx={{ fontSize: 1, color: "fg.muted" }}>Generated</Text>
-              </Box>
-              <Box sx={{ textAlign: "center" }}>
-                <Text sx={{ fontSize: 3, fontWeight: "bold", color: "danger.fg", display: "block" }}>
-                  {currentJob.records_failed}
-                </Text>
-                <Text sx={{ fontSize: 1, color: "fg.muted" }}>Failed</Text>
-              </Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, mb: 3 }}>
+            <Box sx={{ textAlign: "center" }}>
+              <Text sx={{ fontSize: 3, fontWeight: "bold", color: "fg.default", display: "block" }}>
+                {currentJob.current_seed} / {currentJob.total_seeds}
+              </Text>
+              <Text sx={{ fontSize: 1, color: "fg.muted" }}>Seed in Processing</Text>
             </Box>
-
-            {/* Divider */}
-            {currentJob.usage &&
-              currentJob.usage.input_tokens !== undefined &&
-              currentJob.usage.output_tokens !== undefined &&
-              currentJob.usage.cached_tokens !== undefined && (
-                <>
-                  <Box
-                    sx={{
-                      height: "1px",
-                      bg: "border.default",
-                      my: 3,
-                    }}
-                  />
-
-                  {/* Token Metrics Section */}
-                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 3 }}>
-                    <Box sx={{ textAlign: "center" }}>
-                      <Tooltip aria-label="Duration" direction="n">
-                        <Box>
-                          <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
-                            <ClockIcon size={16} />
-                          </Box>
-                          <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
-                            {currentJob.status === "running" && currentJob.started_at
-                              ? getElapsedTime(currentJob.started_at)
-                              : currentJob.usage.end_time && currentJob.usage.start_time
-                              ? (() => {
-                                  const elapsed = currentJob.usage.end_time - currentJob.usage.start_time;
-                                  const minutes = Math.floor(elapsed / 60);
-                                  const seconds = Math.floor(elapsed % 60);
-                                  if (minutes > 0) {
-                                    return `${minutes}m ${seconds}s`;
-                                  }
-                                  return `${seconds}s`;
-                                })()
-                              : "N/A"}
-                          </Text>
-                        </Box>
-                      </Tooltip>
-                    </Box>
-                    <Box sx={{ textAlign: "center" }}>
-                      <Tooltip aria-label="Input tokens" direction="n">
-                        <Box>
-                          <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
-                            <ArrowDownIcon size={16} />
-                          </Box>
-                          <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
-                            {currentJob.usage.input_tokens.toLocaleString()}
-                          </Text>
-                        </Box>
-                      </Tooltip>
-                    </Box>
-                    <Box sx={{ textAlign: "center" }}>
-                      <Tooltip aria-label="Output tokens" direction="n">
-                        <Box>
-                          <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
-                            <ArrowUpIcon size={16} />
-                          </Box>
-                          <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
-                            {currentJob.usage.output_tokens.toLocaleString()}
-                          </Text>
-                        </Box>
-                      </Tooltip>
-                    </Box>
-                    <Box sx={{ textAlign: "center" }}>
-                      <Tooltip aria-label="Cached tokens" direction="n">
-                        <Box>
-                          <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
-                            <ZapIcon size={16} />
-                          </Box>
-                          <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
-                            {currentJob.usage.cached_tokens.toLocaleString()}
-                          </Text>
-                        </Box>
-                      </Tooltip>
-                    </Box>
-                  </Box>
-                </>
-              )}
+            <Box sx={{ textAlign: "center" }}>
+              <Text sx={{ fontSize: 3, fontWeight: "bold", color: "success.fg", display: "block" }}>
+                {currentJob.records_generated}
+              </Text>
+              <Text sx={{ fontSize: 1, color: "fg.muted" }}>Generated</Text>
+            </Box>
+            <Box sx={{ textAlign: "center" }}>
+              <Text sx={{ fontSize: 3, fontWeight: "bold", color: "danger.fg", display: "block" }}>
+                {currentJob.records_failed}
+              </Text>
+              <Text sx={{ fontSize: 1, color: "fg.muted" }}>Failed</Text>
+            </Box>
           </Box>
 
           {currentJob.status === "running" &&
