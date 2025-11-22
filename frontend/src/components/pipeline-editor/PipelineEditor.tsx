@@ -15,7 +15,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import "../../styles/pipeline-editor.css";
 import { Box, Text, TextInput, useTheme } from "@primer/react";
-import { XIcon, ZapIcon, ChevronDownIcon, ChevronRightIcon } from "@primer/octicons-react";
+import { XIcon, ZapIcon, ChevronDownIcon, ChevronRightIcon, SparklesFillIcon, ClockIcon, ArrowDownIcon, ArrowUpIcon } from "@primer/octicons-react";
 
 import BlockPalette from "./BlockPalette";
 import BlockNode from "./BlockNode";
@@ -605,7 +605,7 @@ export default function PipelineEditor({
 
         <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
           {/* Auto-layout button */}
-          <Button onClick={handleAutoLayout} disabled={nodes.length < 2} variant="ghost" style={{ color: "fg.default" }}>
+          <Button onClick={handleAutoLayout} disabled={nodes.length < 2} variant="ghost" sx={{ color: "fg.default" }}>
             <ZapIcon size={16} />
             Auto-layout
           </Button>
@@ -645,21 +645,26 @@ export default function PipelineEditor({
             )}
           </Box>
           <Text sx={{ fontWeight: "bold", ml: 1, fontSize: 1, color: "fg.default" }}>
-            Pipeline Constraints (Optional)
+            Pipeline Constraints
           </Text>
         </Box>
         {constraintsExpanded && (
           <>
             <Text sx={{ fontSize: 0, color: "fg.muted", mb: 2, mt: 2 }}>
-              Set limits to control resource usage. Leave empty for no limits.
+              Set optional limits to control resource usage during pipeline execution
             </Text>
-        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
           <Box>
-            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1, color: "fg.default" }}>Max Total Tokens</Text>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+              <Box sx={{ color: "fg.muted" }}>
+                <SparklesFillIcon size={12} />
+              </Box>
+              <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>Total Tokens</Text>
+            </Box>
             <TextInput
               type="number"
               min="0"
-              placeholder="e.g., 100000"
+              placeholder="100000"
               value={constraints.max_total_tokens || ""}
               onChange={(e) =>
                 setConstraints({
@@ -669,16 +674,18 @@ export default function PipelineEditor({
               }
               sx={{ width: "100%" }}
             />
-            <Text sx={{ fontSize: 0, color: "fg.muted", mt: 1 }}>
-              Sum of all tokens
-            </Text>
           </Box>
           <Box>
-            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1, color: "fg.default" }}>Max Execution Time</Text>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+              <Box sx={{ color: "fg.muted" }}>
+                <ClockIcon size={12} />
+              </Box>
+              <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>Time (seconds)</Text>
+            </Box>
             <TextInput
               type="number"
               min="0"
-              placeholder="e.g., 3600"
+              placeholder="3600"
               value={constraints.max_total_execution_time || ""}
               onChange={(e) =>
                 setConstraints({
@@ -688,16 +695,18 @@ export default function PipelineEditor({
               }
               sx={{ width: "100%" }}
             />
-            <Text sx={{ fontSize: 0, color: "fg.muted", mt: 1 }}>
-              Seconds (e.g., 3600 = 1 hour)
-            </Text>
           </Box>
           <Box>
-            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1, color: "fg.default" }}>Max Input Tokens</Text>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+              <Box sx={{ color: "fg.muted" }}>
+                <ArrowDownIcon size={12} />
+              </Box>
+              <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>Input Tokens</Text>
+            </Box>
             <TextInput
               type="number"
               min="0"
-              placeholder="e.g., 50000"
+              placeholder="50000"
               value={constraints.max_total_input_tokens || ""}
               onChange={(e) =>
                 setConstraints({
@@ -707,16 +716,18 @@ export default function PipelineEditor({
               }
               sx={{ width: "100%" }}
             />
-            <Text sx={{ fontSize: 0, color: "fg.muted", mt: 1 }}>
-              Cumulative input tokens
-            </Text>
           </Box>
           <Box>
-            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1, color: "fg.default" }}>Max Output Tokens</Text>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+              <Box sx={{ color: "fg.muted" }}>
+                <ArrowUpIcon size={12} />
+              </Box>
+              <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>Output Tokens</Text>
+            </Box>
             <TextInput
               type="number"
               min="0"
-              placeholder="e.g., 50000"
+              placeholder="50000"
               value={constraints.max_total_output_tokens || ""}
               onChange={(e) =>
                 setConstraints({
@@ -726,16 +737,18 @@ export default function PipelineEditor({
               }
               sx={{ width: "100%" }}
             />
-            <Text sx={{ fontSize: 0, color: "fg.muted", mt: 1 }}>
-              Cumulative output tokens
-            </Text>
           </Box>
           <Box>
-            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1, color: "fg.default" }}>Max Cached Tokens</Text>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+              <Box sx={{ color: "fg.muted" }}>
+                <ZapIcon size={12} />
+              </Box>
+              <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>Cached Tokens</Text>
+            </Box>
             <TextInput
               type="number"
               min="0"
-              placeholder="e.g., 10000"
+              placeholder="10000"
               value={constraints.max_total_cached_tokens || ""}
               onChange={(e) =>
                 setConstraints({
@@ -745,9 +758,6 @@ export default function PipelineEditor({
               }
               sx={{ width: "100%" }}
             />
-            <Text sx={{ fontSize: 0, color: "fg.muted", mt: 1 }}>
-              Cumulative cached tokens
-            </Text>
           </Box>
         </Box>
           </>

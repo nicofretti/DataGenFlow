@@ -92,13 +92,15 @@ async def _process_job(
 
         pipeline_obj = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
 
-        # load constraints from pipeline
-        constraints = None
+        # load constraints from pipeline (always create object, even if empty)
         if pipeline_data["definition"].get("constraints"):
             try:
                 constraints = pipeline.Constraints(**pipeline_data["definition"]["constraints"])
             except (ValueError, KeyError) as e:
                 logger.warning(f"Invalid constraints for pipeline {pipeline_id}: {e}")
+                constraints = pipeline.Constraints()
+        else:
+            constraints = pipeline.Constraints()
 
         # initialize usage tracker
         accumulated_usage = pipeline.Usage()
@@ -182,6 +184,7 @@ async def _process_job(
                             job_queue=job_queue,
                             storage=storage,
                             pipeline_id=pipeline_id,
+                            constraints=constraints,
                         )
                         assert isinstance(results, list)
                         # multiplier results already saved in workflow
@@ -230,6 +233,7 @@ async def _process_job(
                             job_queue=job_queue,
                             storage=storage,
                             pipeline_id=pipeline_id,
+                            constraints=constraints,
                         )
 
                         # extract usage from result

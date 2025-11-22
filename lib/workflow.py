@@ -85,6 +85,7 @@ class Pipeline:
         job_queue: Any = None,
         storage: Any = None,
         pipeline_id: int | None = None,
+        constraints: pipeline.Constraints = pipeline.Constraints(),
     ) -> pipeline.ExecutionResult | list[pipeline.ExecutionResult]:
         if not self._block_instances:
             trace_id = str(uuid.uuid4())
@@ -97,7 +98,7 @@ class Pipeline:
 
         if is_multiplier:
             return await self._execute_multiplier_pipeline(
-                initial_data, job_id, job_queue, storage, pipeline_id
+                initial_data, job_id, job_queue, storage, pipeline_id, constraints
             )
 
         return await self._execute_normal_pipeline(initial_data, job_id, job_queue, storage)
@@ -375,6 +376,7 @@ class Pipeline:
         job_queue: Any = None,
         storage: Any = None,
         pipeline_id: int | None = None,
+        constraints: pipeline.Constraints = pipeline.Constraints(),
     ) -> list[pipeline.ExecutionResult]:
         """execute pipeline with multiplier first block that generates multiple seeds"""
         first_block = self._block_instances[0]
@@ -406,6 +408,36 @@ class Pipeline:
             )
             if result:
                 results.append(result)
+
+            # check constraints after each seed
+            if job_id and job_queue:
+                current_job = job_queue.get_job(job_id)
+                if current_job and current_job.get("usage"):
+                    # parse usage from job
+                    try:
+                        usage_data = current_job["usage"]
+                        if isinstance(usage_data, str):
+                            usage_data = json.loads(usage_data)
+                        current_usage = pipeline.Usage(**usage_data)
+
+                        exceeded, constraint_name = constraints.is_exceeded(current_usage)
+                        if exceeded:
+                            logger.info(f"[Job {job_id}] Multiplier pipeline stopped: {constraint_name} exceeded")
+                            current_usage.end_time = time.time()
+
+                            # update job status to stopped
+                            from datetime import datetime
+                            await self._update_job_progress(
+                                job_id,
+                                job_queue,
+                                storage,
+                                status="stopped",
+                                completed_at=datetime.now().isoformat(),
+                                usage=json.dumps(current_usage.model_dump()),
+                            )
+                            break
+                    except (ValueError, KeyError, json.JSONDecodeError) as e:
+                        logger.warning(f"Failed to check constraints for job {job_id}: {e}")
 
         logger.info(f"Multiplier pipeline '{self.name}' completed with {len(results)} results")
         return results

@@ -374,7 +374,7 @@ export default function Generator() {
                 currentJob.usage.cached_tokens !== undefined && (
                   <>
                     <Tooltip
-                      aria-label={`Token Usage: ↓ Input: ${currentJob.usage.input_tokens.toLocaleString()} ↑ Output: ${currentJob.usage.output_tokens.toLocaleString()} ⚡ Cached: ${currentJob.usage.cached_tokens.toLocaleString()}`}
+                      aria-label={`Token Usage: ↓ Input: ${currentJob.usage.input_tokens.toLocaleString()} ↑ Output: ${currentJob.usage.output_tokens.toLocaleString()} ⟳ Cached: ${currentJob.usage.cached_tokens.toLocaleString()}`}
                       direction="s"
                     >
                       <Box
