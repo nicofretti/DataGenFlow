@@ -275,6 +275,7 @@ async def _process_job(
                                 status="stopped",
                                 completed_at=datetime.now().isoformat(),
                                 usage=json.dumps(accumulated_usage.model_dump()),
+                                error=f"Constraint exceeded: {constraint_name}",
                             )
                             break
 

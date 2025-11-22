@@ -496,11 +496,24 @@ export default function Generator() {
 
           {currentJob.status === "stopped" && (
             <Flash variant="warning" sx={{ mb: 2 }}>
-              Job stopped: constraint limit reached
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <Text sx={{ fontWeight: "bold" }}>Job Stopped</Text>
+                {currentJob.error && currentJob.error.includes("Constraint exceeded:") ? (
+                  <Text>
+                    Pipeline execution stopped because the{" "}
+                    <Text sx={{ fontWeight: "bold", fontFamily: "mono" }}>
+                      {currentJob.error.replace("Constraint exceeded: ", "")}
+                    </Text>{" "}
+                    limit was reached. Check your pipeline constraints settings to adjust limits.
+                  </Text>
+                ) : (
+                  <Text>Pipeline execution stopped because a constraint limit was reached. Check your pipeline constraints settings to adjust limits.</Text>
+                )}
+              </Box>
             </Flash>
           )}
 
-          {currentJob.error && (
+          {currentJob.error && !currentJob.error.includes("Constraint exceeded:") && (
             <Flash variant="danger" sx={{ mb: 2 }}>
               {currentJob.error}
             </Flash>

@@ -434,6 +434,7 @@ class Pipeline:
                                 status="stopped",
                                 completed_at=datetime.now().isoformat(),
                                 usage=json.dumps(current_usage.model_dump()),
+                                error=f"Constraint exceeded: {constraint_name}",
                             )
                             break
                     except (ValueError, KeyError, json.JSONDecodeError) as e:
