@@ -189,21 +189,24 @@ async def _process_job(
                         assert isinstance(results, list)
                         # multiplier results already saved in workflow
                         records_generated += len(results)
-                        for exec_result in results:
-                            if exec_result.usage:
-                                accumulated_usage.input_tokens += exec_result.usage.get(
+                        for result_item in results:
+                            if result_item.usage:
+                                accumulated_usage.input_tokens += result_item.usage.get(
                                     "input_tokens", 0
                                 )
-                                accumulated_usage.output_tokens += exec_result.usage.get(
+                                accumulated_usage.output_tokens += result_item.usage.get(
                                     "output_tokens", 0
                                 )
-                                accumulated_usage.cached_tokens += exec_result.usage.get(
+                                accumulated_usage.cached_tokens += result_item.usage.get(
                                     "cached_tokens", 0
                                 )
 
                         # update usage after processing multiplier seed
                         logger.info(
-                            f"[Job {job_id}] Updating usage: in={accumulated_usage.input_tokens}, out={accumulated_usage.output_tokens}, cached={accumulated_usage.cached_tokens}"
+                            f"[Job {job_id}] Updating usage: "
+                            f"in={accumulated_usage.input_tokens}, "
+                            f"out={accumulated_usage.output_tokens}, "
+                            f"cached={accumulated_usage.cached_tokens}"
                         )
                         await _update_job_status(
                             job_queue,
@@ -227,7 +230,7 @@ async def _process_job(
                             ),
                         )
 
-                        exec_result = await pipeline_obj.execute(
+                        result = await pipeline_obj.execute(
                             metadata,
                             job_id=job_id,
                             job_queue=job_queue,
@@ -235,12 +238,20 @@ async def _process_job(
                             pipeline_id=pipeline_id,
                             constraints=constraints,
                         )
+                        assert isinstance(result, pipeline.ExecutionResult)
+                        exec_result: pipeline.ExecutionResult = result
 
                         # extract usage from result
                         if exec_result.usage:
-                            accumulated_usage.input_tokens += exec_result.usage.get("input_tokens", 0)
-                            accumulated_usage.output_tokens += exec_result.usage.get("output_tokens", 0)
-                            accumulated_usage.cached_tokens += exec_result.usage.get("cached_tokens", 0)
+                            accumulated_usage.input_tokens += exec_result.usage.get(
+                                "input_tokens", 0
+                            )
+                            accumulated_usage.output_tokens += exec_result.usage.get(
+                                "output_tokens", 0
+                            )
+                            accumulated_usage.cached_tokens += exec_result.usage.get(
+                                "cached_tokens", 0
+                            )
 
                         record = Record(
                             metadata=metadata,
@@ -252,7 +263,10 @@ async def _process_job(
                         records_generated += 1
 
                         logger.info(
-                            f"[Job {job_id}] Updating usage: in={accumulated_usage.input_tokens}, out={accumulated_usage.output_tokens}, cached={accumulated_usage.cached_tokens}"
+                            f"[Job {job_id}] Updating usage: "
+                            f"in={accumulated_usage.input_tokens}, "
+                            f"out={accumulated_usage.output_tokens}, "
+                            f"cached={accumulated_usage.cached_tokens}"
                         )
                         await _update_job_status(
                             job_queue,

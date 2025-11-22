@@ -15,7 +15,16 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import "../../styles/pipeline-editor.css";
 import { Box, Text, TextInput, useTheme } from "@primer/react";
-import { XIcon, ZapIcon, ChevronDownIcon, ChevronRightIcon, SparklesFillIcon, ClockIcon, ArrowDownIcon, ArrowUpIcon } from "@primer/octicons-react";
+import {
+  XIcon,
+  ZapIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  SparklesFillIcon,
+  ClockIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
+} from "@primer/octicons-react";
 
 import BlockPalette from "./BlockPalette";
 import BlockNode from "./BlockNode";
@@ -515,11 +524,13 @@ export default function PipelineEditor({
       }
 
       const pipeline = convertToPipelineFormat(nodes, edges);
-      const hasConstraints = Object.keys(constraints).some(key => constraints[key as keyof PipelineConstraints] !== undefined);
+      const hasConstraints = Object.keys(constraints).some(
+        (key) => constraints[key as keyof PipelineConstraints] !== undefined
+      );
       await onSave({
         name: pipelineName,
         ...pipeline,
-        constraints: hasConstraints ? constraints : undefined
+        constraints: hasConstraints ? constraints : undefined,
       });
       toast.success("Pipeline saved successfully");
     } catch (error) {
@@ -605,7 +616,7 @@ export default function PipelineEditor({
 
         <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
           {/* Auto-layout button */}
-          <Button onClick={handleAutoLayout} disabled={nodes.length < 2} variant="ghost" sx={{ color: "fg.default" }}>
+          <Button onClick={handleAutoLayout} disabled={nodes.length < 2} variant="ghost">
             <ZapIcon size={16} />
             Auto-layout
           </Button>
@@ -638,11 +649,7 @@ export default function PipelineEditor({
           onClick={() => setConstraintsExpanded(!constraintsExpanded)}
         >
           <Box sx={{ color: "fg.default" }}>
-            {constraintsExpanded ? (
-              <ChevronDownIcon size={16} />
-            ) : (
-              <ChevronRightIcon size={16} />
-            )}
+            {constraintsExpanded ? <ChevronDownIcon size={16} /> : <ChevronRightIcon size={16} />}
           </Box>
           <Text sx={{ fontWeight: "bold", ml: 1, fontSize: 1, color: "fg.default" }}>
             Pipeline Constraints
@@ -653,113 +660,129 @@ export default function PipelineEditor({
             <Text sx={{ fontSize: 0, color: "fg.muted", mb: 2, mt: 2 }}>
               Set optional limits to control resource usage during pipeline execution
             </Text>
-        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-              <Box sx={{ color: "fg.muted" }}>
-                <SparklesFillIcon size={12} />
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
+              <Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <Box sx={{ color: "fg.muted" }}>
+                    <SparklesFillIcon size={12} />
+                  </Box>
+                  <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>
+                    Total Tokens
+                  </Text>
+                </Box>
+                <TextInput
+                  type="number"
+                  min="0"
+                  placeholder="100000"
+                  value={constraints.max_total_tokens || ""}
+                  onChange={(e) =>
+                    setConstraints({
+                      ...constraints,
+                      max_total_tokens: e.target.value ? parseInt(e.target.value) : undefined,
+                    })
+                  }
+                  sx={{ width: "100%" }}
+                />
               </Box>
-              <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>Total Tokens</Text>
-            </Box>
-            <TextInput
-              type="number"
-              min="0"
-              placeholder="100000"
-              value={constraints.max_total_tokens || ""}
-              onChange={(e) =>
-                setConstraints({
-                  ...constraints,
-                  max_total_tokens: e.target.value ? parseInt(e.target.value) : undefined,
-                })
-              }
-              sx={{ width: "100%" }}
-            />
-          </Box>
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-              <Box sx={{ color: "fg.muted" }}>
-                <ClockIcon size={12} />
+              <Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <Box sx={{ color: "fg.muted" }}>
+                    <ClockIcon size={12} />
+                  </Box>
+                  <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>
+                    Time (seconds)
+                  </Text>
+                </Box>
+                <TextInput
+                  type="number"
+                  min="0"
+                  placeholder="3600"
+                  value={constraints.max_total_execution_time || ""}
+                  onChange={(e) =>
+                    setConstraints({
+                      ...constraints,
+                      max_total_execution_time: e.target.value
+                        ? parseInt(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  sx={{ width: "100%" }}
+                />
               </Box>
-              <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>Time (seconds)</Text>
-            </Box>
-            <TextInput
-              type="number"
-              min="0"
-              placeholder="3600"
-              value={constraints.max_total_execution_time || ""}
-              onChange={(e) =>
-                setConstraints({
-                  ...constraints,
-                  max_total_execution_time: e.target.value ? parseInt(e.target.value) : undefined,
-                })
-              }
-              sx={{ width: "100%" }}
-            />
-          </Box>
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-              <Box sx={{ color: "fg.muted" }}>
-                <ArrowDownIcon size={12} />
+              <Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <Box sx={{ color: "fg.muted" }}>
+                    <ArrowDownIcon size={12} />
+                  </Box>
+                  <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>
+                    Input Tokens
+                  </Text>
+                </Box>
+                <TextInput
+                  type="number"
+                  min="0"
+                  placeholder="50000"
+                  value={constraints.max_total_input_tokens || ""}
+                  onChange={(e) =>
+                    setConstraints({
+                      ...constraints,
+                      max_total_input_tokens: e.target.value ? parseInt(e.target.value) : undefined,
+                    })
+                  }
+                  sx={{ width: "100%" }}
+                />
               </Box>
-              <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>Input Tokens</Text>
-            </Box>
-            <TextInput
-              type="number"
-              min="0"
-              placeholder="50000"
-              value={constraints.max_total_input_tokens || ""}
-              onChange={(e) =>
-                setConstraints({
-                  ...constraints,
-                  max_total_input_tokens: e.target.value ? parseInt(e.target.value) : undefined,
-                })
-              }
-              sx={{ width: "100%" }}
-            />
-          </Box>
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-              <Box sx={{ color: "fg.muted" }}>
-                <ArrowUpIcon size={12} />
+              <Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <Box sx={{ color: "fg.muted" }}>
+                    <ArrowUpIcon size={12} />
+                  </Box>
+                  <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>
+                    Output Tokens
+                  </Text>
+                </Box>
+                <TextInput
+                  type="number"
+                  min="0"
+                  placeholder="50000"
+                  value={constraints.max_total_output_tokens || ""}
+                  onChange={(e) =>
+                    setConstraints({
+                      ...constraints,
+                      max_total_output_tokens: e.target.value
+                        ? parseInt(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  sx={{ width: "100%" }}
+                />
               </Box>
-              <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>Output Tokens</Text>
-            </Box>
-            <TextInput
-              type="number"
-              min="0"
-              placeholder="50000"
-              value={constraints.max_total_output_tokens || ""}
-              onChange={(e) =>
-                setConstraints({
-                  ...constraints,
-                  max_total_output_tokens: e.target.value ? parseInt(e.target.value) : undefined,
-                })
-              }
-              sx={{ width: "100%" }}
-            />
-          </Box>
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-              <Box sx={{ color: "fg.muted" }}>
-                <ZapIcon size={12} />
+              <Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <Box sx={{ color: "fg.muted" }}>
+                    <ZapIcon size={12} />
+                  </Box>
+                  <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>
+                    Cached Tokens
+                  </Text>
+                </Box>
+                <TextInput
+                  type="number"
+                  min="0"
+                  placeholder="10000"
+                  value={constraints.max_total_cached_tokens || ""}
+                  onChange={(e) =>
+                    setConstraints({
+                      ...constraints,
+                      max_total_cached_tokens: e.target.value
+                        ? parseInt(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  sx={{ width: "100%" }}
+                />
               </Box>
-              <Text sx={{ fontSize: 0, fontWeight: "bold", color: "fg.default" }}>Cached Tokens</Text>
             </Box>
-            <TextInput
-              type="number"
-              min="0"
-              placeholder="10000"
-              value={constraints.max_total_cached_tokens || ""}
-              onChange={(e) =>
-                setConstraints({
-                  ...constraints,
-                  max_total_cached_tokens: e.target.value ? parseInt(e.target.value) : undefined,
-                })
-              }
-              sx={{ width: "100%" }}
-            />
-          </Box>
-        </Box>
           </>
         )}
       </Box>

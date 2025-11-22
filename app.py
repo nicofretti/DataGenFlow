@@ -22,7 +22,6 @@ from lib.workflow import Pipeline as WorkflowPipeline
 from models import (
     ConnectionTestResult,
     EmbeddingModelConfig,
-    Job,
     LLMModelConfig,
     PipelineRecord,
     Record,
@@ -334,10 +333,10 @@ async def get_job(job_id: int) -> dict[str, Any]:
         return job
 
     # fallback to database
-    job = await storage.get_job(job_id)
-    if not job:
+    job_obj = await storage.get_job(job_id)
+    if not job_obj:
         raise HTTPException(status_code=404, detail="job not found")
-    return job
+    return job_obj.model_dump()
 
 
 @api_router.delete("/jobs/{job_id}")
@@ -363,7 +362,8 @@ async def list_jobs(pipeline_id: int | None = None) -> list[dict[str, Any]]:
             return jobs
 
     # fallback to database
-    return await storage.list_jobs(pipeline_id=pipeline_id, limit=10)
+    jobs_list = await storage.list_jobs(pipeline_id=pipeline_id, limit=10)
+    return [job.model_dump() for job in jobs_list]
 
 
 @api_router.get("/records")
@@ -518,8 +518,29 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
             raise HTTPException(status_code=404, detail="pipeline not found")
 
         pipeline = WorkflowPipeline.load_from_dict(pipeline_data.definition)
-        result, trace, trace_id = await pipeline.execute(data)
-        return {"result": result, "trace": trace, "trace_id": trace_id}
+        exec_result = await pipeline.execute(data)
+        # handle both ExecutionResult and list[ExecutionResult]
+        if isinstance(exec_result, list):
+            # multiplier pipeline
+            return {
+                "results": [
+                    {
+                        "result": r.result,
+                        "trace": r.trace,
+                        "trace_id": r.trace_id,
+                        "usage": r.usage,
+                    }
+                    for r in exec_result
+                ]
+            }
+        else:
+            # normal pipeline
+            return {
+                "result": exec_result.result,
+                "trace": exec_result.trace,
+                "trace_id": exec_result.trace_id,
+                "usage": exec_result.usage,
+            }
     except HTTPException:
         # Let HTTPException propagate to FastAPI
         raise

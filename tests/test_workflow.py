@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from lib.entities import pipeline as pipeline_entities
 from lib.errors import BlockNotFoundError, ValidationError
 from lib.workflow import Pipeline
 
@@ -22,11 +23,10 @@ async def test_pipeline_single_block():
             choices=[MagicMock(message=MagicMock(content="generated response"))]
         )
         exec_result = await pipeline.execute({"system": "test", "user": "test"})
-        assert isinstance(exec_result, tuple)
-        result, trace, trace_id = exec_result
+        assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
-        assert result["assistant"] == "generated response"
-        assert len(trace) == 1
+        assert exec_result.result["assistant"] == "generated response"
+        assert len(exec_result.trace) == 1
 
 
 @pytest.mark.asyncio
@@ -48,12 +48,11 @@ async def test_pipeline_multiple_blocks():
             choices=[MagicMock(message=MagicMock(content="hello world"))]
         )
         exec_result = await pipeline.execute({"system": "test", "user": "test"})
-        assert isinstance(exec_result, tuple)
-        result, trace, trace_id = exec_result
+        assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
-        assert result["assistant"] == "hello world"
-        assert result["valid"] is True
-        assert len(trace) == 2
+        assert exec_result.result["assistant"] == "hello world"
+        assert exec_result.result["valid"] is True
+        assert len(exec_result.trace) == 2
 
 
 @pytest.mark.asyncio
@@ -131,7 +130,8 @@ async def test_multiplier_pipeline_execution():
     assert isinstance(results, list)
     assert len(results) > 0
 
-    for result_data, trace, trace_id in results:
-        assert "valid" in result_data
-        assert isinstance(trace, list)
-        assert isinstance(trace_id, str)
+    for exec_result in results:
+        assert isinstance(exec_result, pipeline_entities.ExecutionResult)
+        assert "valid" in exec_result.result
+        assert isinstance(exec_result.trace, list)
+        assert isinstance(exec_result.trace_id, str)

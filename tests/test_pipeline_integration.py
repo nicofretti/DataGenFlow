@@ -1,5 +1,6 @@
 import pytest
 
+from lib.entities import pipeline as pipeline_entities
 from lib.workflow import Pipeline as WorkflowPipeline
 from models import Record
 
@@ -30,20 +31,22 @@ async def test_pipeline_execution_with_trace():
         )
 
         exec_result = await pipeline.execute(input_data)
-        assert isinstance(exec_result, tuple)
-        result, trace, trace_id = exec_result
+        assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
         # verify result has assistant output
-        assert "assistant" in result
-        assert result["assistant"] == "Hello! How can I help you today?"
+        assert "assistant" in exec_result.result
+        assert exec_result.result["assistant"] == "Hello! How can I help you today?"
 
         # verify trace structure
-        assert len(trace) == 1
-        assert trace[0]["block_type"] == "TextGenerator"
+        assert len(exec_result.trace) == 1
+        assert exec_result.trace[0]["block_type"] == "TextGenerator"
 
         # verify trace has accumulated_state
-        assert "accumulated_state" in trace[0]
-        assert trace[0]["accumulated_state"]["assistant"] == "Hello! How can I help you today?"
+        assert "accumulated_state" in exec_result.trace[0]
+        assert (
+            exec_result.trace[0]["accumulated_state"]["assistant"]
+            == "Hello! How can I help you today?"
+        )
 
 
 @pytest.mark.asyncio

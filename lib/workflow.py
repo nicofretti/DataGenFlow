@@ -312,15 +312,19 @@ class Pipeline:
                 # update cumulative usage in job after each seed
                 if job_queue:
                     import json
+
                     current_job = job_queue.get_job(job_id)
                     if current_job and current_job.get("usage"):
                         # get current cumulative usage
                         current_usage = current_job["usage"]
                         # add this seed's usage
                         updated_usage = {
-                            "input_tokens": current_usage.get("input_tokens", 0) + accumulated_usage.input_tokens,
-                            "output_tokens": current_usage.get("output_tokens", 0) + accumulated_usage.output_tokens,
-                            "cached_tokens": current_usage.get("cached_tokens", 0) + accumulated_usage.cached_tokens,
+                            "input_tokens": current_usage.get("input_tokens", 0)
+                            + accumulated_usage.input_tokens,
+                            "output_tokens": current_usage.get("output_tokens", 0)
+                            + accumulated_usage.output_tokens,
+                            "cached_tokens": current_usage.get("cached_tokens", 0)
+                            + accumulated_usage.cached_tokens,
                             "start_time": current_usage.get("start_time"),
                             "end_time": current_usage.get("end_time"),
                         }
@@ -331,7 +335,11 @@ class Pipeline:
                             usage=json.dumps(updated_usage),
                         )
                         logger.info(
-                            f"[Job {job_id}] Updated usage after seed {seed_idx + 1}/{total_seeds}: in={updated_usage['input_tokens']}, out={updated_usage['output_tokens']}, cached={updated_usage['cached_tokens']}"
+                            f"[Job {job_id}] Updated usage after seed "
+                            f"{seed_idx + 1}/{total_seeds}: "
+                            f"in={updated_usage['input_tokens']}, "
+                            f"out={updated_usage['output_tokens']}, "
+                            f"cached={updated_usage['cached_tokens']}"
                         )
 
             return pipeline.ExecutionResult(
@@ -422,11 +430,15 @@ class Pipeline:
 
                         exceeded, constraint_name = constraints.is_exceeded(current_usage)
                         if exceeded:
-                            logger.info(f"[Job {job_id}] Multiplier pipeline stopped: {constraint_name} exceeded")
+                            logger.info(
+                                f"[Job {job_id}] Multiplier pipeline stopped: "
+                                f"{constraint_name} exceeded"
+                            )
                             current_usage.end_time = time.time()
 
                             # update job status to stopped
                             from datetime import datetime
+
                             await self._update_job_progress(
                                 job_id,
                                 job_queue,

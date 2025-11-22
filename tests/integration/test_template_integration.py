@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from lib.entities import pipeline as pipeline_entities
 from lib.templates import template_registry
 from lib.workflow import Pipeline as WorkflowPipeline
 
@@ -52,27 +53,28 @@ async def test_json_generation_template_end_to_end(mock_llm):
         "They are becoming more popular as battery technology improves."
     }
 
-    result, trace, trace_id = await pipeline.execute(seed_data)
+    exec_result = await pipeline.execute(seed_data)
+    assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
     # verify execution completed
-    assert result is not None
-    assert trace is not None
-    assert len(trace) == 2  # StructuredGenerator + JSONValidator
+    assert exec_result.result is not None
+    assert exec_result.trace is not None
+    assert len(exec_result.trace) == 2  # StructuredGenerator + JSONValidator
 
     # verify StructuredGenerator output
-    structured_output = trace[0]["output"]
+    structured_output = exec_result.trace[0]["output"]
     assert "generated" in structured_output
     assert isinstance(structured_output["generated"], dict)
     assert "title" in structured_output["generated"]
     assert "description" in structured_output["generated"]
 
     # verify JSONValidator output
-    validator_output = trace[1]["output"]
+    validator_output = exec_result.trace[1]["output"]
     assert validator_output["valid"] is True
     assert validator_output["parsed_json"] is not None
 
     # verify final accumulated state
-    final_state = trace[-1]["accumulated_state"]
+    final_state = exec_result.trace[-1]["accumulated_state"]
     assert "generated" in final_state
     assert "valid" in final_state
     assert "parsed_json" in final_state
@@ -119,18 +121,19 @@ async def test_text_classification_template_end_to_end(mock_llm):
         "Neural networks can now write code and detect bugs automatically."
     }
 
-    result, trace, trace_id = await pipeline.execute(tech_seed)
+    exec_result = await pipeline.execute(tech_seed)
+    assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
     # verify execution
-    assert len(trace) == 2  # StructuredGenerator + JSONValidator
+    assert len(exec_result.trace) == 2  # StructuredGenerator + JSONValidator
 
     # verify classification result
-    classification = trace[0]["output"]["generated"]
+    classification = exec_result.trace[0]["output"]["generated"]
     assert classification["category"] == "technology"
     assert 0.0 <= classification["confidence"] <= 1.0
 
     # verify validation passed
-    assert trace[1]["output"]["valid"] is True
+    assert exec_result.trace[1]["output"]["valid"] is True
 
     # test case 2: environment content
     mock_response_env = MagicMock()
@@ -305,14 +308,15 @@ async def test_template_handles_invalid_json_gracefully(mock_llm):
 
     seed_data = {"content": "Test content"}
 
-    result, trace, trace_id = await pipeline.execute(seed_data)
+    exec_result = await pipeline.execute(seed_data)
+    assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
     # execution should complete (not crash)
-    assert trace is not None
-    assert len(trace) == 2
+    assert exec_result.trace is not None
+    assert len(exec_result.trace) == 2
 
     # JSONValidator should mark as invalid
-    validator_output = trace[1]["output"]
+    validator_output = exec_result.trace[1]["output"]
     assert validator_output["valid"] is False
     assert validator_output["parsed_json"] is None
 
@@ -337,11 +341,12 @@ async def test_template_with_empty_content(mock_llm):
     # empty content
     seed_data = {"content": ""}
 
-    result, trace, trace_id = await pipeline.execute(seed_data)
+    exec_result = await pipeline.execute(seed_data)
+    assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
     # should complete without error
-    assert trace is not None
-    assert len(trace) == 2
+    assert exec_result.trace is not None
+    assert len(exec_result.trace) == 2
 
     # verify prompt was sent (even with empty content)
     assert mock_llm.called

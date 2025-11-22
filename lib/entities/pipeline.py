@@ -19,15 +19,9 @@ class Constraints(BaseModel):
     max_total_tokens: int | None = Field(
         None, ge=0, description="maximum total tokens (sum of input+output+cached)"
     )
-    max_total_input_tokens: int | None = Field(
-        None, ge=0, description="maximum input tokens"
-    )
-    max_total_output_tokens: int | None = Field(
-        None, ge=0, description="maximum output tokens"
-    )
-    max_total_cached_tokens: int | None = Field(
-        None, ge=0, description="maximum cached tokens"
-    )
+    max_total_input_tokens: int | None = Field(None, ge=0, description="maximum input tokens")
+    max_total_output_tokens: int | None = Field(None, ge=0, description="maximum output tokens")
+    max_total_cached_tokens: int | None = Field(None, ge=0, description="maximum cached tokens")
     max_total_execution_time: int | None = Field(
         None, ge=0, description="maximum execution time in seconds"
     )

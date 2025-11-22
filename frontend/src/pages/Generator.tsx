@@ -12,13 +12,7 @@ import {
   Label,
   Tooltip,
 } from "@primer/react";
-import {
-  PlayIcon,
-  XIcon,
-  UploadIcon,
-  ClockIcon,
-  SparklesFillIcon
-} from "@primer/octicons-react";
+import { PlayIcon, XIcon, UploadIcon, ClockIcon, SparklesFillIcon } from "@primer/octicons-react";
 import { useJob } from "../contexts/JobContext";
 import type { Pipeline } from "../types";
 import { getElapsedTime } from "../utils/format";
@@ -398,15 +392,12 @@ export default function Generator() {
                             currentJob.usage.input_tokens +
                             currentJob.usage.output_tokens +
                             currentJob.usage.cached_tokens
-                          ).toLocaleString()}
-                          {" "}tk
+                          ).toLocaleString()}{" "}
+                          tk
                         </Text>
                       </Box>
                     </Tooltip>
-                    <Tooltip
-                      aria-label="Total time taken for pipeline execution"
-                      direction="s"
-                    >
+                    <Tooltip aria-label="Total time taken for pipeline execution" direction="s">
                       <Box
                         sx={{
                           display: "flex",
@@ -427,16 +418,17 @@ export default function Generator() {
                           {currentJob.status === "running" && currentJob.started_at
                             ? getElapsedTime(currentJob.started_at)
                             : currentJob.usage.end_time && currentJob.usage.start_time
-                            ? (() => {
-                                const elapsed = currentJob.usage.end_time - currentJob.usage.start_time;
-                                const minutes = Math.floor(elapsed / 60);
-                                const seconds = Math.floor(elapsed % 60);
-                                if (minutes > 0) {
-                                  return `${minutes}m ${seconds}s`;
-                                }
-                                return `${seconds}s`;
-                              })()
-                            : "N/A"}
+                              ? (() => {
+                                  const elapsed =
+                                    currentJob.usage.end_time - currentJob.usage.start_time;
+                                  const minutes = Math.floor(elapsed / 60);
+                                  const seconds = Math.floor(elapsed % 60);
+                                  if (minutes > 0) {
+                                    return `${minutes}m ${seconds}s`;
+                                  }
+                                  return `${seconds}s`;
+                                })()
+                              : "N/A"}
                         </Text>
                       </Box>
                     </Tooltip>
@@ -507,7 +499,10 @@ export default function Generator() {
                     limit was reached. Check your pipeline constraints settings to adjust limits.
                   </Text>
                 ) : (
-                  <Text>Pipeline execution stopped because a constraint limit was reached. Check your pipeline constraints settings to adjust limits.</Text>
+                  <Text>
+                    Pipeline execution stopped because a constraint limit was reached. Check your
+                    pipeline constraints settings to adjust limits.
+                  </Text>
                 )}
               </Box>
             </Flash>

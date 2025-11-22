@@ -1,6 +1,6 @@
 """tests for pipeline constraint enforcement"""
+
 import json
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -69,9 +69,7 @@ class MockStorage:
         self.records = []
 
     async def save_record(self, record, pipeline_id, job_id):
-        self.records.append(
-            {"record": record, "pipeline_id": pipeline_id, "job_id": job_id}
-        )
+        self.records.append({"record": record, "pipeline_id": pipeline_id, "job_id": job_id})
 
     async def update_job(self, job_id, **updates):
         pass
@@ -119,6 +117,7 @@ async def test_multiplier_pipeline_stops_at_max_total_tokens():
         pipeline_id=1,
         constraints=constraints,
     )
+    assert isinstance(results, list)
 
     # verify that execution stopped before processing all 10 seeds
     assert len(results) < 10, f"Expected < 10 results, got {len(results)}"
@@ -183,6 +182,7 @@ async def test_multiplier_pipeline_completes_without_constraints():
         pipeline_id=1,
         constraints=constraints,
     )
+    assert isinstance(results, list)
 
     # verify all seeds were processed
     assert len(results) == num_seeds, f"Expected {num_seeds} results, got {len(results)}"
@@ -231,6 +231,7 @@ async def test_multiplier_pipeline_with_max_total_input_tokens():
         pipeline_id=1,
         constraints=constraints,
     )
+    assert isinstance(results, list)
 
     # verify execution stopped
     assert len(results) < 10
@@ -279,6 +280,7 @@ async def test_multiplier_pipeline_with_max_total_output_tokens():
         pipeline_id=1,
         constraints=constraints,
     )
+    assert isinstance(results, list)
 
     # verify execution stopped before all seeds
     assert len(results) < 10
@@ -325,6 +327,7 @@ async def test_empty_constraints_allows_unlimited_execution():
         pipeline_id=1,
         constraints=constraints,
     )
+    assert isinstance(results, list)
 
     # should process all seeds despite high token usage
     assert len(results) == num_seeds
@@ -370,6 +373,7 @@ async def test_constraint_checking_uses_cumulative_usage():
         pipeline_id=1,
         constraints=constraints,
     )
+    assert isinstance(results, list)
 
     # with 200 tokens already used, should stop after ~1 seed (200 + 170 = 370)
     assert len(results) <= 2, f"Expected <= 2 results with pre-existing usage, got {len(results)}"
