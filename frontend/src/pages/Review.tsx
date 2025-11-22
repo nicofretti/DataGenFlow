@@ -10,6 +10,7 @@ import {
   Select,
   ActionMenu,
   ActionList,
+  Tooltip,
 } from "@primer/react";
 import {
   ClockIcon,
@@ -19,6 +20,9 @@ import {
   DownloadIcon,
   GearIcon,
   KebabHorizontalIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ZapIcon,
 } from "@primer/octicons-react";
 import ConfigureFieldsModal from "../components/ConfigureFieldsModal";
 import SingleRecordView from "../components/SingleRecordView";
@@ -450,36 +454,70 @@ export default function Review() {
             borderColor: "border.default",
           }}
         >
-          <Text sx={{ fontWeight: "bold", fontSize: 1, mb: 2, display: "block" }}>
-            Job Token Usage
-          </Text>
           {(() => {
             const job = jobs.find((j) => j.id === selectedJob);
             if (!job?.usage) return null;
-            const totalTokens =
-              job.usage.input_tokens + job.usage.output_tokens + job.usage.cached_tokens;
             return (
-              <>
-                <Text sx={{ fontSize: 1, color: "fg.muted", fontFamily: "mono", display: "block" }}>
-                  Total: {totalTokens.toLocaleString()} (in: {job.usage.input_tokens.toLocaleString()}
-                  , out: {job.usage.output_tokens.toLocaleString()}, cached:{" "}
-                  {job.usage.cached_tokens.toLocaleString()})
-                </Text>
-                {job.usage.end_time && (
-                  <Text
-                    sx={{
-                      fontSize: 1,
-                      color: "fg.muted",
-                      fontFamily: "mono",
-                      display: "block",
-                      mt: 1,
-                    }}
-                  >
-                    Duration: {((job.usage.end_time - job.usage.start_time) / 60).toFixed(2)}{" "}
-                    minutes
-                  </Text>
-                )}
-              </>
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 3 }}>
+                <Box sx={{ textAlign: "center" }}>
+                  <Tooltip aria-label="Duration" direction="n">
+                    <Box>
+                      <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
+                        <ClockIcon size={16} />
+                      </Box>
+                      <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
+                        {job.usage.end_time && job.usage.start_time
+                          ? (() => {
+                              const elapsed = job.usage.end_time - job.usage.start_time;
+                              const minutes = Math.floor(elapsed / 60);
+                              const seconds = Math.floor(elapsed % 60);
+                              if (minutes > 0) {
+                                return `${minutes}m ${seconds}s`;
+                              }
+                              return `${seconds}s`;
+                            })()
+                          : "N/A"}
+                      </Text>
+                    </Box>
+                  </Tooltip>
+                </Box>
+                <Box sx={{ textAlign: "center" }}>
+                  <Tooltip aria-label="Input tokens" direction="n">
+                    <Box>
+                      <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
+                        <ArrowDownIcon size={16} />
+                      </Box>
+                      <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
+                        {job.usage.input_tokens.toLocaleString()}
+                      </Text>
+                    </Box>
+                  </Tooltip>
+                </Box>
+                <Box sx={{ textAlign: "center" }}>
+                  <Tooltip aria-label="Output tokens" direction="n">
+                    <Box>
+                      <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
+                        <ArrowUpIcon size={16} />
+                      </Box>
+                      <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
+                        {job.usage.output_tokens.toLocaleString()}
+                      </Text>
+                    </Box>
+                  </Tooltip>
+                </Box>
+                <Box sx={{ textAlign: "center" }}>
+                  <Tooltip aria-label="Cached tokens" direction="n">
+                    <Box>
+                      <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
+                        <ZapIcon size={16} />
+                      </Box>
+                      <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
+                        {job.usage.cached_tokens.toLocaleString()}
+                      </Text>
+                    </Box>
+                  </Tooltip>
+                </Box>
+              </Box>
             );
           })()}
         </Box>

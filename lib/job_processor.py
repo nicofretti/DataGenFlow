@@ -162,6 +162,20 @@ async def _process_job(
 
                 try:
                     if has_multiplier:
+                        progress = execution_index / total_executions
+                        await _update_job_status(
+                            job_queue,
+                            storage,
+                            job_id,
+                            current_seed=execution_index,
+                            total_seeds=total_executions,
+                            progress=progress,
+                            current_block=None,
+                            current_step=(
+                                f"Processing execution {execution_index}/{total_executions}"
+                            ),
+                        )
+
                         results = await pipeline_obj.execute(
                             metadata,
                             job_id=job_id,
@@ -171,6 +185,7 @@ async def _process_job(
                         )
                         assert isinstance(results, list)
                         # multiplier results already saved in workflow
+                        records_generated += len(results)
                         for exec_result in results:
                             if exec_result.usage:
                                 accumulated_usage.input_tokens += exec_result.usage.get(
@@ -184,10 +199,14 @@ async def _process_job(
                                 )
 
                         # update usage after processing multiplier seed
+                        logger.info(
+                            f"[Job {job_id}] Updating usage: in={accumulated_usage.input_tokens}, out={accumulated_usage.output_tokens}, cached={accumulated_usage.cached_tokens}"
+                        )
                         await _update_job_status(
                             job_queue,
                             storage,
                             job_id,
+                            records_generated=records_generated,
                             usage=json.dumps(accumulated_usage.model_dump()),
                         )
                     else:
@@ -228,6 +247,9 @@ async def _process_job(
                         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
                         records_generated += 1
 
+                        logger.info(
+                            f"[Job {job_id}] Updating usage: in={accumulated_usage.input_tokens}, out={accumulated_usage.output_tokens}, cached={accumulated_usage.cached_tokens}"
+                        )
                         await _update_job_status(
                             job_queue,
                             storage,

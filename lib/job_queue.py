@@ -68,9 +68,15 @@ class JobQueue:
             # parse usage json if present
             if "usage" in updates and isinstance(updates["usage"], str):
                 try:
-                    updates["usage"] = json.loads(updates["usage"])
-                except (json.JSONDecodeError, TypeError):
-                    pass
+                    parsed_usage = json.loads(updates["usage"])
+                    updates["usage"] = parsed_usage
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(f"JobQueue: parsed usage for job {job_id}: in={parsed_usage.get('input_tokens')}, out={parsed_usage.get('output_tokens')}, cached={parsed_usage.get('cached_tokens')}")
+                except (json.JSONDecodeError, TypeError) as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"JobQueue: failed to parse usage for job {job_id}: {e}")
 
             job.update(updates)
 

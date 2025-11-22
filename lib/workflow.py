@@ -308,6 +308,31 @@ class Pipeline:
                     initial_data, accumulated_data, trace, pipeline_id, job_id, job_queue, storage
                 )
 
+                # update cumulative usage in job after each seed
+                if job_queue:
+                    import json
+                    current_job = job_queue.get_job(job_id)
+                    if current_job and current_job.get("usage"):
+                        # get current cumulative usage
+                        current_usage = current_job["usage"]
+                        # add this seed's usage
+                        updated_usage = {
+                            "input_tokens": current_usage.get("input_tokens", 0) + accumulated_usage.input_tokens,
+                            "output_tokens": current_usage.get("output_tokens", 0) + accumulated_usage.output_tokens,
+                            "cached_tokens": current_usage.get("cached_tokens", 0) + accumulated_usage.cached_tokens,
+                            "start_time": current_usage.get("start_time"),
+                            "end_time": current_usage.get("end_time"),
+                        }
+                        await self._update_job_progress(
+                            job_id,
+                            job_queue,
+                            storage,
+                            usage=json.dumps(updated_usage),
+                        )
+                        logger.info(
+                            f"[Job {job_id}] Updated usage after seed {seed_idx + 1}/{total_seeds}: in={updated_usage['input_tokens']}, out={updated_usage['output_tokens']}, cached={updated_usage['cached_tokens']}"
+                        )
+
             return pipeline.ExecutionResult(
                 result=accumulated_data,
                 trace=trace,

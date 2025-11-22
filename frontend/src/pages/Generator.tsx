@@ -10,8 +10,17 @@ import {
   Spinner,
   ProgressBar,
   Label,
+  Tooltip,
 } from "@primer/react";
-import { PlayIcon, XIcon, UploadIcon } from "@primer/octicons-react";
+import {
+  PlayIcon,
+  XIcon,
+  UploadIcon,
+  ClockIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ZapIcon,
+} from "@primer/octicons-react";
 import { useJob } from "../contexts/JobContext";
 import type { Pipeline } from "../types";
 import { getElapsedTime, getElapsedTimeBetween } from "../utils/format";
@@ -334,8 +343,6 @@ export default function Generator() {
     }
   };
 
-  console.log(currentJob?.usage)
-
   return (
     <Box>
       <Box sx={{ mb: 4 }}>
@@ -371,25 +378,117 @@ export default function Generator() {
             sx={{ mb: 3 }}
           />
 
-          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, mb: 3 }}>
-            <Box sx={{ textAlign: "center" }}>
-              <Text sx={{ fontSize: 3, fontWeight: "bold", color: "fg.default", display: "block" }}>
-                {currentJob.current_seed} / {currentJob.total_seeds}
-              </Text>
-              <Text sx={{ fontSize: 1, color: "fg.muted" }}>Seed in Processing</Text>
+          <Box
+            sx={{
+              p: 3,
+              bg: "canvas.subtle",
+              borderRadius: 2,
+              border: "1px solid",
+              borderColor: "border.default",
+              mb: 3,
+            }}
+          >
+            {/* Main Stats Section */}
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3 }}>
+              <Box sx={{ textAlign: "center" }}>
+                <Text sx={{ fontSize: 3, fontWeight: "bold", color: "fg.default", display: "block" }}>
+                  {currentJob.current_seed} / {currentJob.total_seeds}
+                </Text>
+                <Text sx={{ fontSize: 1, color: "fg.muted" }}>Seed in Processing</Text>
+              </Box>
+              <Box sx={{ textAlign: "center" }}>
+                <Text sx={{ fontSize: 3, fontWeight: "bold", color: "success.fg", display: "block" }}>
+                  {currentJob.records_generated}
+                </Text>
+                <Text sx={{ fontSize: 1, color: "fg.muted" }}>Generated</Text>
+              </Box>
+              <Box sx={{ textAlign: "center" }}>
+                <Text sx={{ fontSize: 3, fontWeight: "bold", color: "danger.fg", display: "block" }}>
+                  {currentJob.records_failed}
+                </Text>
+                <Text sx={{ fontSize: 1, color: "fg.muted" }}>Failed</Text>
+              </Box>
             </Box>
-            <Box sx={{ textAlign: "center" }}>
-              <Text sx={{ fontSize: 3, fontWeight: "bold", color: "success.fg", display: "block" }}>
-                {currentJob.records_generated}
-              </Text>
-              <Text sx={{ fontSize: 1, color: "fg.muted" }}>Generated</Text>
-            </Box>
-            <Box sx={{ textAlign: "center" }}>
-              <Text sx={{ fontSize: 3, fontWeight: "bold", color: "danger.fg", display: "block" }}>
-                {currentJob.records_failed}
-              </Text>
-              <Text sx={{ fontSize: 1, color: "fg.muted" }}>Failed</Text>
-            </Box>
+
+            {/* Divider */}
+            {currentJob.usage &&
+              currentJob.usage.input_tokens !== undefined &&
+              currentJob.usage.output_tokens !== undefined &&
+              currentJob.usage.cached_tokens !== undefined && (
+                <>
+                  <Box
+                    sx={{
+                      height: "1px",
+                      bg: "border.default",
+                      my: 3,
+                    }}
+                  />
+
+                  {/* Token Metrics Section */}
+                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 3 }}>
+                    <Box sx={{ textAlign: "center" }}>
+                      <Tooltip aria-label="Duration" direction="n">
+                        <Box>
+                          <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
+                            <ClockIcon size={16} />
+                          </Box>
+                          <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
+                            {currentJob.status === "running" && currentJob.started_at
+                              ? getElapsedTime(currentJob.started_at)
+                              : currentJob.usage.end_time && currentJob.usage.start_time
+                              ? (() => {
+                                  const elapsed = currentJob.usage.end_time - currentJob.usage.start_time;
+                                  const minutes = Math.floor(elapsed / 60);
+                                  const seconds = Math.floor(elapsed % 60);
+                                  if (minutes > 0) {
+                                    return `${minutes}m ${seconds}s`;
+                                  }
+                                  return `${seconds}s`;
+                                })()
+                              : "N/A"}
+                          </Text>
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                    <Box sx={{ textAlign: "center" }}>
+                      <Tooltip aria-label="Input tokens" direction="n">
+                        <Box>
+                          <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
+                            <ArrowDownIcon size={16} />
+                          </Box>
+                          <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
+                            {currentJob.usage.input_tokens.toLocaleString()}
+                          </Text>
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                    <Box sx={{ textAlign: "center" }}>
+                      <Tooltip aria-label="Output tokens" direction="n">
+                        <Box>
+                          <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
+                            <ArrowUpIcon size={16} />
+                          </Box>
+                          <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
+                            {currentJob.usage.output_tokens.toLocaleString()}
+                          </Text>
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                    <Box sx={{ textAlign: "center" }}>
+                      <Tooltip aria-label="Cached tokens" direction="n">
+                        <Box>
+                          <Box sx={{ color: "fg.muted", display: "flex", justifyContent: "center", mb: 1 }}>
+                            <ZapIcon size={16} />
+                          </Box>
+                          <Text sx={{ fontSize: 2, fontWeight: "bold", color: "fg.default", display: "block" }}>
+                            {currentJob.usage.cached_tokens.toLocaleString()}
+                          </Text>
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                </>
+              )}
           </Box>
 
           {currentJob.status === "running" &&
@@ -409,48 +508,6 @@ export default function Generator() {
                 <Text sx={{ fontSize: 1, color: "fg.default" }}>
                   {currentJob.current_block || "Processing..."}
                   {currentJob.current_step && ` • ${currentJob.current_step}`}
-                </Text>
-              </Box>
-            )}
-
-          {currentJob.status === "running" && currentJob.started_at && (
-            <Text sx={{ fontSize: 1, color: "fg.muted", mb: 2, display: "block" }}>
-              Running for {getElapsedTime(currentJob.started_at)}
-            </Text>
-          )}
-
-          {currentJob.usage &&
-            currentJob.usage.input_tokens !== undefined &&
-            currentJob.usage.output_tokens !== undefined &&
-            currentJob.usage.cached_tokens !== undefined && (
-              <Box
-                sx={{
-                  p: 2,
-                  bg: "canvas.subtle",
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: "border.default",
-                  mb: 2,
-                }}
-              >
-                <Text sx={{ fontWeight: "bold", fontSize: 1, mb: 1, display: "block" }}>
-                  Metrics:
-                </Text>
-                <Text sx={{ fontSize: 1, color: "fg.muted", fontFamily: "mono" }}>
-                  Total tokens:{" "}
-                  {(
-                    currentJob.usage.input_tokens +
-                    currentJob.usage.output_tokens +
-                    currentJob.usage.cached_tokens
-                  ).toLocaleString()}{" "}
-                  (in: {currentJob.usage.input_tokens.toLocaleString()}, out:{" "}
-                  {currentJob.usage.output_tokens.toLocaleString()}, cached:{" "}
-                  {currentJob.usage.cached_tokens.toLocaleString()})
-                </Text>
-                <Text sx={{ fontSize: 1, color: "fg.muted", fontFamily: "mono" }}>
-                  Time elapsed: {currentJob.usage.start_time && currentJob.usage.end_time
-                    ? getElapsedTimeBetween(currentJob.usage.end_time, currentJob.usage.start_time)
-                    : "N/A"}
                 </Text>
               </Box>
             )}

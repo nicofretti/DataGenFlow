@@ -26,7 +26,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         unstyled: true,
         classNames: {
           default: "bg-popover text-popover-foreground",
-          error: "bg-destructive text-white dark:bg-destructive/60",
+          error: "bg-destructive text-primary-foreground",
           success: "bg-primary text-primary-foreground",
           warning: "bg-accent text-accent-foreground",
           info: "bg-secondary text-secondary-foreground",

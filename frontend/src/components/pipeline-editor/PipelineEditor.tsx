@@ -605,7 +605,7 @@ export default function PipelineEditor({
 
         <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
           {/* Auto-layout button */}
-          <Button onClick={handleAutoLayout} disabled={nodes.length < 2} variant="ghost">
+          <Button onClick={handleAutoLayout} disabled={nodes.length < 2} variant="ghost" style={{ color: "fg.default" }}>
             <ZapIcon size={16} />
             Auto-layout
           </Button>
@@ -637,12 +637,14 @@ export default function PipelineEditor({
           }}
           onClick={() => setConstraintsExpanded(!constraintsExpanded)}
         >
-          {constraintsExpanded ? (
-            <ChevronDownIcon size={16} />
-          ) : (
-            <ChevronRightIcon size={16} />
-          )}
-          <Text sx={{ fontWeight: "bold", ml: 1, fontSize: 1 }}>
+          <Box sx={{ color: "fg.default" }}>
+            {constraintsExpanded ? (
+              <ChevronDownIcon size={16} />
+            ) : (
+              <ChevronRightIcon size={16} />
+            )}
+          </Box>
+          <Text sx={{ fontWeight: "bold", ml: 1, fontSize: 1, color: "fg.default" }}>
             Pipeline Constraints (Optional)
           </Text>
         </Box>
@@ -653,7 +655,7 @@ export default function PipelineEditor({
             </Text>
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
           <Box>
-            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1 }}>Max Total Tokens</Text>
+            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1, color: "fg.default" }}>Max Total Tokens</Text>
             <TextInput
               type="number"
               min="0"
@@ -672,7 +674,7 @@ export default function PipelineEditor({
             </Text>
           </Box>
           <Box>
-            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1 }}>Max Execution Time</Text>
+            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1, color: "fg.default" }}>Max Execution Time</Text>
             <TextInput
               type="number"
               min="0"
@@ -691,7 +693,7 @@ export default function PipelineEditor({
             </Text>
           </Box>
           <Box>
-            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1 }}>Max Input Tokens</Text>
+            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1, color: "fg.default" }}>Max Input Tokens</Text>
             <TextInput
               type="number"
               min="0"
@@ -710,7 +712,7 @@ export default function PipelineEditor({
             </Text>
           </Box>
           <Box>
-            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1 }}>Max Output Tokens</Text>
+            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1, color: "fg.default" }}>Max Output Tokens</Text>
             <TextInput
               type="number"
               min="0"
@@ -729,7 +731,7 @@ export default function PipelineEditor({
             </Text>
           </Box>
           <Box>
-            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1 }}>Max Cached Tokens</Text>
+            <Text sx={{ fontSize: 0, fontWeight: "bold", mb: 1, color: "fg.default" }}>Max Cached Tokens</Text>
             <TextInput
               type="number"
               min="0"
