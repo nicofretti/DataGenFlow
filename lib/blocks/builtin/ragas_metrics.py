@@ -113,21 +113,43 @@ class RagasMetrics(BaseBlock):
                 Faithfulness,
                 NoiseSensitivity,
             )
+            from langchain_community.chat_models import ChatOllama
         except ImportError as e:
-            logger.error(f"ragas not installed: {e}")
+            logger.error(f"ragas or langchain not installed: {e}")
+            return {"ragas_score": 0.0}
+
+        # configure LLM for ragas
+        try:
+            from app import llm_config_manager
+
+            llm_config = await llm_config_manager.get_llm_model(None)
+
+            # create langchain LLM instance
+            if llm_config.provider.value == "ollama":
+                llm = ChatOllama(
+                    model=llm_config.model_name,
+                    base_url=llm_config.endpoint.replace("/v1/chat/completions", "") if llm_config.endpoint else "http://localhost:11434",
+                    temperature=0.0,  # more deterministic for structured output
+                    format="json",    # request JSON format from ollama
+                )
+            else:
+                logger.error(f"unsupported LLM provider for ragas: {llm_config.provider}")
+                return {"ragas_score": 0.0}
+        except Exception as e:
+            logger.error(f"failed to configure LLM for ragas: {e}")
             return {"ragas_score": 0.0}
 
         # get inputs
         inputs = self._get_metric_inputs(data)
 
-        # select metric
+        # select metric and configure with LLM
         metric_map = {
-            "context_precision": ContextPrecision(),
-            "context_recall": ContextRecall(),
-            "context_entities_recall": ContextEntityRecall(),
-            "noise_sensitivity": NoiseSensitivity(),
-            "answer_relevancy": AnswerRelevancy(),
-            "faithfulness": Faithfulness(),
+            "context_precision": ContextPrecision(llm=llm),
+            "context_recall": ContextRecall(llm=llm),
+            "context_entities_recall": ContextEntityRecall(llm=llm),
+            "noise_sensitivity": NoiseSensitivity(llm=llm),
+            "answer_relevancy": AnswerRelevancy(llm=llm),
+            "faithfulness": Faithfulness(llm=llm),
         }
 
         metric = metric_map.get(self.metric_type)
@@ -137,7 +159,13 @@ class RagasMetrics(BaseBlock):
 
         # validate required fields for metric
         if not self._validate_inputs(inputs):
-            logger.warning(f"missing required fields for {self.metric_type}")
+            logger.error(
+                f"missing required fields for {self.metric_type}. "
+                f"Received: question={bool(inputs['question'])}, "
+                f"answer={bool(inputs['answer'])}, "
+                f"contexts={inputs['contexts']}, "
+                f"ground_truth={bool(inputs['ground_truth'])}"
+            )
             return {"ragas_score": 0.0}
 
         try:
