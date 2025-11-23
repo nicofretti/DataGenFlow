@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from lib.entities import pipeline as pipeline_entities
 from lib.errors import BlockExecutionError, BlockNotFoundError
 from lib.workflow import Pipeline
 
@@ -70,7 +71,7 @@ class TestPipelineErrors:
 
         # validator expects "text" field, execution may fail or succeed with empty text
         try:
-            result, trace, trace_id = await pipeline.execute({})
+            _ = await pipeline.execute({})
             # if it succeeds, that's ok too (depends on validator implementation)
         except (KeyError, Exception):
             # expected if validator requires text field
@@ -159,8 +160,7 @@ class TestEdgeCases:
         pipeline = Pipeline.load_from_dict(pipeline_def)
 
         exec_result = await pipeline.execute({"text": "测试 مرحبا Привет"})
-        assert isinstance(exec_result, tuple)
-        result, trace, trace_id = exec_result
+        assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
-        assert "text" in result
-        assert "测试" in result["text"]
+        assert "text" in exec_result.result
+        assert "测试" in exec_result.result["text"]

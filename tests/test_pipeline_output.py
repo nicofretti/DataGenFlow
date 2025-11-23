@@ -1,5 +1,6 @@
 import pytest
 
+from lib.entities import pipeline as pipeline_entities
 from lib.errors import ValidationError
 from lib.workflow import Pipeline as WorkflowPipeline
 
@@ -45,8 +46,7 @@ async def test_pipeline_output_includes_assistant():
         )
 
         exec_result = await pipeline.execute({"system": "test", "user": "test"})
-        assert isinstance(exec_result, tuple)
-        result, trace, trace_id = exec_result
+        assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
         # result should include assistant output
-        assert result["assistant"] == "Default output"
+        assert exec_result.result["assistant"] == "Default output"

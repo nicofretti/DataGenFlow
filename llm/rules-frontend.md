@@ -597,6 +597,35 @@ test("shows incremented count when button clicked", () => {
 
 ---
 
+## ui/ux quality
+
+### theme compatibility
+**always verify light and dark mode**
+```tsx
+// bad: hardcoded colors
+<Text sx={{ color: "#000" }}>Title</Text>
+<Box sx={{ backgroundColor: "#fff" }}>Content</Box>
+
+// good: theme variables
+<Text sx={{ color: "fg.default" }}>Title</Text>
+<Box sx={{ backgroundColor: "canvas.default" }}>Content</Box>
+```
+
+**test in both modes before committing**
+- toggle theme in app settings
+- verify all text readable (fg.default, fg.muted, fg.subtle)
+- verify backgrounds use canvas.* colors
+- verify borders use border.default
+- check interactive states (hover, focus, disabled)
+
+**rules**:
+- never hardcode colors (#000, #fff, rgb(), etc.)
+- always use primer theme variables
+- test every UI change in both light and dark mode
+- if text looks wrong, it probably needs fg.* color
+
+---
+
 ## checklist
 
 before committing, verify:
@@ -645,6 +674,10 @@ before committing, verify:
 - [ ] business logic extracted
 - [ ] api calls mockable
 - [ ] tests for new features
+
+**ui/ux**
+- [ ] theme compatibility verified in both light and dark modes
+- [ ] no hardcoded colors (use theme variables)
 
 ---
 

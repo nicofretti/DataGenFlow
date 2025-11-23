@@ -12,6 +12,11 @@
 - **output validation**: blocks must return only declared outputs (enforced at runtime)
 - **execution trace**: full history with input/output/accumulated_state/execution_time per step
 - **trace_id**: unique identifier per execution for log correlation
+- **usage tracking**: automatic token usage tracking (input/output/cached tokens + timing)
+- **pipeline constraints**: optional limits (max tokens, max execution time) stop job when exceeded
+  - constraints stored in pipeline.definition["constraints"]
+  - enforced in two paths: workflow.py (multiplier) and job_processor.py (normal)
+  - job status becomes "stopped" with constraint error message
 - **pipeline_output**: special field for visualization (any block can set, defaults to assistant or last block's first output)
 - **error handling**: structured exceptions with context (BlockNotFoundError, BlockExecutionError, ValidationError)
 - **pipeline templates**: pre-configured pipelines for quick start
@@ -31,6 +36,8 @@ lib/
     base.py           # BaseBlock interface
     config.py         # BlockConfigSchema (schema extraction with defaults/enums/field_refs)
     registry.py       # auto-discovery engine
+  entities/
+    pipeline.py       # ExecutionResult, Constraints, Usage pydantic models
   templates/          # pipeline templates (yaml files)
     __init__.py       # TemplateRegistry class
   errors.py           # custom exception classes
@@ -38,7 +45,7 @@ lib/
   storage.py          # Storage class (crud + migrations)
   template_renderer.py  # Jinja2 template renderer
   job_queue.py        # JobQueue class (in-memory job tracking)
-  job_processor.py    # background job processing
+  job_processor.py    # background job processing (usage tracking + constraint enforcement)
 
 frontend/
   src/
@@ -366,13 +373,14 @@ CREATE TABLE pipelines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     definition TEXT NOT NULL,  -- json
+    constraints TEXT,            -- json (optional: max_total_tokens, max_total_input_tokens, max_total_output_tokens, max_total_cached_tokens, max_total_execution_time)
     created_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     pipeline_id INTEGER NOT NULL,
-    status TEXT NOT NULL,
+    status TEXT NOT NULL,  -- running|completed|failed|cancelled|stopped
     total_seeds INTEGER NOT NULL,
     current_seed INTEGER DEFAULT 0,
     records_generated INTEGER DEFAULT 0,
@@ -380,6 +388,7 @@ CREATE TABLE jobs (
     progress REAL DEFAULT 0.0,
     current_block TEXT,
     current_step TEXT,
+    usage TEXT,  -- json (total_tokens, total_input_tokens, total_output_tokens, total_cached_tokens, start_time, end_time)
     started_at TIMESTAMP NOT NULL,
     completed_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL,

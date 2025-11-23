@@ -408,6 +408,32 @@ class BaseBlock:
 3. LLMBlock renders templates with current state
 4. pipeline_output extracted from final accumulated_state
 
+## constraint enforcement
+
+pipelines support optional execution limits:
+- max_total_tokens: total tokens (input + output + cached)
+- max_total_input_tokens: input tokens only
+- max_total_output_tokens: output tokens only
+- max_total_cached_tokens: cached tokens only
+- max_total_execution_time: elapsed seconds
+
+**enforcement:**
+- constraints defined in pipeline.definition["constraints"]
+- checked after each seed execution
+- cumulative usage tracked across all seeds
+- job stops with status="stopped" when exceeded
+
+**two code paths:**
+- multiplier pipelines: workflow.py:420-437 checks after each generated seed
+- normal pipelines: job_processor.py:279-294 checks after each execution
+- both use Constraints.is_exceeded() method for consistency
+
+**usage tracking:**
+- Usage class in lib/entities/pipeline.py
+- tracks: input_tokens, output_tokens, cached_tokens, start_time, end_time
+- stored in jobs.usage as JSON
+- accumulated_usage updated after each block execution
+
 ## lifespan (app.py)
 
 ```python

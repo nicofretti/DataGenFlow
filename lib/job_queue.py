@@ -1,4 +1,7 @@
+import json
+import logging
 import threading
+import time
 from collections import defaultdict, deque
 from datetime import datetime
 from typing import Any
@@ -21,7 +24,9 @@ class JobQueue:
         """register a new job in memory"""
         with self._lock:
             if self._active_job is not None:
-                raise RuntimeError(f"Job {self._active_job} is already running. Cancel it first.")
+                raise RuntimeError(
+                    f"Job {self._active_job} is already running. Cancel it first."
+                )
 
             self._jobs[job_id] = {
                 "id": job_id,
@@ -37,6 +42,13 @@ class JobQueue:
                 "error": None,
                 "started_at": datetime.now().isoformat(),
                 "completed_at": None,
+                "usage": {
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "cached_tokens": 0,
+                    "start_time": time.time(),
+                    "end_time": None,
+                },
             }
 
             self._active_job = job_id
@@ -55,15 +67,37 @@ class JobQueue:
                 return False
 
             job = self._jobs[job_id]
+
+            # parse usage json if present
+            if "usage" in updates and isinstance(updates["usage"], str):
+                try:
+                    parsed_usage = json.loads(updates["usage"])
+                    updates["usage"] = parsed_usage
+
+                    logger = logging.getLogger(__name__)
+                    logger.info(
+                        f"JobQueue: parsed usage for job {job_id}: "
+                        f"in={parsed_usage.get('input_tokens')}, "
+                        f"out={parsed_usage.get('output_tokens')}, "
+                        f"cached={parsed_usage.get('cached_tokens')}"
+                    )
+                except (json.JSONDecodeError, TypeError) as e:
+
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"JobQueue: failed to parse usage for job {job_id}: {e}"
+                    )
+
             job.update(updates)
 
             # clear active job if terminal status and set completed_at consistently
             status = updates.get("status")
-            if status in ["completed", "failed", "cancelled"]:
+            if status in ["completed", "failed", "cancelled", "stopped"]:
                 if self._active_job == job_id:
                     self._active_job = None
-                # set completed_at for any terminal status
-                job["completed_at"] = datetime.now().isoformat()
+                # set completed_at for any terminal status if not already set
+                if "completed_at" not in updates:
+                    job["completed_at"] = datetime.now().isoformat()
 
             return True
 

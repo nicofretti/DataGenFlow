@@ -2,9 +2,11 @@ import json
 import logging
 import time
 import uuid
+from datetime import datetime
 from typing import Any
 
 from lib.blocks.registry import registry
+from lib.entities import pipeline
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 from models import Record
 
@@ -84,23 +86,25 @@ class Pipeline:
         job_queue: Any = None,
         storage: Any = None,
         pipeline_id: int | None = None,
-    ) -> (
-        tuple[dict[str, Any], list[dict[str, Any]], str]
-        | list[tuple[dict[str, Any], list[dict[str, Any]], str]]
-    ):
+        constraints: pipeline.Constraints = pipeline.Constraints(),
+    ) -> pipeline.ExecutionResult | list[pipeline.ExecutionResult]:
         if not self._block_instances:
             trace_id = str(uuid.uuid4())
-            return initial_data, [], trace_id
+            return pipeline.ExecutionResult(
+                result=initial_data, trace=[], trace_id=trace_id, usage={}
+            )
 
         first_block = self._block_instances[0]
         is_multiplier = getattr(first_block, "is_multiplier", False)
 
         if is_multiplier:
             return await self._execute_multiplier_pipeline(
-                initial_data, job_id, job_queue, storage, pipeline_id
+                initial_data, job_id, job_queue, storage, pipeline_id, constraints
             )
 
-        return await self._execute_normal_pipeline(initial_data, job_id, job_queue, storage)
+        return await self._execute_normal_pipeline(
+            initial_data, job_id, job_queue, storage
+        )
 
     async def _execute_normal_pipeline(
         self,
@@ -108,9 +112,10 @@ class Pipeline:
         job_id: int | None = None,
         job_queue: Any = None,
         storage: Any = None,
-    ) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+    ) -> pipeline.ExecutionResult:
         trace_id = str(uuid.uuid4())
         accumulated_data = initial_data.copy()
+        accumulated_usage = pipeline.Usage()
         trace = []
 
         logger.info(
@@ -137,7 +142,21 @@ class Pipeline:
                 result = await block.execute(accumulated_data)
                 execution_time = time.time() - start_time
 
-                logger.debug(f"[{trace_id}] {block_name} completed in {execution_time:.3f}s")
+                logger.debug(
+                    f"[{trace_id}] {block_name} completed in {execution_time:.3f}s"
+                )
+
+                # extract usage if present
+                if "_usage" in result:
+                    try:
+                        block_usage = pipeline.Usage(**result.pop("_usage"))
+                        accumulated_usage.input_tokens += block_usage.input_tokens
+                        accumulated_usage.output_tokens += block_usage.output_tokens
+                        accumulated_usage.cached_tokens += block_usage.cached_tokens
+                    except (ValueError, KeyError) as e:
+                        # log but don't fail - block didn't return valid usage
+                        logger.warning(f"Invalid usage from {block_name}: {e}")
+                        result.pop("_usage", None)
 
                 self._validate_output(block, result)
                 accumulated_data.update(result)
@@ -153,7 +172,9 @@ class Pipeline:
                 )
             except ValidationError:
                 # re-raise validation errors as-is
-                logger.error(f"[{trace_id}] {block_name} validation error at step {i + 1}")
+                logger.error(
+                    f"[{trace_id}] {block_name} validation error at step {i + 1}"
+                )
                 raise
             except Exception as e:
                 logger.exception(f"[{trace_id}] {block_name} failed at step {i + 1}")
@@ -168,12 +189,18 @@ class Pipeline:
                 )
 
         logger.info(f"[{trace_id}] Pipeline '{self.name}' completed successfully")
-        return accumulated_data, trace, trace_id
+        return pipeline.ExecutionResult(
+            result=accumulated_data,
+            trace=trace,
+            trace_id=trace_id,
+            usage=accumulated_usage.model_dump(),
+        )
 
     async def _execute_block_in_seed(
         self,
         block: Any,
         accumulated_data: dict[str, Any],
+        accumulated_usage: pipeline.Usage,
         trace: list[dict[str, Any]],
         block_idx: int,
         trace_id: str,
@@ -188,6 +215,18 @@ class Pipeline:
         try:
             result = await block.execute(accumulated_data)
             block_execution_time = time.time() - block_start_time
+
+            # extract usage if present
+            if "_usage" in result:
+                try:
+                    block_usage = pipeline.Usage(**result.pop("_usage"))
+                    accumulated_usage.input_tokens += block_usage.input_tokens
+                    accumulated_usage.output_tokens += block_usage.output_tokens
+                    accumulated_usage.cached_tokens += block_usage.cached_tokens
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Invalid usage from {block_name}: {e}")
+                    result.pop("_usage", None)
+
             self._validate_output(block, result)
             accumulated_data.update(result)
             trace.append(
@@ -202,7 +241,12 @@ class Pipeline:
         except Exception as e:
             logger.exception(f"[{trace_id}] {block_name} failed at seed {seed_idx + 1}")
             trace.append(
-                {"block_type": block_name, "input": block_input, "output": None, "error": str(e)}
+                {
+                    "block_type": block_name,
+                    "input": block_input,
+                    "output": None,
+                    "error": str(e),
+                }
             )
             raise
 
@@ -217,7 +261,9 @@ class Pipeline:
         storage: Any,
     ) -> None:
         """save completed seed result and update counters"""
-        record = Record(metadata=initial_data, output=json.dumps(accumulated_data), trace=trace)
+        record = Record(
+            metadata=initial_data, output=json.dumps(accumulated_data), trace=trace
+        )
         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
 
         if job_queue:
@@ -241,10 +287,11 @@ class Pipeline:
         storage: Any,
         pipeline_id: int | None,
         total_seeds: int,
-    ) -> tuple[dict[str, Any], list[dict[str, Any]], str] | None:
+    ) -> pipeline.ExecutionResult | None:
         """process one seed through all remaining blocks"""
         trace_id = str(uuid.uuid4())
         accumulated_data = seed_data.copy()
+        accumulated_usage = pipeline.Usage()
         trace: list[dict[str, Any]] = []
 
         try:
@@ -261,15 +308,65 @@ class Pipeline:
                     current_step=step,
                 )
                 await self._execute_block_in_seed(
-                    block, accumulated_data, trace, i, trace_id, seed_idx, len(remaining_blocks)
+                    block,
+                    accumulated_data,
+                    accumulated_usage,
+                    trace,
+                    i,
+                    trace_id,
+                    seed_idx,
+                    len(remaining_blocks),
                 )
 
             if storage and pipeline_id and job_id:
                 await self._save_seed_result(
-                    initial_data, accumulated_data, trace, pipeline_id, job_id, job_queue, storage
+                    initial_data,
+                    accumulated_data,
+                    trace,
+                    pipeline_id,
+                    job_id,
+                    job_queue,
+                    storage,
                 )
 
-            return (accumulated_data, trace, trace_id)
+                # update cumulative usage in job after each seed
+                if job_queue:
+
+                    current_job = job_queue.get_job(job_id)
+                    if current_job and current_job.get("usage"):
+                        # get current cumulative usage
+                        current_usage = current_job["usage"]
+                        # add this seed's usage
+                        updated_usage = {
+                            "input_tokens": current_usage.get("input_tokens", 0)
+                            + accumulated_usage.input_tokens,
+                            "output_tokens": current_usage.get("output_tokens", 0)
+                            + accumulated_usage.output_tokens,
+                            "cached_tokens": current_usage.get("cached_tokens", 0)
+                            + accumulated_usage.cached_tokens,
+                            "start_time": current_usage.get("start_time"),
+                            "end_time": current_usage.get("end_time"),
+                        }
+                        await self._update_job_progress(
+                            job_id,
+                            job_queue,
+                            storage,
+                            usage=json.dumps(updated_usage),
+                        )
+                        logger.info(
+                            f"[Job {job_id}] Updated usage after seed "
+                            f"{seed_idx + 1}/{total_seeds}: "
+                            f"in={updated_usage['input_tokens']}, "
+                            f"out={updated_usage['output_tokens']}, "
+                            f"cached={updated_usage['cached_tokens']}"
+                        )
+
+            return pipeline.ExecutionResult(
+                result=accumulated_data,
+                trace=trace,
+                trace_id=trace_id,
+                usage=accumulated_usage.model_dump(),
+            )
         except Exception:
             logger.exception(f"[{trace_id}] Seed {seed_idx + 1}/{total_seeds} failed")
             if job_id and job_queue:
@@ -306,7 +403,8 @@ class Pipeline:
         job_queue: Any = None,
         storage: Any = None,
         pipeline_id: int | None = None,
-    ) -> list[tuple[dict[str, Any], list[dict[str, Any]], str]]:
+        constraints: pipeline.Constraints = pipeline.Constraints(),
+    ) -> list[pipeline.ExecutionResult]:
         """execute pipeline with multiplier first block that generates multiple seeds"""
         first_block = self._block_instances[0]
         remaining_blocks = self._block_instances[1:]
@@ -338,7 +436,49 @@ class Pipeline:
             if result:
                 results.append(result)
 
-        logger.info(f"Multiplier pipeline '{self.name}' completed with {len(results)} results")
+            # constraint checking for multiplier pipelines
+            # note: normal pipelines check constraints in job_processor.py
+            # this is by design - two execution paths,
+            # same constraint logic via Constraints.is_exceeded()
+            # check constraints after each seed
+            if job_id and job_queue:
+                current_job = job_queue.get_job(job_id)
+                if current_job and current_job.get("usage"):
+                    # parse usage from job
+                    try:
+                        usage_data = current_job["usage"]
+                        if isinstance(usage_data, str):
+                            usage_data = json.loads(usage_data)
+                        current_usage = pipeline.Usage(**usage_data)
+
+                        exceeded, constraint_name = constraints.is_exceeded(
+                            current_usage
+                        )
+                        if exceeded:
+                            logger.info(
+                                f"[Job {job_id}] Multiplier pipeline stopped: "
+                                f"{constraint_name} exceeded"
+                            )
+                            current_usage.end_time = time.time()
+
+                            await self._update_job_progress(
+                                job_id,
+                                job_queue,
+                                storage,
+                                status="stopped",
+                                completed_at=datetime.now().isoformat(),
+                                usage=json.dumps(current_usage.model_dump()),
+                                error=f"Constraint exceeded: {constraint_name}",
+                            )
+                            break
+                    except (ValueError, KeyError, json.JSONDecodeError) as e:
+                        logger.warning(
+                            f"Failed to check constraints for job {job_id}: {e}"
+                        )
+
+        logger.info(
+            f"Multiplier pipeline '{self.name}' completed with {len(results)} results"
+        )
         return results
 
     def to_dict(self) -> dict[str, Any]:

@@ -4,6 +4,7 @@ export function getStatusColor(
 ): "default" | "success" | "danger" | "accent" | "attention" {
   if (status === "completed") return "success";
   if (status === "failed" || status === "cancelled") return "danger";
+  if (status === "stopped") return "attention";
   return "accent";
 }
 

@@ -37,7 +37,17 @@ job_queue = JobQueue()  # global
 async def handler(job_queue: JobQueue):  # explicit
 ```
 
-**4. single responsibility**
+**4. use entities for structured data**
+```python
+# bad: big dicts (>5 fields)
+def get_job(job_id: int) -> dict[str, Any]
+
+# good: pydantic entities
+def get_job(job_id: int) -> Job
+```
+**don't overengineer**: only create entities when dicts get unwieldy (>5 fields)
+
+**5. single responsibility**
 ```python
 # bad
 def process_seeds(seeds):
@@ -266,6 +276,11 @@ finally:
 
 ## testing
 
+**blocking: tests required for**
+- new api endpoints
+- new blocks in lib/blocks/
+- bug fixes (regression tests)
+
 **one behavior per test**
 ```python
 # bad: multiple assertions
@@ -413,7 +428,9 @@ before committing, verify:
 - [ ] cleanup background tasks
 
 **testing**
-- [ ] tests exist for new features
+- [ ] **blocking:** new api endpoints must have tests
+- [ ] **blocking:** new blocks must have unit tests
+- [ ] **blocking:** bug fixes must have regression tests
 - [ ] error cases tested
 - [ ] test names: `test_<method>_<scenario>_<expected>`
 
@@ -427,6 +444,9 @@ before committing, verify:
 - [ ] all parameters typed
 - [ ] all returns typed
 - [ ] use `| None` not `Optional`
+
+**entities**
+- [ ] entities used instead of big dicts (>5 fields)
 
 ---
 

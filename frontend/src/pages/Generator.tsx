@@ -10,8 +10,9 @@ import {
   Spinner,
   ProgressBar,
   Label,
+  Tooltip,
 } from "@primer/react";
-import { PlayIcon, XIcon, UploadIcon } from "@primer/octicons-react";
+import { PlayIcon, XIcon, UploadIcon, ClockIcon, SparklesFillIcon } from "@primer/octicons-react";
 import { useJob } from "../contexts/JobContext";
 import type { Pipeline } from "../types";
 import { getElapsedTime } from "../utils/format";
@@ -151,7 +152,8 @@ export default function Generator() {
           const data = JSON.parse(text);
           const seeds = Array.isArray(data) ? data : [data];
           await validateSeeds(seeds);
-        } catch {
+        } catch (err) {
+          console.error("validation failed during revalidation:", err);
           setValidationResult(null);
         }
       } else {
@@ -360,7 +362,81 @@ export default function Generator() {
             sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}
           >
             <Heading sx={{ fontSize: 2, color: "fg.default" }}>Job Progress</Heading>
-            <Label variant={getStatusColor(currentJob.status)}>{currentJob.status}</Label>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+              {currentJob.usage &&
+                currentJob.usage.input_tokens !== undefined &&
+                currentJob.usage.output_tokens !== undefined &&
+                currentJob.usage.cached_tokens !== undefined && (
+                  <>
+                    <Tooltip
+                      aria-label={`Token Usage: ↓ Input: ${currentJob.usage.input_tokens.toLocaleString()} ↑ Output: ${currentJob.usage.output_tokens.toLocaleString()} ⟳ Cached: ${currentJob.usage.cached_tokens.toLocaleString()}`}
+                      direction="s"
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          px: 2,
+                          py: 1,
+                          bg: "canvas.subtle",
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: "border.default",
+                        }}
+                      >
+                        <Box sx={{ color: "fg.muted" }}>
+                          <SparklesFillIcon size={12} />
+                        </Box>
+                        <Text sx={{ fontSize: 1, fontFamily: "mono", color: "fg.default" }}>
+                          {(
+                            currentJob.usage.input_tokens +
+                            currentJob.usage.output_tokens +
+                            currentJob.usage.cached_tokens
+                          ).toLocaleString()}{" "}
+                          tk
+                        </Text>
+                      </Box>
+                    </Tooltip>
+                    <Tooltip aria-label="Total time taken for pipeline execution" direction="s">
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          px: 2,
+                          py: 1,
+                          bg: "canvas.subtle",
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: "border.default",
+                        }}
+                      >
+                        <Box sx={{ color: "fg.muted" }}>
+                          <ClockIcon size={12} />
+                        </Box>
+                        <Text sx={{ fontSize: 1, fontFamily: "mono", color: "fg.default" }}>
+                          {currentJob.status === "running" && currentJob.started_at
+                            ? getElapsedTime(currentJob.started_at)
+                            : currentJob.usage.end_time && currentJob.usage.start_time
+                              ? (() => {
+                                  const elapsed =
+                                    currentJob.usage.end_time - currentJob.usage.start_time;
+                                  const minutes = Math.floor(elapsed / 60);
+                                  const seconds = Math.floor(elapsed % 60);
+                                  if (minutes > 0) {
+                                    return `${minutes}m ${seconds}s`;
+                                  }
+                                  return `${seconds}s`;
+                                })()
+                              : "N/A"}
+                        </Text>
+                      </Box>
+                    </Tooltip>
+                  </>
+                )}
+              <Label variant={getStatusColor(currentJob.status)}>{currentJob.status}</Label>
+            </Box>
           </Box>
 
           <ProgressBar
@@ -411,13 +487,29 @@ export default function Generator() {
               </Box>
             )}
 
-          {currentJob.status === "running" && currentJob.started_at && (
-            <Text sx={{ fontSize: 1, color: "fg.muted", mb: 2, display: "block" }}>
-              Running for {getElapsedTime(currentJob.started_at)}
-            </Text>
+          {currentJob.status === "stopped" && (
+            <Flash variant="warning" sx={{ mb: 2 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <Text sx={{ fontWeight: "bold" }}>Job Stopped</Text>
+                {currentJob.error && currentJob.error.includes("Constraint exceeded:") ? (
+                  <Text>
+                    Pipeline execution stopped because the{" "}
+                    <Text sx={{ fontWeight: "bold", fontFamily: "mono" }}>
+                      {currentJob.error.replace("Constraint exceeded: ", "")}
+                    </Text>{" "}
+                    limit was reached. Check your pipeline constraints settings to adjust limits.
+                  </Text>
+                ) : (
+                  <Text>
+                    Pipeline execution stopped because a constraint limit was reached. Check your
+                    pipeline constraints settings to adjust limits.
+                  </Text>
+                )}
+              </Box>
+            </Flash>
           )}
 
-          {currentJob.error && (
+          {currentJob.error && !currentJob.error.includes("Constraint exceeded:") && (
             <Flash variant="danger" sx={{ mb: 2 }}>
               {currentJob.error}
             </Flash>

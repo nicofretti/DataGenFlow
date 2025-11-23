@@ -25,10 +25,10 @@ async def main() -> None:
         return
 
     workflow = WorkflowPipeline(
-        name=pipeline_data["name"], blocks=pipeline_data["definition"]["blocks"]
+        name=pipeline_data.name, blocks=pipeline_data.definition["blocks"]
     )
 
-    result, trace, trace_id = await workflow.execute(SEED_DATA["metadata"])  # type: ignore[arg-type]
+    result, _, trace_id = await workflow.execute(SEED_DATA["metadata"])  # type: ignore[arg-type]
     print(f"trace_id: {trace_id}")
     print(f"result: {result}")
 

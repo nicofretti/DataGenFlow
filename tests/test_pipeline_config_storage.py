@@ -27,8 +27,8 @@ async def test_pipeline_definition_with_block_configs():
         retrieved = await storage.get_pipeline(pipeline_id)
 
         assert retrieved is not None
-        assert retrieved["definition"]["blocks"][0]["config"]["temperature"] == 0.8
-        assert retrieved["definition"]["blocks"][1]["config"]["min_length"] == 10
+        assert retrieved.definition["blocks"][0]["config"]["temperature"] == 0.8
+        assert retrieved.definition["blocks"][1]["config"]["min_length"] == 10
     finally:
         # close the storage connection
         await storage.close()

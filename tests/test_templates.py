@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from lib.entities import pipeline as pipeline_entities
 from lib.templates import template_registry
 from lib.workflow import Pipeline as WorkflowPipeline
 
@@ -136,7 +137,8 @@ async def test_json_generation_template_renders_content(mock_llm):
 
     mock_llm.side_effect = capture_call
 
-    result, trace, trace_id = await pipeline.execute(seed_data)
+    exec_result = await pipeline.execute(seed_data)
+    assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
     # verify template was rendered - should NOT contain {{ content }}
     assert captured_prompt is not None
@@ -171,7 +173,8 @@ async def test_text_classification_template_renders_content(mock_llm):
 
     mock_llm.side_effect = capture_call
 
-    result, trace, trace_id = await pipeline.execute(seed_data)
+    exec_result = await pipeline.execute(seed_data)
+    assert isinstance(exec_result, pipeline_entities.ExecutionResult)
 
     # verify template was rendered
     assert captured_prompt is not None
@@ -217,6 +220,7 @@ async def test_qa_generation_template_renders_content(mock_llm):
 
     # multiplier returns list of results
     results = await pipeline.execute(seed_data)
+    assert isinstance(results, list)
     assert len(results) > 0, "Expected at least one result from multiplier"
 
     # verify prompts were rendered

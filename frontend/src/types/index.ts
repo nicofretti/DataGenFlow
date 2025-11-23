@@ -23,15 +23,32 @@ export interface ValidationConfig {
   };
 }
 
+export interface PipelineConstraints {
+  max_total_tokens?: number;
+  max_total_input_tokens?: number;
+  max_total_output_tokens?: number;
+  max_total_cached_tokens?: number;
+  max_total_execution_time?: number;
+}
+
 export interface Pipeline {
   id: number;
   name: string;
   definition: {
     name: string;
     blocks: Array<{ type: string; config: Record<string, any> }>;
+    constraints?: PipelineConstraints;
   };
   created_at?: string;
   validation_config?: ValidationConfig;
+}
+
+export interface JobUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  start_time: number;
+  end_time: number | null;
 }
 
 export interface Job {
@@ -48,6 +65,7 @@ export interface Job {
   error: string | null;
   started_at: string;
   completed_at: string | null;
+  usage?: JobUsage;
 }
 
 export interface Template {

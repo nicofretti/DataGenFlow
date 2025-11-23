@@ -23,6 +23,7 @@ from models import (
     ConnectionTestResult,
     EmbeddingModelConfig,
     LLMModelConfig,
+    PipelineRecord,
     Record,
     RecordStatus,
     RecordUpdate,
@@ -126,7 +127,7 @@ async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
     if not pipeline_data:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
-    blocks = pipeline_data["definition"]["blocks"]
+    blocks = pipeline_data.definition["blocks"]
     if not blocks:
         raise HTTPException(status_code=400, detail="pipeline has no blocks")
 
@@ -172,7 +173,7 @@ async def generate_from_file(
     if not pipeline_data:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
-    pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
+    pipeline = WorkflowPipeline.load_from_dict(pipeline_data.definition)
 
     # parse seed file with size limit
     content = await file.read(MAX_FILE_SIZE + 1)
@@ -332,10 +333,10 @@ async def get_job(job_id: int) -> dict[str, Any]:
         return job
 
     # fallback to database
-    job = await storage.get_job(job_id)
-    if not job:
+    job_obj = await storage.get_job(job_id)
+    if not job_obj:
         raise HTTPException(status_code=404, detail="job not found")
-    return job
+    return job_obj.model_dump()
 
 
 @api_router.delete("/jobs/{job_id}")
@@ -361,7 +362,8 @@ async def list_jobs(pipeline_id: int | None = None) -> list[dict[str, Any]]:
             return jobs
 
     # fallback to database
-    return await storage.list_jobs(pipeline_id=pipeline_id, limit=10)
+    jobs_list = await storage.list_jobs(pipeline_id=pipeline_id, limit=10)
+    return [job.model_dump() for job in jobs_list]
 
 
 @api_router.get("/records")
@@ -476,7 +478,7 @@ async def create_pipeline(pipeline_data: dict[str, Any]) -> dict[str, Any]:
 
 
 @api_router.get("/pipelines")
-async def list_pipelines() -> list[dict[str, Any]]:
+async def list_pipelines() -> list[PipelineRecord]:
     return await storage.list_pipelines()
 
 
@@ -486,10 +488,11 @@ async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
     if not pipeline:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
-    blocks = pipeline.get("definition", {}).get("blocks", [])
-    pipeline["first_block_is_multiplier"] = is_multiplier_pipeline(blocks)
+    blocks = pipeline.definition.get("blocks", [])
+    pipeline_dict = pipeline.model_dump()
+    pipeline_dict["first_block_is_multiplier"] = is_multiplier_pipeline(blocks)
 
-    return pipeline
+    return pipeline_dict
 
 
 @api_router.put("/pipelines/{pipeline_id}")
@@ -514,9 +517,30 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
         if not pipeline_data:
             raise HTTPException(status_code=404, detail="pipeline not found")
 
-        pipeline = WorkflowPipeline.load_from_dict(pipeline_data["definition"])
-        result, trace, trace_id = await pipeline.execute(data)
-        return {"result": result, "trace": trace, "trace_id": trace_id}
+        pipeline = WorkflowPipeline.load_from_dict(pipeline_data.definition)
+        exec_result = await pipeline.execute(data)
+        # handle both ExecutionResult and list[ExecutionResult]
+        if isinstance(exec_result, list):
+            # multiplier pipeline
+            return {
+                "results": [
+                    {
+                        "result": r.result,
+                        "trace": r.trace,
+                        "trace_id": r.trace_id,
+                        "usage": r.usage,
+                    }
+                    for r in exec_result
+                ]
+            }
+        else:
+            # normal pipeline
+            return {
+                "result": exec_result.result,
+                "trace": exec_result.trace,
+                "trace_id": exec_result.trace_id,
+                "usage": exec_result.usage,
+            }
     except HTTPException:
         # Let HTTPException propagate to FastAPI
         raise
@@ -538,7 +562,7 @@ async def get_accumulated_state_schema(pipeline_id: int) -> dict[str, list[str]]
     if not pipeline_data:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
-    blocks = pipeline_data["definition"]["blocks"]
+    blocks = pipeline_data.definition["blocks"]
     fields = compute_accumulated_state_schema(blocks)
     return {"fields": fields}
 
@@ -585,7 +609,7 @@ async def delete_pipeline(pipeline_id: int) -> dict[str, bool]:
 
     # remove jobs from in-memory queue
     for job in jobs:
-        job_queue.delete_job(job["id"])
+        job_queue.delete_job(job.id)
 
     return {"success": True}
 

@@ -10,6 +10,7 @@ import {
   Select,
   ActionMenu,
   ActionList,
+  Tooltip,
 } from "@primer/react";
 import {
   ClockIcon,
@@ -19,6 +20,7 @@ import {
   DownloadIcon,
   GearIcon,
   KebabHorizontalIcon,
+  SparklesFillIcon,
 } from "@primer/octicons-react";
 import ConfigureFieldsModal from "../components/ConfigureFieldsModal";
 import SingleRecordView from "../components/SingleRecordView";
@@ -438,7 +440,7 @@ export default function Review() {
         </FormControl>
       </Box>
 
-      <Box sx={{ mb: 3, display: "flex", justifyContent: "center" }}>
+      <Box sx={{ mb: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <SegmentedControl
           aria-label="Filter by status"
           onChange={(index) => {
@@ -468,6 +470,84 @@ export default function Review() {
             </Box>
           </SegmentedControl.Button>
         </SegmentedControl>
+
+        {/* Usage Stats Badges */}
+        {selectedJob &&
+          jobs.find((j) => j.id === selectedJob)?.usage &&
+          (() => {
+            const job = jobs.find((j) => j.id === selectedJob);
+            if (!job?.usage) return null;
+
+            const elapsed =
+              job.usage.end_time && job.usage.start_time
+                ? (() => {
+                    const e = job.usage.end_time - job.usage.start_time;
+                    const minutes = Math.floor(e / 60);
+                    const seconds = Math.floor(e % 60);
+                    if (minutes > 0) {
+                      return `${minutes}m ${seconds}s`;
+                    }
+                    return `${seconds}s`;
+                  })()
+                : "N/A";
+
+            return (
+              <Box sx={{ display: "flex", gap: 2 }}>
+                <Tooltip
+                  aria-label={`Tokens: ↓ Input: ${job.usage.input_tokens.toLocaleString()} ↑ Output: ${job.usage.output_tokens.toLocaleString()} ⟳ Cached: ${job.usage.cached_tokens.toLocaleString()}`}
+                  direction="w"
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      px: 2,
+                      py: 1,
+                      bg: "canvas.subtle",
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "border.default",
+                    }}
+                  >
+                    <Box sx={{ color: "fg.muted" }}>
+                      <SparklesFillIcon size={12} />
+                    </Box>
+                    <Text sx={{ fontSize: 1, fontFamily: "mono", color: "fg.default" }}>
+                      {(
+                        job.usage.input_tokens +
+                        job.usage.output_tokens +
+                        job.usage.cached_tokens
+                      ).toLocaleString()}{" "}
+                      tk
+                    </Text>
+                  </Box>
+                </Tooltip>
+                <Tooltip aria-label="Duration" direction="n">
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      px: 2,
+                      py: 1,
+                      bg: "canvas.subtle",
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "border.default",
+                    }}
+                  >
+                    <Box sx={{ color: "fg.muted" }}>
+                      <ClockIcon size={12} />
+                    </Box>
+                    <Text sx={{ fontSize: 1, fontFamily: "mono", color: "fg.default" }}>
+                      {elapsed}
+                    </Text>
+                  </Box>
+                </Tooltip>
+              </Box>
+            );
+          })()}
       </Box>
 
       {/* keyboard shortcuts hint - only in single view */}

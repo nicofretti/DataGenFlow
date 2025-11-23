@@ -120,8 +120,8 @@ class TestPipelineCRUD:
 
         retrieved = await storage.get_pipeline(pipeline_id)
         assert retrieved is not None
-        assert retrieved["name"] == "Test Pipeline"
-        assert retrieved["definition"] == pipeline_def
+        assert retrieved.name == "Test Pipeline"
+        assert retrieved.definition == pipeline_def
 
     @pytest.mark.asyncio
     async def test_list_pipelines(self, storage):
@@ -131,7 +131,7 @@ class TestPipelineCRUD:
 
         pipelines = await storage.list_pipelines()
         assert len(pipelines) >= 2
-        names = [p["name"] for p in pipelines]
+        names = [p.name for p in pipelines]
         assert "Pipeline 1" in names
         assert "Pipeline 2" in names
 
@@ -148,9 +148,9 @@ class TestPipelineCRUD:
 
         # verify changes
         updated = await storage.get_pipeline(pipeline_id)
-        assert updated["name"] == "Updated Name"
-        assert updated["definition"] == new_def
-        assert updated["definition"]["blocks"][0]["type"] == "ValidatorBlock"
+        assert updated.name == "Updated Name"
+        assert updated.definition == new_def
+        assert updated.definition["blocks"][0]["type"] == "ValidatorBlock"
 
     @pytest.mark.asyncio
     async def test_update_nonexistent_pipeline(self, storage):
@@ -190,9 +190,9 @@ class TestJobCRUD:
 
         job = await storage.get_job(job_id)
         assert job is not None
-        assert job["pipeline_id"] == pipeline_id
-        assert job["total_seeds"] == 10
-        assert job["status"] == "processing"
+        assert job.pipeline_id == pipeline_id
+        assert job.total_seeds == 10
+        assert job.status == "processing"
 
     @pytest.mark.asyncio
     async def test_update_job(self, storage):
@@ -204,8 +204,8 @@ class TestJobCRUD:
         assert success is True
 
         job = await storage.get_job(job_id)
-        assert job["status"] == "completed"
-        assert job["records_generated"] == 10
+        assert job.status == "completed"
+        assert job.records_generated == 10
 
     @pytest.mark.asyncio
     async def test_list_jobs(self, storage):

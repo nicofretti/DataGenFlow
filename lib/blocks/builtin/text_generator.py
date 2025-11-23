@@ -5,6 +5,7 @@ import litellm
 from jinja2 import Environment, meta
 
 from lib.blocks.base import BaseBlock
+from lib.entities import pipeline
 from lib.template_renderer import render_template
 
 if TYPE_CHECKING:
@@ -83,7 +84,20 @@ class TextGenerator(BaseBlock):
             raise
 
         assistant = response.choices[0].message.content
-        return {"assistant": assistant, "system": system, "user": user}
+
+        # extract usage info from response
+        usage_info = pipeline.Usage(
+            input_tokens=response.usage.prompt_tokens or 0,
+            output_tokens=response.usage.completion_tokens or 0,
+            cached_tokens=getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+        )
+
+        return {
+            "assistant": assistant,
+            "system": system,
+            "user": user,
+            "_usage": usage_info.model_dump(),
+        }
 
     @classmethod
     def get_required_fields(cls, config: dict[str, Any]) -> list[str]:
