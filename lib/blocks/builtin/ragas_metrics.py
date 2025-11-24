@@ -114,11 +114,12 @@ class RagasMetrics(BaseBlock):
                 NoiseSensitivity,
             )
             from langchain_community.chat_models import ChatOllama
+            from langchain_community.embeddings import OllamaEmbeddings
         except ImportError as e:
             logger.error(f"ragas or langchain not installed: {e}")
             return {"ragas_score": 0.0}
 
-        # configure LLM for ragas
+        # configure LLM and embeddings for ragas
         try:
             from app import llm_config_manager
 
@@ -126,11 +127,23 @@ class RagasMetrics(BaseBlock):
 
             # create langchain LLM instance
             if llm_config.provider.value == "ollama":
+                base_url = (
+                    llm_config.endpoint.replace("/v1/chat/completions", "")
+                    if llm_config.endpoint
+                    else "http://localhost:11434"
+                )
+
                 llm = ChatOllama(
                     model=llm_config.model_name,
-                    base_url=llm_config.endpoint.replace("/v1/chat/completions", "") if llm_config.endpoint else "http://localhost:11434",
+                    base_url=base_url,
                     temperature=0.0,  # more deterministic for structured output
-                    format="json",    # request JSON format from ollama
+                    format="json",  # request JSON format from ollama
+                )
+
+                # configure embeddings (use nomic-embed-text for ollama)
+                embeddings = OllamaEmbeddings(
+                    model="nomic-embed-text",
+                    base_url=base_url,
                 )
             else:
                 logger.error(f"unsupported LLM provider for ragas: {llm_config.provider}")
@@ -142,13 +155,13 @@ class RagasMetrics(BaseBlock):
         # get inputs
         inputs = self._get_metric_inputs(data)
 
-        # select metric and configure with LLM
+        # select metric and configure with LLM and embeddings
         metric_map = {
             "context_precision": ContextPrecision(llm=llm),
             "context_recall": ContextRecall(llm=llm),
             "context_entities_recall": ContextEntityRecall(llm=llm),
             "noise_sensitivity": NoiseSensitivity(llm=llm),
-            "answer_relevancy": AnswerRelevancy(llm=llm),
+            "answer_relevancy": AnswerRelevancy(llm=llm, embeddings=embeddings),
             "faithfulness": Faithfulness(llm=llm),
         }
 
