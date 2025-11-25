@@ -1,4 +1,4 @@
-import { useState, createContext, useContext } from "react";
+import React, { useState, createContext, useContext, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
 import { Box, IconButton, ThemeProvider, useTheme, Text } from "@primer/react";
 import {
@@ -17,29 +17,38 @@ import GlobalJobIndicator from "./components/GlobalJobIndicator";
 import { JobProvider } from "./contexts/JobContext";
 import { useTheme as shadcnUseTheme, ThemeProvider as ShadcnThemeProvider } from "next-themes";
 import { Toaster } from "./components/ui/sonner";
-import { usePersistedState } from "./hooks/usePersistedState";
-
-// context to control navigation visibility and theme
+// context to control navigation visibility
 const NavigationContext = createContext<{
   hideNavigation: boolean;
   setHideNavigation: (hide: boolean) => void;
-  persistedColorMode: "light" | "dark" | "auto";
-  setPersistedColorMode: (mode: "light" | "dark" | "auto") => void;
 }>({
   hideNavigation: false,
   setHideNavigation: () => {},
-  persistedColorMode: "light",
-  setPersistedColorMode: () => {},
 });
 
 export const useNavigation = () => useContext(NavigationContext);
 
+// wrapper to initialize primer with correct theme from shadcn
+function PrimerThemeWrapper({ children }: { children: React.ReactNode }) {
+  const { resolvedTheme } = shadcnUseTheme();
+  const [colorMode, setColorMode] = useState<"light" | "dark">("dark");
+
+  useEffect(() => {
+    if (resolvedTheme) {
+      setColorMode(resolvedTheme as "light" | "dark");
+    }
+  }, [resolvedTheme]);
+
+  return <ThemeProvider colorMode={colorMode}>{children}</ThemeProvider>;
+}
+
 function Navigation() {
   const location = useLocation();
-  const { resolvedColorScheme, setColorMode } = useTheme();
-  const { setTheme } = shadcnUseTheme();
-  const isDark = resolvedColorScheme === "dark";
-  const { hideNavigation, setPersistedColorMode } = useNavigation();
+  const { setTheme, resolvedTheme } = shadcnUseTheme();
+  const { hideNavigation } = useNavigation();
+
+  // use shadcn as source of truth for dark mode state
+  const isDark = resolvedTheme === "dark";
 
   const navItems = [
     { path: "/pipelines", label: "Pipelines", icon: WorkflowIcon },
@@ -49,10 +58,7 @@ function Navigation() {
   ];
 
   const handleToggleTheme = () => {
-    const newMode = isDark ? "light" : "dark";
-    setColorMode(newMode);
-    setTheme(newMode);
-    setPersistedColorMode(newMode);
+    setTheme(isDark ? "light" : "dark");
   };
 
   return (
@@ -150,29 +156,34 @@ function Navigation() {
 }
 
 export default function App() {
-  const [colorMode, setPersistedColorMode] = usePersistedState<"light" | "dark" | "auto">(
-    "colorMode",
-    "light"
-  );
   const [hideNavigation, setHideNavigation] = useState(false);
 
-  // @todo: remove primer in favor of shadcn themes
+  // cleanup old theme storage key on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const oldKey = localStorage.getItem("colorMode");
+      if (oldKey) {
+        localStorage.removeItem("colorMode");
+      }
+    }
+  }, []);
+
+  // shadcn theme provider is source of truth, primer syncs via PrimerThemeWrapper
   return (
     <ShadcnThemeProvider
-      defaultTheme="system"
       attribute="class"
-      enableSystem
-      storageKey="colorMode"
+      storageKey="theme-preference"
+      defaultTheme="dark"
+      enableSystem={false}
+      disableTransitionOnChange
     >
-      <ThemeProvider colorMode={colorMode}>
+      <PrimerThemeWrapper>
         <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <JobProvider>
             <NavigationContext.Provider
               value={{
                 hideNavigation,
                 setHideNavigation,
-                persistedColorMode: colorMode,
-                setPersistedColorMode,
               }}
             >
               <Navigation />
@@ -180,7 +191,7 @@ export default function App() {
             <Toaster />
           </JobProvider>
         </BrowserRouter>
-      </ThemeProvider>
+      </PrimerThemeWrapper>
     </ShadcnThemeProvider>
   );
 }

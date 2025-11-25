@@ -14,6 +14,7 @@ import PipelineEditor from "../components/pipeline-editor/PipelineEditor";
 import { useNavigation } from "../App";
 import type { Pipeline, Template } from "../types";
 import { toast } from "sonner";
+import { ConfirmModal } from "../components/ui/confirm-modal";
 
 export default function Pipelines() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -22,6 +23,8 @@ export default function Pipelines() {
     null
   );
   const [expandedDebug, setExpandedDebug] = useState<number | null>(null);
+  const [deletingPipeline, setDeletingPipeline] = useState<number | null>(null);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const { setHideNavigation } = useNavigation();
 
   useEffect(() => {
@@ -109,9 +112,7 @@ export default function Pipelines() {
     }
   };
 
-  const deletePipeline = async (id: number) => {
-    if (!confirm("Delete this pipeline?")) return;
-
+  const handleDeletePipeline = async (id: number) => {
     try {
       const res = await fetch(`/api/pipelines/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
@@ -124,9 +125,7 @@ export default function Pipelines() {
     }
   };
 
-  const deleteAllPipelines = async () => {
-    if (!confirm(`Delete all ${pipelines.length} pipeline(s)? This cannot be undone!`)) return;
-
+  const handleDeleteAllPipelines = async () => {
     try {
       await Promise.all(
         pipelines.map((pipeline) => fetch(`/api/pipelines/${pipeline.id}`, { method: "DELETE" }))
@@ -206,7 +205,7 @@ export default function Pipelines() {
         </Box>
         <Box sx={{ display: "flex", gap: 2 }}>
           {pipelines.length > 0 && (
-            <Button variant="danger" leadingVisual={TrashIcon} onClick={deleteAllPipelines}>
+            <Button variant="danger" leadingVisual={TrashIcon} onClick={() => setShowDeleteAllConfirm(true)}>
               Delete All
             </Button>
           )}
@@ -348,7 +347,7 @@ export default function Pipelines() {
                   <Button
                     variant="danger"
                     leadingVisual={TrashIcon}
-                    onClick={() => deletePipeline(pipeline.id)}
+                    onClick={() => setDeletingPipeline(pipeline.id)}
                   >
                     Delete
                   </Button>
@@ -455,6 +454,32 @@ export default function Pipelines() {
           ))}
         </Box>
       )}
+
+      {/* confirm modals */}
+      <ConfirmModal
+        open={deletingPipeline !== null}
+        onOpenChange={(open) => !open && setDeletingPipeline(null)}
+        title="Delete Pipeline"
+        description="Are you sure you want to delete this pipeline? This action cannot be undone."
+        onConfirm={async () => {
+          if (deletingPipeline) {
+            await handleDeletePipeline(deletingPipeline);
+            setDeletingPipeline(null);
+          }
+        }}
+        variant="danger"
+        confirmText="Delete"
+      />
+
+      <ConfirmModal
+        open={showDeleteAllConfirm}
+        onOpenChange={setShowDeleteAllConfirm}
+        title="Delete All Pipelines"
+        description={`Are you sure you want to delete all ${pipelines.length} pipeline(s)? This action cannot be undone.`}
+        onConfirm={handleDeleteAllPipelines}
+        variant="danger"
+        confirmText="Delete All"
+      />
     </Box>
   );
 }
