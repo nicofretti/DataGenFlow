@@ -20,6 +20,7 @@ data/*.db-journal
 .vscode/
 .idea/
 .claude/
+.worktrees/
 
 # cache
 .mypy_cache/
