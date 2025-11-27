@@ -123,6 +123,19 @@ class Pipeline:
         )
 
         for i, block in enumerate(self._block_instances):
+            # check if job was cancelled before executing next block
+            if job_id and job_queue:
+                job_status = job_queue.get_job(job_id)
+                if job_status and job_status.get("status") == "cancelled":
+                    logger.info(f"[{trace_id}] Job {job_id} cancelled at block {i + 1}/{len(self._block_instances)}")
+                    # return partial result with what we've executed so far
+                    return pipeline.ExecutionResult(
+                        result=accumulated_data,
+                        trace=trace,
+                        trace_id=trace_id,
+                        usage=accumulated_usage.model_dump(),
+                    )
+
             block_name = block.__class__.__name__
             logger.debug(
                 f"[{trace_id}] Executing block {i + 1}/{len(self._block_instances)}: {block_name}"
@@ -296,6 +309,13 @@ class Pipeline:
 
         try:
             for i, block in enumerate(remaining_blocks, start=1):
+                # check if job was cancelled before executing next block
+                if job_id and job_queue:
+                    job_status = job_queue.get_job(job_id)
+                    if job_status and job_status.get("status") == "cancelled":
+                        logger.info(f"[{trace_id}] Job {job_id} cancelled at seed {seed_idx + 1}, block {i}/{len(remaining_blocks)}")
+                        return None
+
                 progress = seed_idx / total_seeds if total_seeds > 0 else 0.0
                 step = f"Seed {seed_idx + 1}/{total_seeds}, Block {i}/{len(remaining_blocks)}"
                 await self._update_job_progress(
@@ -422,6 +442,13 @@ class Pipeline:
 
         results = []
         for seed_idx, seed_data in enumerate(seeds):
+            # check if job was cancelled before processing next seed
+            if job_id and job_queue:
+                job_status = job_queue.get_job(job_id)
+                if job_status and job_status.get("status") == "cancelled":
+                    logger.info(f"[Job {job_id}] Multiplier pipeline cancelled at seed {seed_idx + 1}/{len(seeds)}")
+                    break
+
             result = await self._process_single_seed(
                 seed_idx,
                 seed_data,
