@@ -6,6 +6,7 @@ import type { LLMModelConfig, EmbeddingModelConfig } from "../types";
 import { llmConfigApi } from "../services/llmConfigApi";
 import LLMFormModal from "../components/settings/LLMFormModal";
 import EmbeddingFormModal from "../components/settings/EmbeddingFormModal";
+import { ConfirmModal } from "../components/ui/confirm-modal";
 
 export default function Settings() {
   const [llmModels, setLlmModels] = useState<LLMModelConfig[]>([]);
@@ -16,6 +17,8 @@ export default function Settings() {
   const [editingEmbedding, setEditingEmbedding] = useState<EmbeddingModelConfig | null>(null);
   const [testingLlm, setTestingLlm] = useState<string | null>(null);
   const [testingEmbedding, setTestingEmbedding] = useState<string | null>(null);
+  const [deletingLlm, setDeletingLlm] = useState<string | null>(null);
+  const [deletingEmbedding, setDeletingEmbedding] = useState<string | null>(null);
 
   useEffect(() => {
     loadLlmModels();
@@ -43,8 +46,6 @@ export default function Settings() {
   };
 
   const handleDeleteLlm = async (name: string) => {
-    if (!confirm(`delete llm model "${name}"?`)) return;
-
     try {
       await llmConfigApi.deleteLLMModel(name);
       toast.success("LLM model deleted successfully");
@@ -56,8 +57,6 @@ export default function Settings() {
   };
 
   const handleDeleteEmbedding = async (name: string) => {
-    if (!confirm(`delete embedding model "${name}"?`)) return;
-
     try {
       await llmConfigApi.deleteEmbeddingModel(name);
       toast.success("Embedding model deleted successfully");
@@ -277,7 +276,7 @@ export default function Settings() {
                       aria-label="delete"
                       size="small"
                       variant="danger"
-                      onClick={() => handleDeleteLlm(model.name)}
+                      onClick={() => setDeletingLlm(model.name)}
                     />
                   </Box>
                 </Box>
@@ -404,7 +403,7 @@ export default function Settings() {
                       aria-label="delete"
                       size="small"
                       variant="danger"
-                      onClick={() => handleDeleteEmbedding(model.name)}
+                      onClick={() => setDeletingEmbedding(model.name)}
                     />
                   </Box>
                 </Box>
@@ -438,6 +437,37 @@ export default function Settings() {
           initialData={editingEmbedding || undefined}
         />
       )}
+
+      {/* confirm modals */}
+      <ConfirmModal
+        open={deletingLlm !== null}
+        onOpenChange={(open) => !open && setDeletingLlm(null)}
+        title="Delete LLM Model"
+        description={`Are you sure you want to delete "${deletingLlm}"? This action cannot be undone.`}
+        onConfirm={async () => {
+          if (deletingLlm) {
+            await handleDeleteLlm(deletingLlm);
+            setDeletingLlm(null);
+          }
+        }}
+        variant="danger"
+        confirmText="Delete"
+      />
+
+      <ConfirmModal
+        open={deletingEmbedding !== null}
+        onOpenChange={(open) => !open && setDeletingEmbedding(null)}
+        title="Delete Embedding Model"
+        description={`Are you sure you want to delete "${deletingEmbedding}"? This action cannot be undone.`}
+        onConfirm={async () => {
+          if (deletingEmbedding) {
+            await handleDeleteEmbedding(deletingEmbedding);
+            setDeletingEmbedding(null);
+          }
+        }}
+        variant="danger"
+        confirmText="Delete"
+      />
     </Box>
   );
 }

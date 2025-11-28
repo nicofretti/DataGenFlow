@@ -32,6 +32,7 @@ import type { RecordData, Pipeline, Job } from "../types";
 import { toast } from "sonner";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { recordsApi } from "../services/recordsApi";
+import { ConfirmModal } from "../components/ui/confirm-modal";
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -56,6 +57,7 @@ export default function Review() {
   const [selectedRecordForDetails, setSelectedRecordForDetails] = useState<RecordData | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_isExpanded, setIsExpanded] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const startEditingRef = useRef<(() => void) | null>(null);
   const currentRecordIdRef = useRef<number | null>(null);
 
@@ -311,13 +313,7 @@ export default function Review() {
     }
   };
 
-  const deleteAllRecords = async () => {
-    const confirmMessage = selectedJob
-      ? `Delete all records for this job? This cannot be undone.`
-      : `Delete all ${filterStatus} records? This cannot be undone.`;
-
-    if (!confirm(confirmMessage)) return;
-
+  const handleDeleteAllRecords = async () => {
     try {
       await recordsApi.deleteAllRecords(selectedJob || undefined);
       toast.success("All records deleted successfully");
@@ -380,7 +376,7 @@ export default function Review() {
                       Export All
                     </ActionList.Item>
                     <ActionList.Divider />
-                    <ActionList.Item variant="danger" onSelect={deleteAllRecords}>
+                    <ActionList.Item variant="danger" onSelect={() => setShowDeleteConfirm(true)}>
                       <ActionList.LeadingVisual>
                         <TrashIcon />
                       </ActionList.LeadingVisual>
@@ -688,6 +684,21 @@ export default function Review() {
           }}
         />
       )}
+
+      {/* delete confirm modal */}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete All Records"
+        description={
+          selectedJob
+            ? "This will permanently delete all records for this job. This action cannot be undone."
+            : `This will permanently delete all ${filterStatus} records. This action cannot be undone.`
+        }
+        onConfirm={handleDeleteAllRecords}
+        variant="danger"
+        confirmText="Delete All"
+      />
     </Box>
   );
 }

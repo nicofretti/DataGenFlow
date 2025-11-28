@@ -307,6 +307,16 @@ async def _process_job(
 
                     continue
 
+            # check if job was cancelled or stopped in inner loop
+            # this is critical: the inner loop (repetitions) has break statements for cancellation
+            # but break only exits the inner loop, not the outer loop (seeds)
+            # without this check, cancellation would only stop current seed's repetitions,
+            # then continue processing remaining seeds - job would keep running!
+            job_status = job_queue.get_job(job_id)
+            if job_status and job_status.get("status") in ("cancelled", "stopped"):
+                logger.info(f"[Job {job_id}] Stopping seed processing: status={job_status.get('status')}")
+                break
+
         try:
             seed_path.unlink()
         except Exception as e:

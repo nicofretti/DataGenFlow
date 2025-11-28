@@ -825,6 +825,7 @@ export default function PipelineEditor({
         {/* Config Panel */}
         {selectedNode && (
           <BlockConfigPanel
+            key={selectedNode.id}
             node={selectedNode}
             onUpdate={handleConfigUpdate}
             onClose={() => setSelectedNode(null)}

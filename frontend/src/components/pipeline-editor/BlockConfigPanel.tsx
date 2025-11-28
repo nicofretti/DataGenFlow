@@ -36,20 +36,44 @@ export default function BlockConfigPanel({
   const [panelWidth, setPanelWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
 
-  // track if user has made edits to prevent parent updates from overwriting
-  const isEditingRef = useRef(false);
-  const prevNodeIdRef = useRef<string>(node.id);
+  // sync formData with parent config changes
+  // this ensures that saved config persists when panel is reopened
+  //
+  // key behaviors:
+  // 1. when panel opens: refs are null (from cleanup) → formData syncs with config
+  // 2. when switching nodes: node.id changes → formData syncs with new node's config
+  // 3. when config saved: config changes for same node → formData syncs with updated config
+  // 4. while editing: neither changes → formData preserves user edits
+  //
+  // why we track both node.id AND config:
+  // - node.id alone: won't detect when user saves config and reopens panel for same node
+  // - config alone: would reset formData while user is typing if parent re-renders
+  //
+  // why we reset refs on unmount:
+  // - when panel closes and reopens, refs are null → condition triggers → formData syncs
+  // - without reset, reopening same node would skip sync (prevNodeIdRef === node.id)
+  const prevNodeIdRef = useRef<string | null>(null);
+  const prevConfigRef = useRef<Record<string, any> | null>(null);
 
-  // only sync formData when switching to a different node
-  // ignore parent config updates while user is editing
   useEffect(() => {
-    if (prevNodeIdRef.current !== node.id) {
+    const nodeChanged = prevNodeIdRef.current !== node.id;
+    const configChanged = JSON.stringify(prevConfigRef.current) !== JSON.stringify(config);
+
+    if (nodeChanged || configChanged) {
       prevNodeIdRef.current = node.id;
-      isEditingRef.current = false;
+      prevConfigRef.current = config;
       setFormData(config || {});
       setErrors({});
     }
   }, [node.id, config]);
+
+  // reset refs when component unmounts (panel closes)
+  useEffect(() => {
+    return () => {
+      prevNodeIdRef.current = null;
+      prevConfigRef.current = null;
+    };
+  }, []);
 
   // handle resize
   useEffect(() => {
@@ -208,7 +232,7 @@ export default function BlockConfigPanel({
             key={`${node.id}-${key}`}
             height="200px"
             defaultLanguage="python"
-            defaultValue={value}
+            value={value}
             onChange={(newValue) => handleChange(key, newValue || "")}
             theme={resolvedColorScheme === "dark" ? "vs-dark" : "light"}
             options={{
@@ -259,7 +283,7 @@ export default function BlockConfigPanel({
             key={`${node.id}-${key}`}
             height="300px"
             defaultLanguage="json"
-            defaultValue={jsonValue}
+            value={jsonValue}
             onChange={(newValue) => {
               // keep as string during editing, will be parsed on save
               handleChange(key, newValue || "");
