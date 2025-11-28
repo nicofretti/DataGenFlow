@@ -19,51 +19,42 @@ class RagasMetrics(BaseBlock):
 
     _config_enums = {
         "metric_type": [
-            "context_precision",
-            "context_recall",
-            "context_entities_recall",
-            "noise_sensitivity",
             "answer_relevancy",
-            "faithfulness",
+            "context_precision",
         ]
     }
 
-    _field_references = [
-        "question_field",
-        "answer_field",
-        "contexts_field",
-        "ground_truth_field",
-    ]
-
     _config_descriptions = {
         "metric_type": "Type of ragas metric to calculate",
-        "question_field": "Field containing the question text",
-        "answer_field": "Field containing the generated answer",
-        "contexts_field": "Field containing retrieved contexts (list or string)",
-        "ground_truth_field": "Field containing the reference/ground truth answer",
+        "fields": (
+            "Field mappings as JSON object. Map ragas field names to your pipeline field names. "
+            'Example: {"question": "question", "answer": "answer", "contexts": "chunk_text", '
+            '"ground_truth": "ground_truth"}. Only include fields needed for your selected metric.'
+        ),
     }
 
     def __init__(
         self,
         metric_type: str = "faithfulness",
-        question_field: str = "question",
-        answer_field: str = "answer",
-        contexts_field: str = "contexts",
-        ground_truth_field: str = "ground_truth",
+        fields: dict[str, str] | str | None = None,
     ):
         """
         Args:
             metric_type: Type of ragas metric to calculate
-            question_field: Name of field containing the question
-            answer_field: Name of field containing the generated answer
-            contexts_field: Name of field containing retrieved contexts
-            ground_truth_field: Name of field containing ground truth answer
+            fields: Field mappings dict or JSON string mapping ragas fields to pipeline fields
+                   Example: {"question": "question", "answer": "answer", "contexts": "contexts"}
         """
         self.metric_type = metric_type
-        self.question_field = question_field
-        self.answer_field = answer_field
-        self.contexts_field = contexts_field
-        self.ground_truth_field = ground_truth_field
+
+        # parse fields if string
+        if isinstance(fields, str):
+            try:
+                self.fields = json.loads(fields)
+            except json.JSONDecodeError:
+                logger.error(f"failed to parse fields as json: {fields}")
+                self.fields = {}
+        else:
+            self.fields = fields or {}
 
     def _normalize_contexts(self, contexts: Any) -> list[str]:
         """convert contexts to list of strings"""
@@ -85,20 +76,15 @@ class RagasMetrics(BaseBlock):
         """extract and validate required inputs for the metric"""
         inputs = {}
 
-        # get raw values from data
-        question = data.get(self.question_field, "")
-        answer = data.get(self.answer_field, "")
-        contexts_raw = data.get(self.contexts_field, [])
-        ground_truth = data.get(self.ground_truth_field, "")
+        # get values from data using field mappings
+        for ragas_field, pipeline_field in self.fields.items():
+            value = data.get(pipeline_field, "")
 
-        # normalize contexts
-        contexts = self._normalize_contexts(contexts_raw)
+            # normalize contexts to list of strings
+            if ragas_field == "contexts":
+                value = self._normalize_contexts(value)
 
-        # map to ragas expected field names
-        inputs["question"] = question
-        inputs["answer"] = answer
-        inputs["contexts"] = contexts
-        inputs["ground_truth"] = ground_truth
+            inputs[ragas_field] = value
 
         return inputs
 
@@ -107,11 +93,7 @@ class RagasMetrics(BaseBlock):
             from ragas import SingleTurnSample
             from ragas.metrics import (
                 AnswerRelevancy,
-                ContextEntityRecall,
                 ContextPrecision,
-                ContextRecall,
-                Faithfulness,
-                NoiseSensitivity,
             )
             from langchain_community.chat_models import ChatOllama
             from langchain_community.embeddings import OllamaEmbeddings
@@ -146,7 +128,9 @@ class RagasMetrics(BaseBlock):
                     base_url=base_url,
                 )
             else:
-                logger.error(f"unsupported LLM provider for ragas: {llm_config.provider}")
+                logger.error(
+                    f"unsupported LLM provider for ragas: {llm_config.provider}"
+                )
                 return {"ragas_score": 0.0}
         except Exception as e:
             logger.error(f"failed to configure LLM for ragas: {e}")
@@ -157,12 +141,8 @@ class RagasMetrics(BaseBlock):
 
         # select metric and configure with LLM and embeddings
         metric_map = {
-            "context_precision": ContextPrecision(llm=llm),
-            "context_recall": ContextRecall(llm=llm),
-            "context_entities_recall": ContextEntityRecall(llm=llm),
-            "noise_sensitivity": NoiseSensitivity(llm=llm),
             "answer_relevancy": AnswerRelevancy(llm=llm, embeddings=embeddings),
-            "faithfulness": Faithfulness(llm=llm),
+            "context_precision": ContextPrecision(llm=llm),
         }
 
         metric = metric_map.get(self.metric_type)
@@ -174,21 +154,28 @@ class RagasMetrics(BaseBlock):
         if not self._validate_inputs(inputs):
             logger.error(
                 f"missing required fields for {self.metric_type}. "
-                f"Received: question={bool(inputs['question'])}, "
-                f"answer={bool(inputs['answer'])}, "
-                f"contexts={inputs['contexts']}, "
-                f"ground_truth={bool(inputs['ground_truth'])}"
+                f"Received: question={bool(inputs.get('question'))}, "
+                f"answer={bool(inputs.get('answer'))}, "
+                f"contexts={inputs.get('contexts', [])}, "
+                f"ground_truth={bool(inputs.get('ground_truth'))}"
             )
             return {"ragas_score": 0.0}
 
         try:
-            # create sample
-            sample = SingleTurnSample(
-                user_input=inputs["question"],
-                response=inputs["answer"],
-                retrieved_contexts=inputs["contexts"],
-                reference=inputs["ground_truth"],
-            )
+            # create sample with only required fields for this metric
+            sample_kwargs = {}
+
+            # add fields based on what this metric needs
+            if inputs.get("question"):
+                sample_kwargs["user_input"] = inputs["question"]
+            if inputs.get("answer"):
+                sample_kwargs["response"] = inputs["answer"]
+            if inputs.get("contexts"):
+                sample_kwargs["retrieved_contexts"] = inputs["contexts"]
+            if inputs.get("ground_truth"):
+                sample_kwargs["reference"] = inputs["ground_truth"]
+
+            sample = SingleTurnSample(**sample_kwargs)
 
             # calculate metric
             score = await metric.single_turn_ascore(sample)
@@ -203,12 +190,8 @@ class RagasMetrics(BaseBlock):
         """check if required fields are present for the selected metric"""
         # define required fields per metric
         requirements = {
-            "context_precision": ["question", "contexts", "ground_truth"],
-            "context_recall": ["question", "contexts", "ground_truth"],
-            "context_entities_recall": ["question", "contexts", "ground_truth"],
-            "noise_sensitivity": ["question", "contexts", "answer"],
             "answer_relevancy": ["question", "answer"],
-            "faithfulness": ["answer", "contexts"],
+            "context_precision": ["question", "contexts", "ground_truth"],
         }
 
         required = requirements.get(self.metric_type, [])
