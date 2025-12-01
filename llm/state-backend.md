@@ -280,6 +280,28 @@ improved error messages:
 - older jobs auto-deleted from memory
 - database jobs persist (manual delete via api)
 
+### job cancellation
+cancellation stops processing at 4 checkpoint locations to prevent background execution from continuing:
+
+**normal pipeline (workflow.py:126-137):**
+- checks job status before each block execution
+- returns partial result with trace if cancelled
+
+**multiplier pipeline - between seeds (workflow.py:438-443):**
+- checks job status before processing each seed
+- breaks from seed loop if cancelled
+
+**multiplier pipeline - between blocks (workflow.py:312-317):**
+- checks job status before executing each block within seed
+- returns None to signal cancellation
+
+**job processor - after repetitions (job_processor.py:310-318):**
+- checks job status after inner loop (repetitions) completes
+- prevents continuing to next seed when cancelled
+- critical fix: without this check, cancellation only broke from inner loop but continued processing remaining seeds
+
+when cancelled, job status becomes "cancelled" and processing stops immediately at next checkpoint.
+
 ## configuration (config.py)
 
 ```python

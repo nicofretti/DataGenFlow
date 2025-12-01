@@ -60,12 +60,16 @@ frontend/
 - progress bar (updates based on progress field 0.0-1.0)
 - 2-second polling for real-time job status updates
 
-**json validation:**
-- validates on file select (before upload)
+**seed validation:**
+- manual validation via "Verify the seeds" button (only for JSON files)
+- validates against selected pipeline's accumulated state schema
 - checks valid json syntax
 - checks not empty array
-- checks each seed has metadata field
-- shows error modal if validation fails
+- checks each seed has required metadata fields
+- shows minimal error display (first 3 errors + count)
+- validation result prevents generation only if file is invalid JSON
+- pipeline validation warnings don't block generation
+- file upload disabled until pipeline selected
 
 **state management:**
 - finally block resets generating flag
@@ -101,6 +105,19 @@ frontend/
 - props: isOpen, onClose, title, message
 - danger variant flash message
 - used for: invalid json, network errors, generation failures
+
+### ConfirmModal.tsx
+- shadcn radix-ui dialog component
+- replaces browser confirm() dialogs
+- props: open, onOpenChange, title, description, onConfirm, variant, confirmText, cancelText
+- variants: danger (destructive), warning (amber), info (blue)
+- features:
+  - async support with loading state
+  - error handling with toast notifications
+  - semantic color tokens (text-destructive, text-amber-600, text-blue-600)
+  - icons per variant (AlertCircle, AlertTriangle, Info from lucide)
+  - storybook stories for all variants
+- used in: Pipelines, Review, Settings for delete operations
 
 ### pipeline-editor/
 
@@ -238,3 +255,11 @@ frontend/
 - sx prop for inline styles
 - consistent spacing (p: 3, 4, gap: 2, 3)
 - responsive grid layouts
+
+## theme management
+- shadcn/ui next-themes as source of truth
+- primer ThemeProvider syncs via PrimerThemeWrapper
+- theme state: shadcn resolvedTheme → primer colorMode
+- cleaned up old colorMode localStorage key
+- storybook configured with shadcn theme provider
+- theme toggle in navigation syncs both systems

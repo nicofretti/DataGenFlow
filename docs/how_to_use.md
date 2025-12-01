@@ -180,15 +180,22 @@ Seed files define the variables used in your pipeline templates.
 ### Running Generation
 
 1. **Navigate to Generator page**
-2. **Upload seed file**
-   - Click "Choose File"
-   - Select your JSON seed file
-3. **Select pipeline**
+2. **Select pipeline** (required first)
    - Choose from saved pipelines in dropdown
-4. **Click "Generate"**
+   - File upload is disabled until pipeline is selected
+3. **Upload seed file**
+   - Click "Choose File" or drag and drop
+   - Select your JSON or Markdown seed file
+   - File format depends on pipeline type (multiplier pipelines accept .md files)
+4. **Verify seeds** (optional, recommended for JSON files)
+   - Click "Verify the seeds" button
+   - Validates seeds against pipeline's accumulated state schema
+   - Shows any validation errors (first 3 + count if more)
+   - Note: Validation warnings don't block generation
+5. **Click "Generate"**
    - Job starts in background
    - Can only run one job at a time
-5. **Monitor progress**:
+6. **Monitor progress**:
    - **Global indicator**: Top-right corner shows active job
    - **Detailed progress**: Generator page shows:
      - Progress bar with percentage

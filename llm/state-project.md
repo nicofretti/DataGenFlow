@@ -188,6 +188,15 @@ All API errors return structured JSON:
 }
 ```
 
+### job cancellation handling
+**critical fix:** job cancellation now properly stops background processing at 4 checkpoints:
+- normal pipeline: before each block (workflow.py:126-137)
+- multiplier pipeline: before each seed (workflow.py:438-443)
+- multiplier pipeline: before each block within seed (workflow.py:312-317)
+- job processor: after inner loop completes (job_processor.py:310-318)
+
+previously, cancellation only broke from inner loops (repetitions) but continued processing remaining seeds. now cancellation stops immediately at next checkpoint.
+
 ## pipeline execution
 
 ### signature
