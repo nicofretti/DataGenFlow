@@ -6,7 +6,7 @@ break from inner loops but continue processing remaining seeds in background.
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -81,13 +81,16 @@ async def test_job_cancellation_stops_processing_remaining_seeds():
                 break
 
             repetitions = seed.get("repetitions", 1)
+            assert isinstance(repetitions, int)
             for i in range(repetitions):
                 job_status = job_queue.get_job(job_id)
                 if job_status and job_status.get("status") == "cancelled":
                     break
 
+                metadata = seed["metadata"]
+                assert isinstance(metadata, dict)
                 await pipeline.execute(
-                    seed["metadata"],
+                    metadata,
                     job_id=job_id,
                     job_queue=job_queue,
                     storage=storage,
@@ -159,7 +162,7 @@ async def test_job_cancellation_stops_between_blocks_normal_pipeline():
         return MagicMock(choices=[MagicMock(message=MagicMock(content="test response"))])
 
     with patch("litellm.acompletion", side_effect=mock_acompletion):
-        result = await pipeline.execute(
+        await pipeline.execute(
             {"user": "test"},
             job_id=job_id,
             job_queue=job_queue,
@@ -231,7 +234,7 @@ async def test_job_cancellation_stops_multiplier_pipeline_between_seeds():
         return_value=multiplier_seeds,
     ):
         with patch("litellm.acompletion", side_effect=mock_acompletion):
-            results = await pipeline.execute(
+            await pipeline.execute(
                 {"file_content": "# test\ntest"},
                 job_id=job_id,
                 job_queue=job_queue,
@@ -303,7 +306,7 @@ async def test_job_cancellation_stops_multiplier_pipeline_between_blocks():
         return_value=multiplier_seeds,
     ):
         with patch("litellm.acompletion", side_effect=mock_acompletion):
-            results = await pipeline.execute(
+            await pipeline.execute(
                 {"file_content": "# test"},
                 job_id=job_id,
                 job_queue=job_queue,

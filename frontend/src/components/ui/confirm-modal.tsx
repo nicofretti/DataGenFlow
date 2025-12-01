@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
 import { AlertTriangle, Info, AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";

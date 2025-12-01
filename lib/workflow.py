@@ -114,7 +114,7 @@ class Pipeline:
         trace_id = str(uuid.uuid4())
         accumulated_data = initial_data.copy()
         accumulated_usage = pipeline.Usage()
-        trace = []
+        trace: list[dict[str, Any]] = []
 
         logger.info(
             f"[{trace_id}] Starting pipeline '{self.name}' with {len(self._block_instances)} blocks"
@@ -125,8 +125,9 @@ class Pipeline:
             if job_id and job_queue:
                 job_status = job_queue.get_job(job_id)
                 if job_status and job_status.get("status") == "cancelled":
+                    total_blocks = len(self._block_instances)
                     logger.info(
-                        f"[{trace_id}] Job {job_id} cancelled at block {i + 1}/{len(self._block_instances)}"
+                        f"[{trace_id}] Job {job_id} cancelled at block {i + 1}/{total_blocks}"
                     )
                     # return partial result with what we've executed so far
                     return pipeline.ExecutionResult(
@@ -307,8 +308,10 @@ class Pipeline:
                 if job_id and job_queue:
                     job_status = job_queue.get_job(job_id)
                     if job_status and job_status.get("status") == "cancelled":
+                        total_remaining = len(remaining_blocks)
                         logger.info(
-                            f"[{trace_id}] Job {job_id} cancelled at seed {seed_idx + 1}, block {i}/{len(remaining_blocks)}"
+                            f"[{trace_id}] Job {job_id} cancelled at seed "
+                            f"{seed_idx + 1}, block {i}/{total_remaining}"
                         )
                         return None
 
@@ -441,8 +444,10 @@ class Pipeline:
             if job_id and job_queue:
                 job_status = job_queue.get_job(job_id)
                 if job_status and job_status.get("status") == "cancelled":
+                    total_seeds = len(seeds)
                     logger.info(
-                        f"[Job {job_id}] Multiplier pipeline cancelled at seed {seed_idx + 1}/{len(seeds)}"
+                        f"[Job {job_id}] Multiplier pipeline cancelled at "
+                        f"seed {seed_idx + 1}/{total_seeds}"
                     )
                     break
 

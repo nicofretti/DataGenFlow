@@ -90,6 +90,11 @@ A pipeline is a sequence of blocks that process data. Each block:
 - Pipeline validation runs (checks all blocks configured and connected)
 - Pipeline appears in list
 
+**Step 6**: Manage pipelines
+- Edit: Click "Edit" to modify pipeline in visual editor
+- Delete: Click "Delete" - confirmation dialog appears before removal
+- Delete All: Removes all pipelines - confirmation dialog appears
+
 ### Example: JSON Generation Pipeline
 
 This example comes from the built-in "JSON Generation with Validation" template.
@@ -204,9 +209,11 @@ Seed files define the variables used in your pipeline templates.
      - Success/failure counts
      - Elapsed time
    - Progress updates every 2 seconds
-6. **Cancel job** (optional):
-   - Click "Cancel Job" to stop generation
-7. **Wait for completion**:
+7. **Cancel job** (optional):
+   - Click "Cancel Job" to stop generation immediately
+   - Job stops at the next checkpoint (before next block or seed)
+   - Partial results are saved for completed seeds
+8. **Wait for completion**:
    - Records saved automatically as generated
    - Navigate to Review page when done
    - Job appears in job selector
@@ -280,6 +287,7 @@ The `accumulated_state` contains only the block outputs (e.g., `assistant`, `val
 
 **Deleting Records**:
 - "Delete All" button removes all records for selected job
+- Confirmation dialog appears before deletion (cannot be undone)
 - Also deletes the job itself
 - Job disappears from selector after deletion
 

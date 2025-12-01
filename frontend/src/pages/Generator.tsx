@@ -39,7 +39,6 @@ export default function Generator() {
     warnings: string[];
   } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [validated, setValidated] = useState(false);
 
   const validateSeeds = useCallback(
     async (seedsData: SeedData[]) => {
@@ -67,7 +66,6 @@ export default function Generator() {
 
         const result = await res.json();
         setValidationResult(result);
-        setValidated(true);
 
         if (result.valid) {
           toast.success("All seeds validated successfully");
@@ -125,7 +123,6 @@ export default function Generator() {
           if ((isMultiplier && isJson) || (!isMultiplier && isMarkdown)) {
             setFile(null);
             setValidationResult(null);
-            setValidated(false);
           }
         }
 
@@ -234,7 +231,6 @@ export default function Generator() {
 
       setFile(selectedFile);
       setValidationResult(null);
-      setValidated(false);
       return;
     }
 
@@ -257,12 +253,10 @@ export default function Generator() {
 
       setFile(selectedFile);
       setValidationResult(null);
-      setValidated(false);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Please check your file syntax";
       toast.error(`Invalid JSON: ${message}`);
       setValidationResult(null);
-      setValidated(false);
     }
   };
 
