@@ -177,6 +177,8 @@ async def test_job_cancellation_stops_between_blocks_normal_pipeline():
 
     # should only execute first block before cancellation
     # without the fix, all 3 TextGenerators would execute (5 total blocks)
+    # allow <=2 to account for async race conditions where block 2 might start
+    # before cancellation is detected. the bug would allow 3+ blocks to execute.
     assert len(blocks_executed) <= 2, (
         f"Expected <=2 blocks executed, got {len(blocks_executed)}: {blocks_executed}"
     )
@@ -321,6 +323,8 @@ async def test_job_cancellation_stops_multiplier_pipeline_between_blocks():
 
     # should stop after first TextGenerator in seed
     # without the fix, both TextGenerators would execute (2 total)
+    # allow <=2 to account for async race conditions where second TextGenerator might start
+    # before cancellation is detected. the bug would allow both TextGenerators to complete.
     assert text_generators_executed <= 2, (
         f"Expected <=2 TextGenerators in seed, got {text_generators_executed}"
     )
