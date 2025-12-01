@@ -314,7 +314,9 @@ async def _process_job(
             # then continue processing remaining seeds - job would keep running!
             job_status = job_queue.get_job(job_id)
             if job_status and job_status.get("status") in ("cancelled", "stopped"):
-                logger.info(f"[Job {job_id}] Stopping seed processing: status={job_status.get('status')}")
+                logger.info(
+                    f"[Job {job_id}] Stopping seed processing: status={job_status.get('status')}"
+                )
                 break
 
         try:

@@ -27,6 +27,7 @@ dependencies = [
     "llama-index-core>=0.14.7",
     "anthropic>=0.73.0",
     "google-generativeai>=0.8.5",
+    "pytest-timeout>=2.4.0",
 ]
 
 [tool.setuptools.packages.find]

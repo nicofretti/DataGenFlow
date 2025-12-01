@@ -102,9 +102,7 @@ class Pipeline:
                 initial_data, job_id, job_queue, storage, pipeline_id, constraints
             )
 
-        return await self._execute_normal_pipeline(
-            initial_data, job_id, job_queue, storage
-        )
+        return await self._execute_normal_pipeline(initial_data, job_id, job_queue, storage)
 
     async def _execute_normal_pipeline(
         self,
@@ -127,7 +125,9 @@ class Pipeline:
             if job_id and job_queue:
                 job_status = job_queue.get_job(job_id)
                 if job_status and job_status.get("status") == "cancelled":
-                    logger.info(f"[{trace_id}] Job {job_id} cancelled at block {i + 1}/{len(self._block_instances)}")
+                    logger.info(
+                        f"[{trace_id}] Job {job_id} cancelled at block {i + 1}/{len(self._block_instances)}"
+                    )
                     # return partial result with what we've executed so far
                     return pipeline.ExecutionResult(
                         result=accumulated_data,
@@ -155,9 +155,7 @@ class Pipeline:
                 result = await block.execute(accumulated_data)
                 execution_time = time.time() - start_time
 
-                logger.debug(
-                    f"[{trace_id}] {block_name} completed in {execution_time:.3f}s"
-                )
+                logger.debug(f"[{trace_id}] {block_name} completed in {execution_time:.3f}s")
 
                 # extract usage if present
                 if "_usage" in result:
@@ -185,9 +183,7 @@ class Pipeline:
                 )
             except ValidationError:
                 # re-raise validation errors as-is
-                logger.error(
-                    f"[{trace_id}] {block_name} validation error at step {i + 1}"
-                )
+                logger.error(f"[{trace_id}] {block_name} validation error at step {i + 1}")
                 raise
             except Exception as e:
                 logger.exception(f"[{trace_id}] {block_name} failed at step {i + 1}")
@@ -274,9 +270,7 @@ class Pipeline:
         storage: Any,
     ) -> None:
         """save completed seed result and update counters"""
-        record = Record(
-            metadata=initial_data, output=json.dumps(accumulated_data), trace=trace
-        )
+        record = Record(metadata=initial_data, output=json.dumps(accumulated_data), trace=trace)
         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
 
         if job_queue:
@@ -313,7 +307,9 @@ class Pipeline:
                 if job_id and job_queue:
                     job_status = job_queue.get_job(job_id)
                     if job_status and job_status.get("status") == "cancelled":
-                        logger.info(f"[{trace_id}] Job {job_id} cancelled at seed {seed_idx + 1}, block {i}/{len(remaining_blocks)}")
+                        logger.info(
+                            f"[{trace_id}] Job {job_id} cancelled at seed {seed_idx + 1}, block {i}/{len(remaining_blocks)}"
+                        )
                         return None
 
                 progress = seed_idx / total_seeds if total_seeds > 0 else 0.0
@@ -351,7 +347,6 @@ class Pipeline:
 
                 # update cumulative usage in job after each seed
                 if job_queue:
-
                     current_job = job_queue.get_job(job_id)
                     if current_job and current_job.get("usage"):
                         # get current cumulative usage
@@ -446,7 +441,9 @@ class Pipeline:
             if job_id and job_queue:
                 job_status = job_queue.get_job(job_id)
                 if job_status and job_status.get("status") == "cancelled":
-                    logger.info(f"[Job {job_id}] Multiplier pipeline cancelled at seed {seed_idx + 1}/{len(seeds)}")
+                    logger.info(
+                        f"[Job {job_id}] Multiplier pipeline cancelled at seed {seed_idx + 1}/{len(seeds)}"
+                    )
                     break
 
             result = await self._process_single_seed(
@@ -478,9 +475,7 @@ class Pipeline:
                             usage_data = json.loads(usage_data)
                         current_usage = pipeline.Usage(**usage_data)
 
-                        exceeded, constraint_name = constraints.is_exceeded(
-                            current_usage
-                        )
+                        exceeded, constraint_name = constraints.is_exceeded(current_usage)
                         if exceeded:
                             logger.info(
                                 f"[Job {job_id}] Multiplier pipeline stopped: "
@@ -499,13 +494,9 @@ class Pipeline:
                             )
                             break
                     except (ValueError, KeyError, json.JSONDecodeError) as e:
-                        logger.warning(
-                            f"Failed to check constraints for job {job_id}: {e}"
-                        )
+                        logger.warning(f"Failed to check constraints for job {job_id}: {e}")
 
-        logger.info(
-            f"Multiplier pipeline '{self.name}' completed with {len(results)} results"
-        )
+        logger.info(f"Multiplier pipeline '{self.name}' completed with {len(results)} results")
         return results
 
     def to_dict(self) -> dict[str, Any]:

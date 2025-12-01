@@ -147,7 +147,6 @@ export default function Generator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPipeline]);
 
-
   // update generating state based on job status
   useEffect(() => {
     if (currentJob) {
@@ -597,7 +596,6 @@ export default function Generator() {
               </Button>
             )}
           </Box>
-
         </Box>
 
         {/* Configuration Panel */}

@@ -24,9 +24,7 @@ class JobQueue:
         """register a new job in memory"""
         with self._lock:
             if self._active_job is not None:
-                raise RuntimeError(
-                    f"Job {self._active_job} is already running. Cancel it first."
-                )
+                raise RuntimeError(f"Job {self._active_job} is already running. Cancel it first.")
 
             self._jobs[job_id] = {
                 "id": job_id,
@@ -82,11 +80,8 @@ class JobQueue:
                         f"cached={parsed_usage.get('cached_tokens')}"
                     )
                 except (json.JSONDecodeError, TypeError) as e:
-
                     logger = logging.getLogger(__name__)
-                    logger.warning(
-                        f"JobQueue: failed to parse usage for job {job_id}: {e}"
-                    )
+                    logger.warning(f"JobQueue: failed to parse usage for job {job_id}: {e}")
 
             job.update(updates)
 

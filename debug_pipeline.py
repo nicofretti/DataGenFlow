@@ -24,9 +24,7 @@ async def main() -> None:
         print(f"Pipeline {PIPELINE_ID} not found")
         return
 
-    workflow = WorkflowPipeline(
-        name=pipeline_data.name, blocks=pipeline_data.definition["blocks"]
-    )
+    workflow = WorkflowPipeline(name=pipeline_data.name, blocks=pipeline_data.definition["blocks"])
 
     result, _, trace_id = await workflow.execute(SEED_DATA["metadata"])  # type: ignore[arg-type]
     print(f"trace_id: {trace_id}")

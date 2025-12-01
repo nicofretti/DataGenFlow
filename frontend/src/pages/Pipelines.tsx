@@ -205,7 +205,11 @@ export default function Pipelines() {
         </Box>
         <Box sx={{ display: "flex", gap: 2 }}>
           {pipelines.length > 0 && (
-            <Button variant="danger" leadingVisual={TrashIcon} onClick={() => setShowDeleteAllConfirm(true)}>
+            <Button
+              variant="danger"
+              leadingVisual={TrashIcon}
+              onClick={() => setShowDeleteAllConfirm(true)}
+            >
               Delete All
             </Button>
           )}
