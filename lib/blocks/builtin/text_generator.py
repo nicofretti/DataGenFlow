@@ -75,6 +75,13 @@ class TextGenerator(BaseBlock):
             llm_config, messages=messages, temperature=self.temperature, max_tokens=self.max_tokens
         )
 
+        # add langfuse trace grouping if job_id is present
+        if data.get("job_id"):
+            llm_params["metadata"] = {
+                "trace_id": str(data["job_id"]),
+                "tags": ["datagenflow"],
+            }
+
         logger.info(f"Calling LiteLLM with model={llm_params.get('model')}")
 
         try:

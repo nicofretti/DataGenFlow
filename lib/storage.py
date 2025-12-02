@@ -177,6 +177,9 @@ class Storage:
         if "usage" not in job_column_names:
             await db.execute("ALTER TABLE jobs ADD COLUMN usage TEXT")
 
+        if "metadata" not in job_column_names:
+            await db.execute("ALTER TABLE jobs ADD COLUMN metadata TEXT")
+
     async def _migrate_env_to_db(self, db: Connection) -> None:
         """migrate .env config to database if no models configured"""
         # check if any llm models exist

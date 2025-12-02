@@ -413,6 +413,69 @@ export default function Settings() {
         )}
       </Box>
 
+      {/* langfuse integration section */}
+      <Box sx={{ mt: 6 }}>
+        <Box sx={{ mb: 3 }}>
+          <Heading as="h2" sx={{ fontSize: 3, color: "fg.default", mb: 2 }}>
+            Langfuse Integration
+          </Heading>
+          <Text sx={{ color: "fg.muted", fontSize: 1, mb: 3 }}>
+            enable LLM tracing and dataset uploads for observability
+          </Text>
+        </Box>
+
+        <Box
+          sx={{
+            p: 4,
+            border: "1px solid",
+            borderColor: "border.default",
+            borderRadius: 2,
+            bg: "canvas.subtle",
+          }}
+        >
+          <Text sx={{ color: "fg.default", mb: 3, display: "block" }}>
+            To enable Langfuse integration, add these environment variables to your .env file:
+          </Text>
+
+          <Box
+            as="pre"
+            sx={{
+              p: 3,
+              bg: "canvas.default",
+              border: "1px solid",
+              borderColor: "border.default",
+              borderRadius: 2,
+              fontSize: 1,
+              fontFamily: "mono",
+              color: "fg.default",
+              overflow: "auto",
+              mb: 3,
+            }}
+          >
+            {`LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_HOST=https://cloud.langfuse.com
+LANGFUSE_PROJECT_ID=your-project-id`}
+          </Box>
+
+          <Text sx={{ color: "fg.muted", fontSize: 1, mb: 2 }}>
+            After adding the environment variables, restart the application for changes to take effect.
+          </Text>
+
+          <Text sx={{ color: "fg.muted", fontSize: 1 }}>
+            Learn more:{" "}
+            <a
+              href="https://langfuse.com/docs/get-started"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--fgColor-accent)" }}
+            >
+              Langfuse Documentation
+            </a>
+          </Text>
+        </Box>
+      </Box>
+
       {/* modals */}
       {llmModalOpen && (
         <LLMFormModal

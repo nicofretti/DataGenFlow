@@ -113,6 +113,7 @@ class Pipeline:
     ) -> pipeline.ExecutionResult:
         trace_id = str(uuid.uuid4())
         accumulated_data = initial_data.copy()
+        accumulated_data["job_id"] = job_id
         accumulated_usage = pipeline.Usage()
         trace: list[dict[str, Any]] = []
 
@@ -299,6 +300,7 @@ class Pipeline:
         """process one seed through all remaining blocks"""
         trace_id = str(uuid.uuid4())
         accumulated_data = seed_data.copy()
+        accumulated_data["job_id"] = job_id
         accumulated_usage = pipeline.Usage()
         trace: list[dict[str, Any]] = []
 

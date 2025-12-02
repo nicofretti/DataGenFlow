@@ -11,6 +11,7 @@ import {
   ActionMenu,
   ActionList,
   Tooltip,
+  Flash,
 } from "@primer/react";
 import {
   ClockIcon,
@@ -435,6 +436,42 @@ export default function Review() {
           </FormControl.Caption>
         </FormControl>
       </Box>
+
+      {/* langfuse metadata display */}
+      {selectedJob &&
+        (() => {
+          const job = jobs.find((j) => j.id === selectedJob);
+          if (job && job.metadata) {
+            try {
+              const metadata =
+                typeof job.metadata === "string" ? JSON.parse(job.metadata) : job.metadata;
+              if (metadata.langfuse) {
+                if (metadata.langfuse.error) {
+                  return (
+                    <Flash variant="danger" sx={{ mb: 3 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <XCircleIcon size={16} />
+                        <Text>Langfuse Upload Failed: {metadata.langfuse.error}</Text>
+                      </Box>
+                    </Flash>
+                  );
+                } else if (metadata.langfuse.message) {
+                  return (
+                    <Flash variant="success" sx={{ mb: 3 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <CheckCircleIcon size={16} />
+                        <Text>{metadata.langfuse.message}</Text>
+                      </Box>
+                    </Flash>
+                  );
+                }
+              }
+            } catch (e) {
+              return null;
+            }
+          }
+          return null;
+        })()}
 
       <Box sx={{ mb: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <SegmentedControl

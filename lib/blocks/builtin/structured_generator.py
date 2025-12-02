@@ -101,6 +101,13 @@ class StructuredGenerator(BaseBlock):
             response_format=response_format,
         )
 
+        # add langfuse trace grouping if job_id is present
+        if data.get("job_id"):
+            llm_params["metadata"] = {
+                "trace_id": str(data["job_id"]),
+                "tags": ["datagenflow"],
+            }
+
         response = await self._call_llm_with_fallback(llm_params)
         content = response.choices[0].message.content
         generated = self._parse_json_response(content)

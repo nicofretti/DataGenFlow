@@ -12,7 +12,15 @@ import {
   Label,
   Tooltip,
 } from "@primer/react";
-import { PlayIcon, XIcon, UploadIcon, ClockIcon, SparklesFillIcon } from "@primer/octicons-react";
+import {
+  PlayIcon,
+  XIcon,
+  UploadIcon,
+  ClockIcon,
+  SparklesFillIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+} from "@primer/octicons-react";
 import { useJob } from "../contexts/JobContext";
 import type { Pipeline } from "../types";
 import { getElapsedTime } from "../utils/format";
@@ -509,6 +517,41 @@ export default function Generator() {
               {currentJob.error}
             </Flash>
           )}
+
+          {/* langfuse metadata display */}
+          {currentJob.metadata &&
+            (() => {
+              try {
+                const metadata =
+                  typeof currentJob.metadata === "string"
+                    ? JSON.parse(currentJob.metadata)
+                    : currentJob.metadata;
+                if (metadata.langfuse) {
+                  if (metadata.langfuse.error) {
+                    return (
+                      <Flash variant="danger" sx={{ mb: 2 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                          <XCircleIcon size={16} />
+                          <Text>Langfuse Upload Failed: {metadata.langfuse.error}</Text>
+                        </Box>
+                      </Flash>
+                    );
+                  } else if (metadata.langfuse.message) {
+                    return (
+                      <Flash variant="success" sx={{ mb: 2 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                          <CheckCircleIcon size={16} />
+                          <Text>{metadata.langfuse.message}</Text>
+                        </Box>
+                      </Flash>
+                    );
+                  }
+                }
+                return null;
+              } catch (e) {
+                return null;
+              }
+            })()}
 
           <Box sx={{ display: "flex", gap: 2 }}>
             {currentJob.status === "running" && (
