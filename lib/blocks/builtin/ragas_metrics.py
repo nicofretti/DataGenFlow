@@ -15,12 +15,14 @@ class RagasMetrics(BaseBlock):
     )
     category = "metrics"
     inputs = []
-    outputs = ["ragas_score"]
+    outputs = []  # will be set dynamically based on metric_type
 
     _config_enums = {
         "metric_type": [
             "answer_relevancy",
             "context_precision",
+            "context_recall",
+            "faithfulness",
         ]
     }
 
@@ -45,6 +47,9 @@ class RagasMetrics(BaseBlock):
                    Example: {"question": "question", "answer": "answer", "contexts": "contexts"}
         """
         self.metric_type = metric_type
+        # set output field name based on metric type
+        self.output_field = f"{metric_type}_score"
+        self.outputs = [self.output_field]
 
         # parse fields if string
         if isinstance(fields, str):
@@ -94,12 +99,14 @@ class RagasMetrics(BaseBlock):
             from ragas.metrics import (
                 AnswerRelevancy,
                 ContextPrecision,
+                ContextRecall,
+                Faithfulness,
             )
             from langchain_community.chat_models import ChatOllama
             from langchain_community.embeddings import OllamaEmbeddings
         except ImportError as e:
             logger.error(f"ragas or langchain not installed: {e}")
-            return {"ragas_score": 0.0}
+            return {self.output_field: 0.0}
 
         # configure LLM and embeddings for ragas
         try:
@@ -131,10 +138,10 @@ class RagasMetrics(BaseBlock):
                 logger.error(
                     f"unsupported LLM provider for ragas: {llm_config.provider}"
                 )
-                return {"ragas_score": 0.0}
+                return {self.output_field: 0.0}
         except Exception as e:
             logger.error(f"failed to configure LLM for ragas: {e}")
-            return {"ragas_score": 0.0}
+            return {self.output_field: 0.0}
 
         # get inputs
         inputs = self._get_metric_inputs(data)
@@ -143,12 +150,14 @@ class RagasMetrics(BaseBlock):
         metric_map = {
             "answer_relevancy": AnswerRelevancy(llm=llm, embeddings=embeddings),
             "context_precision": ContextPrecision(llm=llm),
+            "context_recall": ContextRecall(llm=llm),
+            "faithfulness": Faithfulness(llm=llm),
         }
 
         metric = metric_map.get(self.metric_type)
         if not metric:
             logger.error(f"unknown metric type: {self.metric_type}")
-            return {"ragas_score": 0.0}
+            return {self.output_field: 0.0}
 
         # validate required fields for metric
         if not self._validate_inputs(inputs):
@@ -159,7 +168,7 @@ class RagasMetrics(BaseBlock):
                 f"contexts={inputs.get('contexts', [])}, "
                 f"ground_truth={bool(inputs.get('ground_truth'))}"
             )
-            return {"ragas_score": 0.0}
+            return {self.output_field: 0.0}
 
         try:
             # create sample with only required fields for this metric
@@ -180,11 +189,11 @@ class RagasMetrics(BaseBlock):
             # calculate metric
             score = await metric.single_turn_ascore(sample)
 
-            return {"ragas_score": float(score)}
+            return {self.output_field: float(score)}
 
         except Exception as e:
             logger.error(f"ragas metric calculation failed: {e}")
-            return {"ragas_score": 0.0}
+            return {self.output_field: 0.0}
 
     def _validate_inputs(self, inputs: dict[str, Any]) -> bool:
         """check if required fields are present for the selected metric"""
@@ -192,6 +201,8 @@ class RagasMetrics(BaseBlock):
         requirements = {
             "answer_relevancy": ["question", "answer"],
             "context_precision": ["question", "contexts", "ground_truth"],
+            "context_recall": ["question", "contexts", "ground_truth"],
+            "faithfulness": ["question", "answer", "contexts"],
         }
 
         required = requirements.get(self.metric_type, [])

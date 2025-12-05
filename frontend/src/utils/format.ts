@@ -15,6 +15,9 @@ export function getElapsedTime(startTime: string): string {
 
 // truncate text for display
 export function truncateText(text: any, maxLength: number = 100): string {
+  if (text === undefined || text === null) {
+    return "";
+  }
   const str = typeof text === "string" ? text : JSON.stringify(text);
   return str.length > maxLength ? str.substring(0, maxLength) + "..." : str;
 }
