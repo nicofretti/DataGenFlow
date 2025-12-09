@@ -28,7 +28,7 @@ dependencies = [
     "anthropic>=0.73.0",
     "google-generativeai>=0.8.5",
     "pytest-timeout>=2.4.0",
-    "langfuse>=3.10.3",
+    "langfuse==2.59.7",
 ]
 
 [tool.setuptools.packages.find]

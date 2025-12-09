@@ -5,12 +5,24 @@ from pydantic import BaseModel, Field
 
 
 class ExecutionResult(BaseModel):
-    """result of pipeline execution with usage tracking"""
+    """
+    result of a single pipeline execution.
 
-    result: dict[str, Any]
-    trace: list[dict[str, Any]]
-    trace_id: str
-    usage: dict[str, Any]
+    conceptual hierarchy:
+    - job: batch of multiple executions (e.g., 100 generated records)
+    - execution: single pipeline run producing one record (this object)
+    - trace_id: unique identifier for this execution, used for grouping related LLM calls in observability tools
+
+    for langfuse integration:
+    - trace_id groups all LLM calls from this execution
+    - multiple executions (traces) belong to the same job
+    - example: job with 10 repetitions = 10 ExecutionResults with different trace_ids
+    """
+
+    result: dict[str, Any]  # final output data from pipeline
+    trace: list[dict[str, Any]]  # execution history (block inputs/outputs)
+    trace_id: str  # unique id for this execution (for observability)
+    usage: dict[str, Any]  # token usage for this execution
 
 
 class Constraints(BaseModel):
@@ -19,9 +31,15 @@ class Constraints(BaseModel):
     max_total_tokens: int | None = Field(
         None, ge=0, description="maximum total tokens (sum of input+output+cached)"
     )
-    max_total_input_tokens: int | None = Field(None, ge=0, description="maximum input tokens")
-    max_total_output_tokens: int | None = Field(None, ge=0, description="maximum output tokens")
-    max_total_cached_tokens: int | None = Field(None, ge=0, description="maximum cached tokens")
+    max_total_input_tokens: int | None = Field(
+        None, ge=0, description="maximum input tokens"
+    )
+    max_total_output_tokens: int | None = Field(
+        None, ge=0, description="maximum output tokens"
+    )
+    max_total_cached_tokens: int | None = Field(
+        None, ge=0, description="maximum cached tokens"
+    )
     max_total_execution_time: int | None = Field(
         None, ge=0, description="maximum execution time in seconds"
     )
@@ -31,9 +49,21 @@ class Constraints(BaseModel):
         checks = [
             (self.max_total_tokens, usage.total_tokens, "max_total_tokens"),
             (self.max_total_input_tokens, usage.input_tokens, "max_total_input_tokens"),
-            (self.max_total_output_tokens, usage.output_tokens, "max_total_output_tokens"),
-            (self.max_total_cached_tokens, usage.cached_tokens, "max_total_cached_tokens"),
-            (self.max_total_execution_time, usage.elapsed_time, "max_total_execution_time"),
+            (
+                self.max_total_output_tokens,
+                usage.output_tokens,
+                "max_total_output_tokens",
+            ),
+            (
+                self.max_total_cached_tokens,
+                usage.cached_tokens,
+                "max_total_cached_tokens",
+            ),
+            (
+                self.max_total_execution_time,
+                usage.elapsed_time,
+                "max_total_execution_time",
+            ),
         ]
 
         for limit, current, name in checks:

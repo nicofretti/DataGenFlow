@@ -88,8 +88,10 @@ class Pipeline:
         pipeline_id: int | None = None,
         constraints: pipeline.Constraints = pipeline.Constraints(),
     ) -> pipeline.ExecutionResult | list[pipeline.ExecutionResult]:
+        trace_id = str(uuid.uuid4())
+        initial_data["trace_id"] = trace_id
+
         if not self._block_instances:
-            trace_id = str(uuid.uuid4())
             return pipeline.ExecutionResult(
                 result=initial_data, trace=[], trace_id=trace_id, usage={}
             )
@@ -102,7 +104,9 @@ class Pipeline:
                 initial_data, job_id, job_queue, storage, pipeline_id, constraints
             )
 
-        return await self._execute_normal_pipeline(initial_data, job_id, job_queue, storage)
+        return await self._execute_normal_pipeline(
+            initial_data, job_id, job_queue, storage
+        )
 
     async def _execute_normal_pipeline(
         self,
@@ -111,7 +115,7 @@ class Pipeline:
         job_queue: Any = None,
         storage: Any = None,
     ) -> pipeline.ExecutionResult:
-        trace_id = str(uuid.uuid4())
+        trace_id = initial_data.get("trace_id")
         accumulated_data = initial_data.copy()
         accumulated_data["job_id"] = job_id
         accumulated_usage = pipeline.Usage()
@@ -157,7 +161,9 @@ class Pipeline:
                 result = await block.execute(accumulated_data)
                 execution_time = time.time() - start_time
 
-                logger.debug(f"[{trace_id}] {block_name} completed in {execution_time:.3f}s")
+                logger.debug(
+                    f"[{trace_id}] {block_name} completed in {execution_time:.3f}s"
+                )
 
                 # extract usage if present
                 if "_usage" in result:
@@ -185,7 +191,9 @@ class Pipeline:
                 )
             except ValidationError:
                 # re-raise validation errors as-is
-                logger.error(f"[{trace_id}] {block_name} validation error at step {i + 1}")
+                logger.error(
+                    f"[{trace_id}] {block_name} validation error at step {i + 1}"
+                )
                 raise
             except Exception as e:
                 logger.exception(f"[{trace_id}] {block_name} failed at step {i + 1}")
@@ -272,7 +280,9 @@ class Pipeline:
         storage: Any,
     ) -> None:
         """save completed seed result and update counters"""
-        record = Record(metadata=initial_data, output=json.dumps(accumulated_data), trace=trace)
+        record = Record(
+            metadata=initial_data, output=json.dumps(accumulated_data), trace=trace
+        )
         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
 
         if job_queue:
@@ -301,6 +311,7 @@ class Pipeline:
         trace_id = str(uuid.uuid4())
         accumulated_data = seed_data.copy()
         accumulated_data["job_id"] = job_id
+        accumulated_data["trace_id"] = trace_id
         accumulated_usage = pipeline.Usage()
         trace: list[dict[str, Any]] = []
 
@@ -482,7 +493,9 @@ class Pipeline:
                             usage_data = json.loads(usage_data)
                         current_usage = pipeline.Usage(**usage_data)
 
-                        exceeded, constraint_name = constraints.is_exceeded(current_usage)
+                        exceeded, constraint_name = constraints.is_exceeded(
+                            current_usage
+                        )
                         if exceeded:
                             logger.info(
                                 f"[Job {job_id}] Multiplier pipeline stopped: "
@@ -501,9 +514,13 @@ class Pipeline:
                             )
                             break
                     except (ValueError, KeyError, json.JSONDecodeError) as e:
-                        logger.warning(f"Failed to check constraints for job {job_id}: {e}")
+                        logger.warning(
+                            f"Failed to check constraints for job {job_id}: {e}"
+                        )
 
-        logger.info(f"Multiplier pipeline '{self.name}' completed with {len(results)} results")
+        logger.info(
+            f"Multiplier pipeline '{self.name}' completed with {len(results)} results"
+        )
         return results
 
     def to_dict(self) -> dict[str, Any]:

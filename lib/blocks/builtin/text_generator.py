@@ -72,13 +72,16 @@ class TextGenerator(BaseBlock):
 
         llm_config = await llm_config_manager.get_llm_model(self.model_name)
         llm_params = llm_config_manager.prepare_llm_call(
-            llm_config, messages=messages, temperature=self.temperature, max_tokens=self.max_tokens
+            llm_config,
+            messages=messages,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
         )
 
-        # add langfuse trace grouping if job_id is present
-        if data.get("job_id"):
+        # add langfuse trace grouping if trace_id is present
+        if data.get("trace_id"):
             llm_params["metadata"] = {
-                "trace_id": str(data["job_id"]),
+                "trace_id": str(data["trace_id"]),
                 "tags": ["datagenflow"],
             }
 

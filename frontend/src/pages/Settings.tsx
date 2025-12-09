@@ -151,7 +151,7 @@ export default function Settings() {
               LLM Models
             </Heading>
             <Text sx={{ color: "fg.muted", fontSize: 1 }}>
-              configure language models for text generation
+              Configure language models for text generation
             </Text>
           </Box>
           <Button
@@ -294,7 +294,7 @@ export default function Settings() {
               Embedding Models
             </Heading>
             <Text sx={{ color: "fg.muted", fontSize: 1 }}>
-              configure models for text embeddings
+              Configure models for text embeddings
             </Text>
           </Box>
           <Button
@@ -420,7 +420,7 @@ export default function Settings() {
             Langfuse Integration
           </Heading>
           <Text sx={{ color: "fg.muted", fontSize: 1, mb: 3 }}>
-            enable LLM tracing and dataset uploads for observability
+            Enable LLM tracing and dataset uploads for observability
           </Text>
         </Box>
 
@@ -433,10 +433,6 @@ export default function Settings() {
             bg: "canvas.subtle",
           }}
         >
-          <Text sx={{ color: "fg.default", mb: 3, display: "block" }}>
-            To enable Langfuse integration, add these environment variables to your .env file:
-          </Text>
-
           <Box
             as="pre"
             sx={{
@@ -460,15 +456,11 @@ LANGFUSE_PROJECT_ID=your-project-id`}
 
           <Text sx={{ color: "fg.muted", fontSize: 1, mb: 2 }}>
             After adding the environment variables, restart the application for changes to take effect.
-          </Text>
-
-          <Text sx={{ color: "fg.muted", fontSize: 1 }}>
-            Learn more:{" "}
+            {" "}
             <a
               href="https://langfuse.com/docs/get-started"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: "var(--fgColor-accent)" }}
             >
               Langfuse Documentation
             </a>

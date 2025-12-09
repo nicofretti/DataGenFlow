@@ -57,7 +57,11 @@ class StructuredGenerator(BaseBlock):
         if self.json_schema:
             return {
                 "type": "json_schema",
-                "json_schema": {"name": "response", "schema": self.json_schema, "strict": True},
+                "json_schema": {
+                    "name": "response",
+                    "schema": self.json_schema,
+                    "strict": True,
+                },
             }
         return {"type": "json_object"}
 
@@ -67,7 +71,9 @@ class StructuredGenerator(BaseBlock):
         try:
             return await litellm.acompletion(**llm_params)
         except Exception as e:
-            logger.warning(f"Schema enforcement failed, falling back to json_object: {e}")
+            logger.warning(
+                f"Schema enforcement failed, falling back to json_object: {e}"
+            )
             llm_params["response_format"] = {"type": "json_object"}
             return await litellm.acompletion(**llm_params)
 
@@ -101,10 +107,10 @@ class StructuredGenerator(BaseBlock):
             response_format=response_format,
         )
 
-        # add langfuse trace grouping if job_id is present
-        if data.get("job_id"):
+        # add langfuse trace grouping if trace_id is present
+        if data.get("trace_id"):
             llm_params["metadata"] = {
-                "trace_id": str(data["job_id"]),
+                "trace_id": str(data["trace_id"]),
                 "tags": ["datagenflow"],
             }
 

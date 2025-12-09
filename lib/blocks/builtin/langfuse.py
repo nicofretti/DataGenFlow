@@ -72,7 +72,11 @@ class LangfuseDatasetBlock(BaseBlock):
             for record in records:
                 try:
                     # parse metadata from json string
-                    metadata_dict = json.loads(record.metadata) if isinstance(record.metadata, str) else record.metadata
+                    metadata_dict = (
+                        json.loads(record.metadata)
+                        if isinstance(record.metadata, str)
+                        else record.metadata
+                    )
 
                     # create dataset item
                     dataset.create_item(
@@ -100,8 +104,12 @@ class LangfuseDatasetBlock(BaseBlock):
             }
             await storage.update_job(job_id, metadata=json.dumps(job_metadata))
 
-            logger.info(f"Uploaded {len(records)} records to Langfuse dataset '{dataset_name}'")
-            return {"langfuse_upload_status": f"uploaded {len(records)} records to dataset '{dataset_name}'"}
+            logger.info(
+                f"Uploaded {len(records)} records to Langfuse dataset '{dataset_name}'"
+            )
+            return {
+                "langfuse_upload_status": f"uploaded {len(records)} records to dataset '{dataset_name}'"
+            }
 
         except Exception as e:
             logger.exception("Langfuse upload failed")

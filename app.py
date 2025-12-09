@@ -53,7 +53,16 @@ def is_multiplier_pipeline(blocks: list[dict[str, Any]]) -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    import litellm
+    import os
+
     await storage.init_db()
+
+    # configure langfuse integration if credentials are set
+    if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
+        litellm.success_callback = ["langfuse"]
+        logger.info("Langfuse observability enabled")
+
     yield
     # close storage connection on shutdown
     await storage.close()
