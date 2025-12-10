@@ -77,6 +77,22 @@ async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
 
+@app.get("/api/langfuse/status")
+async def langfuse_status() -> dict[str, Any]:
+    """check if langfuse integration is enabled"""
+    import os
+
+    public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
+    secret_key = os.getenv("LANGFUSE_SECRET_KEY")
+    host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
+    enabled = bool(public_key and secret_key)
+    return {
+        "enabled": enabled,
+        "host": host if enabled else None,
+    }
+
+
 def _validate_seed_structure(seed: dict[str, Any]) -> tuple[bool, bool, int]:
     """check seed structure and repetitions.
 
