@@ -356,7 +356,7 @@ export default function Settings() {
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "start", justifyContent: "space-between" }}>
-                  <Box sx={{ flex: 1 }}>
+                  <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
                       <Text sx={{ fontWeight: "bold", fontSize: 2, color: "fg.default" }}>
                         {model.name}
