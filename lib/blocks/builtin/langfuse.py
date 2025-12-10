@@ -38,26 +38,54 @@ class LangfuseDatasetBlock(BaseBlock):
             return {"langfuse_upload_status": "skipped: only works in job context"}
 
         try:
-            from langfuse import Langfuse
-
-            # initialize langfuse client
-            langfuse = Langfuse(public_key=public_key, secret_key=secret_key, host=host)
-
-            # get job and pipeline info
+            # get job to check if we should upload now
             job = await storage.get_job(job_id)
             if not job:
                 logger.error(f"Job {job_id} not found")
                 return {"langfuse_upload_status": "error: job not found"}
 
-            pipeline = await storage.get_pipeline(job["pipeline_id"])
+            # only upload on the last seed to avoid duplicate uploads
+            # check if this is the final execution
+            if job.current_seed < job.total_seeds:
+                logger.debug(
+                    f"Skipping upload for job {job_id}: "
+                    f"seed {job.current_seed}/{job.total_seeds} (waiting for completion)"
+                )
+                return {
+                    "langfuse_upload_status": f"pending: waiting for job completion ({job.current_seed}/{job.total_seeds})"
+                }
+
+            # check if already uploaded (idempotency)
+            if job.metadata:
+                try:
+                    metadata = json.loads(job.metadata) if isinstance(job.metadata, str) else job.metadata
+                    if metadata.get("langfuse", {}).get("uploaded"):
+                        logger.info(f"Job {job_id} already uploaded to Langfuse, skipping")
+                        return {
+                            "langfuse_upload_status": f"already uploaded: {metadata['langfuse'].get('message', '')}"
+                        }
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        except Exception as e:
+            logger.exception("Failed to check job status")
+            return {"langfuse_upload_status": f"error: {str(e)}"}
+
+        try:
+            from langfuse import Langfuse
+
+            # initialize langfuse client
+            langfuse = Langfuse(public_key=public_key, secret_key=secret_key, host=host)
+
+            # get pipeline info
+            pipeline = await storage.get_pipeline(job.pipeline_id)
             if not pipeline:
-                logger.error(f"Pipeline {job['pipeline_id']} not found")
+                logger.error(f"Pipeline {job.pipeline_id} not found")
                 return {"langfuse_upload_status": "error: pipeline not found"}
 
-            # generate dataset name: pipeline_name_timestamp
-            pipeline_name = pipeline["name"].lower().replace(" ", "_")
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dataset_name = f"{pipeline_name}_{timestamp}"
+            # generate stable dataset name using job_id: pipeline_name_job{id}
+            # this ensures all records from the same job go into the same dataset
+            pipeline_name = pipeline.name.lower().replace(" ", "_")
+            dataset_name = f"{pipeline_name}_job_{job_id}"
 
             # fetch all records for this job
             records = await storage.get_all(job_id=job_id)
@@ -65,10 +93,11 @@ class LangfuseDatasetBlock(BaseBlock):
                 logger.warning(f"No records found for job {job_id}")
                 return {"langfuse_upload_status": "skipped: no records to upload"}
 
-            # create or get dataset
-            dataset = langfuse.create_dataset(name=dataset_name)
+            # create or get dataset (this ensures the dataset exists)
+            langfuse.create_dataset(name=dataset_name)
 
             # upload each record as dataset item
+            uploaded_count = 0
             for record in records:
                 try:
                     # parse metadata from json string
@@ -78,8 +107,9 @@ class LangfuseDatasetBlock(BaseBlock):
                         else record.metadata
                     )
 
-                    # create dataset item
-                    dataset.create_item(
+                    # create dataset item using langfuse client directly
+                    langfuse.create_dataset_item(
+                        dataset_name=dataset_name,
                         input=metadata_dict,  # seed variables
                         expected_output=record.output,  # final pipeline output
                         metadata={
@@ -88,6 +118,7 @@ class LangfuseDatasetBlock(BaseBlock):
                             "trace": record.trace,
                         },
                     )
+                    uploaded_count += 1
                 except Exception as e:
                     logger.warning(f"Failed to upload record {record.id}: {e}")
                     continue
@@ -95,20 +126,24 @@ class LangfuseDatasetBlock(BaseBlock):
             # flush langfuse client
             langfuse.flush()
 
-            # update job metadata with success
+            # update job metadata with success and mark as uploaded
             job_metadata = {
                 "langfuse": {
+                    "uploaded": True,
+                    "dataset_name": dataset_name,
+                    "records_count": uploaded_count,
+                    "records_total": len(records),
                     "error": "",
-                    "message": f"Uploaded {len(records)} records to dataset '{dataset_name}'",
+                    "message": f"Uploaded {uploaded_count}/{len(records)} records to dataset '{dataset_name}'",
                 }
             }
             await storage.update_job(job_id, metadata=json.dumps(job_metadata))
 
             logger.info(
-                f"Uploaded {len(records)} records to Langfuse dataset '{dataset_name}'"
+                f"Uploaded {uploaded_count}/{len(records)} records to Langfuse dataset '{dataset_name}'"
             )
             return {
-                "langfuse_upload_status": f"uploaded {len(records)} records to dataset '{dataset_name}'"
+                "langfuse_upload_status": f"uploaded {uploaded_count}/{len(records)} records to dataset '{dataset_name}'"
             }
 
         except Exception as e:

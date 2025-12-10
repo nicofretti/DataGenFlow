@@ -571,6 +571,7 @@ class Storage:
                 completed_at=row_dict["completed_at"],
                 created_at=row_dict.get("created_at"),
                 usage=usage,
+                metadata=row_dict.get("metadata"),
             )
 
         return await self._execute_with_connection(_get)

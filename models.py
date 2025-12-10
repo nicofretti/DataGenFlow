@@ -105,6 +105,7 @@ class Job(BaseModel):
     completed_at: str | None = None
     created_at: str | None = None
     usage: dict[str, Any] | None = None
+    metadata: str | None = None
 
 
 class PipelineRecord(BaseModel):
