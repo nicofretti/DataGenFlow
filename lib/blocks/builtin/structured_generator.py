@@ -103,7 +103,7 @@ class StructuredGenerator(BaseBlock):
             response_format=response_format,
         )
 
-        # add langfuse trace grouping - trace_id always present in context
+        # add langfuse trace grouping (trace_id always present in context)
         llm_params["metadata"] = {
             "trace_id": context.trace_id,
             "tags": ["datagenflow"],
