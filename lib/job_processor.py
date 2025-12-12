@@ -154,8 +154,7 @@ async def _process_job(
             if not isinstance(repetitions, int):
                 repetitions = 1
 
-            metadata = seed.get("metadata", {})
-            metadata["job_id"] = job_id
+            metadata = {**seed.get("metadata", {}), "job_id": job_id}
 
             for _ in range(repetitions):
                 execution_index += 1

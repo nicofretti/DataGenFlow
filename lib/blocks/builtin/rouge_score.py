@@ -3,6 +3,7 @@ from typing import Any
 from rouge_score import rouge_scorer  # type: ignore[import-untyped]
 
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 
 
 class RougeScore(BaseBlock):
@@ -36,9 +37,9 @@ class RougeScore(BaseBlock):
         self.rouge_type = rouge_type
         self.scorer = rouge_scorer.RougeScorer([rouge_type], use_stemmer=True)
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        generated = data.get(self.generated_field, "")
-        reference = data.get(self.reference_field, "")
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        generated = context.get_state(self.generated_field, "")
+        reference = context.get_state(self.reference_field, "")
 
         if not generated or not reference:
             return {"rouge_score": 0.0}

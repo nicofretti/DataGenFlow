@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-from datetime import datetime
 from typing import Any
 
 from lib.blocks.base import BaseBlock
@@ -16,10 +15,7 @@ class LangfuseDatasetBlock(BaseBlock):
     inputs = ["*"]
     outputs = ["langfuse_upload_status"]
 
-    def __init__(self):
-        pass
-
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         from app import storage
 
         # check if langfuse env vars are configured
@@ -31,24 +27,23 @@ class LangfuseDatasetBlock(BaseBlock):
             logger.warning("Langfuse credentials not configured, skipping upload")
             return {"langfuse_upload_status": "skipped: credentials not configured"}
 
-        # get job_id from accumulated state
-        job_id = data.get("job_id")
-        if not job_id:
-            logger.warning("No job_id in accumulated state, skipping upload")
+        # only works in job context
+        if context.job_id == 0:
+            logger.warning("Not in job context, skipping upload")
             return {"langfuse_upload_status": "skipped: only works in job context"}
 
         try:
             # get job to check if we should upload now
-            job = await storage.get_job(job_id)
+            job = await storage.get_job(context.job_id)
             if not job:
-                logger.error(f"Job {job_id} not found")
+                logger.error(f"Job {context.job_id} not found")
                 return {"langfuse_upload_status": "error: job not found"}
 
             # only upload on the last seed to avoid duplicate uploads
             # check if this is the final execution
             if job.current_seed < job.total_seeds:
                 logger.debug(
-                    f"Skipping upload for job {job_id}: "
+                    f"Skipping upload for job {context.job_id}: "
                     f"seed {job.current_seed}/{job.total_seeds} (waiting for completion)"
                 )
                 return {
@@ -58,9 +53,15 @@ class LangfuseDatasetBlock(BaseBlock):
             # check if already uploaded (idempotency)
             if job.metadata:
                 try:
-                    metadata = json.loads(job.metadata) if isinstance(job.metadata, str) else job.metadata
+                    metadata = (
+                        json.loads(job.metadata)
+                        if isinstance(job.metadata, str)
+                        else job.metadata
+                    )
                     if metadata.get("langfuse", {}).get("uploaded"):
-                        logger.info(f"Job {job_id} already uploaded to Langfuse, skipping")
+                        logger.info(
+                            f"Job {context.job_id} already uploaded to Langfuse, skipping"
+                        )
                         return {
                             "langfuse_upload_status": f"already uploaded: {metadata['langfuse'].get('message', '')}"
                         }
@@ -85,12 +86,12 @@ class LangfuseDatasetBlock(BaseBlock):
             # generate stable dataset name using job_id: pipeline_name_job{id}
             # this ensures all records from the same job go into the same dataset
             pipeline_name = pipeline.name.lower().replace(" ", "_")
-            dataset_name = f"{pipeline_name}_job_{job_id}"
+            dataset_name = f"{pipeline_name}_job_{context.job_id}"
 
             # fetch all records for this job
-            records = await storage.get_all(job_id=job_id)
+            records = await storage.get_all(job_id=context.job_id)
             if not records:
-                logger.warning(f"No records found for job {job_id}")
+                logger.warning(f"No records found for job {context.job_id}")
                 return {"langfuse_upload_status": "skipped: no records to upload"}
 
             # create or get dataset (this ensures the dataset exists)
@@ -137,7 +138,7 @@ class LangfuseDatasetBlock(BaseBlock):
                     "message": f"Uploaded {uploaded_count}/{len(records)} records to dataset '{dataset_name}'",
                 }
             }
-            await storage.update_job(job_id, metadata=json.dumps(job_metadata))
+            await storage.update_job(context.job_id, metadata=json.dumps(job_metadata))
 
             logger.info(
                 f"Uploaded {uploaded_count}/{len(records)} records to Langfuse dataset '{dataset_name}'"
@@ -156,7 +157,7 @@ class LangfuseDatasetBlock(BaseBlock):
                 }
             }
             try:
-                await storage.update_job(job_id, metadata=json.dumps(job_metadata))
+                await storage.update_job(context.job_id, metadata=json.dumps(job_metadata))
             except Exception as update_error:
                 logger.error(f"Failed to update job metadata: {update_error}")
 

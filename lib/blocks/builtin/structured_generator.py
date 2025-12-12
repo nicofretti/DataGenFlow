@@ -1,16 +1,14 @@
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import litellm
 from jinja2 import Environment, meta
 
 from lib.blocks.base import BaseBlock
 from lib.entities import pipeline
+from lib.entities.block_execution_context import BlockExecutionContext
 from lib.template_renderer import render_template
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -91,10 +89,10 @@ class StructuredGenerator(BaseBlock):
                 return result if isinstance(result, dict) else {"raw_response": content}
             return {"raw_response": content}
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         from app import llm_config_manager
 
-        user_prompt = self._prepare_prompt(data)
+        user_prompt = self._prepare_prompt(context.accumulated_state)
         messages = [{"role": "user", "content": user_prompt}]
         response_format = self._prepare_response_format()
 
@@ -107,12 +105,11 @@ class StructuredGenerator(BaseBlock):
             response_format=response_format,
         )
 
-        # add langfuse trace grouping if trace_id is present
-        if data.get("trace_id"):
-            llm_params["metadata"] = {
-                "trace_id": str(data["trace_id"]),
-                "tags": ["datagenflow"],
-            }
+        # add langfuse trace grouping - trace_id always present in context
+        llm_params["metadata"] = {
+            "trace_id": context.trace_id,
+            "tags": ["datagenflow"],
+        }
 
         response = await self._call_llm_with_fallback(llm_params)
         content = response.choices[0].message.content

@@ -100,6 +100,27 @@ def sample_pipeline_def():
     }
 
 
+@pytest.fixture
+def make_context():
+    """helper to create BlockExecutionContext from dict for testing"""
+    from lib.entities.block_execution_context import BlockExecutionContext
+
+    def _make(
+        data: dict | None = None,
+        trace_id: str = "test-trace",
+        job_id: int = 0,
+        pipeline_id: int = 1,
+    ):
+        return BlockExecutionContext(
+            trace_id=trace_id,
+            job_id=job_id,
+            pipeline_id=pipeline_id,
+            accumulated_state=data or {},
+        )
+
+    return _make
+
+
 def pytest_sessionfinish(session, exitstatus):
     """cleanup at end of test session"""
     import gc

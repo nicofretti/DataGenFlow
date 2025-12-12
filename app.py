@@ -222,7 +222,7 @@ async def generate_from_file(
             total += 1
             try:
                 # execute pipeline with metadata as input
-                exec_result = await pipeline.execute(seed.metadata)
+                exec_result = await pipeline.execute(seed.metadata, pipeline_id=pipeline_id)
                 # help mypy understand this is the tuple variant
                 assert isinstance(exec_result, tuple)
                 result, trace, trace_id = exec_result
@@ -543,7 +543,7 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
             raise HTTPException(status_code=404, detail="pipeline not found")
 
         pipeline = WorkflowPipeline.load_from_dict(pipeline_data.definition)
-        exec_result = await pipeline.execute(data)
+        exec_result = await pipeline.execute(data, pipeline_id=pipeline_id)
         # handle both ExecutionResult and list[ExecutionResult]
         if isinstance(exec_result, list):
             # multiplier pipeline
