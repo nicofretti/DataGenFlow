@@ -1,15 +1,13 @@
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import litellm
 from jinja2 import Environment, meta
 
 from lib.blocks.base import BaseBlock
 from lib.entities import pipeline
+from lib.entities.block_execution_context import BlockExecutionContext
 from lib.template_renderer import render_template
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +62,10 @@ class TextGenerator(BaseBlock):
             messages.append({"role": "user", "content": user})
         return messages
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         from app import llm_config_manager
 
-        system, user = self._prepare_prompts(data)
+        system, user = self._prepare_prompts(context.accumulated_state)
         messages = self._build_messages(system, user)
 
         llm_config = await llm_config_manager.get_llm_model(self.model_name)
@@ -78,12 +76,11 @@ class TextGenerator(BaseBlock):
             max_tokens=self.max_tokens,
         )
 
-        # add langfuse trace grouping if trace_id is present
-        if data.get("trace_id"):
-            llm_params["metadata"] = {
-                "trace_id": str(data["trace_id"]),
-                "tags": ["datagenflow"],
-            }
+        # add langfuse trace grouping (trace_id always present in context)
+        llm_params["metadata"] = {
+            "trace_id": context.trace_id,
+            "tags": ["datagenflow"],
+        }
 
         logger.info(f"Calling LiteLLM with model={llm_params.get('model')}")
 
