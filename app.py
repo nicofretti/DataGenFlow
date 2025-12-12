@@ -53,8 +53,9 @@ def is_multiplier_pipeline(blocks: list[dict[str, Any]]) -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    import litellm
     import os
+
+    import litellm
 
     await storage.init_db()
 
@@ -204,7 +205,8 @@ async def generate_from_file(
     content = await file.read(MAX_FILE_SIZE + 1)
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
-            status_code=413, detail=f"file too large (max {MAX_FILE_SIZE // (1024 * 1024)}MB)"
+            status_code=413,
+            detail=f"file too large (max {MAX_FILE_SIZE // (1024 * 1024)}MB)",
         )
     data = json.loads(content)
     seeds = [SeedInput(**item) for item in (data if isinstance(data, list) else [data])]
@@ -326,7 +328,8 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
     content = await file.read(MAX_FILE_SIZE + 1)
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
-            status_code=413, detail=f"file too large (max {MAX_FILE_SIZE // (1024 * 1024)}MB)"
+            status_code=413,
+            detail=f"file too large (max {MAX_FILE_SIZE // (1024 * 1024)}MB)",
         )
     seeds, total_samples = await (
         _parse_markdown_file(content) if is_markdown else _parse_json_file(content)

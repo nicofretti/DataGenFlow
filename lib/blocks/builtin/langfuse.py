@@ -4,6 +4,7 @@ import os
 from typing import Any
 
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 
 logger = logging.getLogger(__name__)
 
@@ -54,14 +55,10 @@ class LangfuseDatasetBlock(BaseBlock):
             if job.metadata:
                 try:
                     metadata = (
-                        json.loads(job.metadata)
-                        if isinstance(job.metadata, str)
-                        else job.metadata
+                        json.loads(job.metadata) if isinstance(job.metadata, str) else job.metadata
                     )
                     if metadata.get("langfuse", {}).get("uploaded"):
-                        logger.info(
-                            f"Job {context.job_id} already uploaded to Langfuse, skipping"
-                        )
+                        logger.info(f"Job {context.job_id} already uploaded to Langfuse, skipping")
                         return {
                             "langfuse_upload_status": f"already uploaded: {metadata['langfuse'].get('message', '')}"
                         }

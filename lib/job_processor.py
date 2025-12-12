@@ -93,16 +93,12 @@ async def _process_job(
         pipeline_obj = WorkflowPipeline.load_from_dict(pipeline_data.definition)
 
         # load constraints from pipeline (always create object, even if empty)
+        constraints = pipeline.Constraints()
         if pipeline_data.definition.get("constraints"):
             try:
-                constraints = pipeline.Constraints(
-                    **pipeline_data.definition["constraints"]
-                )
+                constraints = pipeline.Constraints(**pipeline_data.definition["constraints"])
             except (ValueError, KeyError) as e:
                 logger.warning(f"Invalid constraints for pipeline {pipeline_id}: {e}")
-                constraints = pipeline.Constraints()
-        else:
-            constraints = pipeline.Constraints()
 
         # initialize usage tracker
         accumulated_usage = pipeline.Usage()
@@ -124,11 +120,7 @@ async def _process_job(
         seeds_data = data if isinstance(data, list) else [data]
 
         total_executions = sum(
-            (
-                seed.get("repetitions", 1)
-                if isinstance(seed.get("repetitions"), int)
-                else 1
-            )
+            (seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1)
             for seed in seeds_data
         )
 
@@ -200,11 +192,11 @@ async def _process_job(
                                 accumulated_usage.input_tokens += result_item.usage.get(
                                     "input_tokens", 0
                                 )
-                                accumulated_usage.output_tokens += (
-                                    result_item.usage.get("output_tokens", 0)
+                                accumulated_usage.output_tokens += result_item.usage.get(
+                                    "output_tokens", 0
                                 )
-                                accumulated_usage.cached_tokens += (
-                                    result_item.usage.get("cached_tokens", 0)
+                                accumulated_usage.cached_tokens += result_item.usage.get(
+                                    "cached_tokens", 0
                                 )
 
                         # update usage after processing multiplier seed
@@ -265,9 +257,7 @@ async def _process_job(
                             trace=exec_result.trace,
                         )
 
-                        await storage.save_record(
-                            record, pipeline_id=pipeline_id, job_id=job_id
-                        )
+                        await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
                         records_generated += 1
 
                         logger.info(
@@ -288,32 +278,30 @@ async def _process_job(
                     # note: multiplier pipelines check constraints in workflow.py
                     # both paths use Constraints.is_exceeded() for consistency
                     # check constraints after each execution
-                    if constraints:
-                        exceeded, constraint_name = constraints.is_exceeded(
-                            accumulated_usage
-                        )
-                        if exceeded:
-                            logger.info(
-                                f"[Job {job_id}] stopped: {constraint_name} exceeded"
-                            )
-                            accumulated_usage.end_time = time.time()
-                            await _update_job_status(
-                                job_queue,
-                                storage,
-                                job_id,
-                                status="stopped",
-                                completed_at=datetime.now().isoformat(),
-                                usage=json.dumps(accumulated_usage.model_dump()),
-                                error=f"Constraint exceeded: {constraint_name}",
-                            )
-                            break
+                    if not constraints:
+                        continue
+
+                    exceeded, constraint_name = constraints.is_exceeded(accumulated_usage)
+                    if not exceeded:
+                        continue
+
+                    logger.info(f"[Job {job_id}] stopped: {constraint_name} exceeded")
+                    accumulated_usage.end_time = time.time()
+                    await _update_job_status(
+                        job_queue,
+                        storage,
+                        job_id,
+                        status="stopped",
+                        completed_at=datetime.now().isoformat(),
+                        usage=json.dumps(accumulated_usage.model_dump()),
+                        error=f"Constraint exceeded: {constraint_name}",
+                    )
+                    break
 
                 except Exception as e:
                     records_failed += 1
                     error_msg = str(e)
-                    logger.error(
-                        f"[Job {job_id}] Execution {execution_index} failed: {e}"
-                    )
+                    logger.error(f"[Job {job_id}] Execution {execution_index} failed: {e}")
 
                     await _update_job_status(
                         job_queue,

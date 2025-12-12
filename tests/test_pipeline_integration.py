@@ -82,14 +82,14 @@ async def test_storage_saves_trace(storage):
 
 @pytest.mark.asyncio
 async def test_storage_handles_none_trace(storage):
-    # test that records without trace work fine
+    # test that records without trace work fine (None is converted to [])
     record = Record(
         output="test assistant", metadata={"system": "test system", "user": "test user"}, trace=None
     )
 
     record_id = await storage.save_record(record)
 
-    # retrieve and verify
+    # retrieve and verify - validator converts None to []
     saved_record = await storage.get_by_id(record_id)
     assert saved_record is not None
-    assert saved_record.trace is None
+    assert saved_record.trace == []

@@ -20,6 +20,10 @@
 - **pipeline_output**: special field for visualization (any block can set, defaults to assistant or last block's first output)
 - **error handling**: structured exceptions with context (BlockNotFoundError, BlockExecutionError, ValidationError)
 - **pipeline templates**: pre-configured pipelines for quick start
+- **BlockExecutionContext**: type-safe execution context passed to all blocks (replaces dict[str, Any])
+  - sentinel values: job_id=0 for API calls, job_id>0 for background jobs
+  - field validators: None → {} or [] automatic conversion
+  - no None checks needed: trace_id always present, usage always exists
 
 ### stack
 - backend: fastapi + aiosqlite + pydantic + jinja2 + pyyaml + litellm + rouge-score
@@ -65,10 +69,56 @@ tests/
   test_error_handling_api.py  # error handling tests
 ```
 
+## execution model
+
+### BlockExecutionContext
+**type-safe execution context** passed to all blocks (lib/entities/block_execution_context.py)
+
+```python
+class BlockExecutionContext(BaseModel):
+    trace_id: str                      # unique execution identifier
+    job_id: int = 0                    # 0 = API call, >0 = background job
+    pipeline_id: int                   # which pipeline is executing
+    accumulated_state: dict[str, Any]  # outputs from previous blocks
+    usage: Usage                       # cumulative token usage
+    trace: list[dict[str, Any]]        # execution history
+    constraints: Constraints           # pipeline limits
+```
+
+**key benefits:**
+- **no None checks**: trace_id always present, job_id uses sentinel value (0)
+- **type safety**: IDE autocomplete and type checking
+- **clear semantics**: `if job_id > 0:` instead of `if job_id:`
+- **single source of truth**: all execution state in one place
+
+**field validators:**
+- Job.usage: None → {} (empty dict)
+- Record.trace: None → [] (empty list)
+- eliminates redundant None checks throughout codebase
+
+**usage pattern:**
+```python
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+    # access previous outputs
+    user_input = context.get_state("user", "")
+
+    # check if background job
+    if context.job_id > 0:
+        # job-specific logic
+        pass
+
+    # trace_id always present (no None check)
+    metadata = {"trace_id": context.trace_id}
+
+    return {"output": "..."}
+```
+
 ## block system
 
 ### BaseBlock interface
 ```python
+from lib.entities.block_execution_context import BlockExecutionContext
+
 class BaseBlock:
     name: str              # display name
     description: str       # what it does
@@ -79,7 +129,9 @@ class BaseBlock:
     _config_enums: dict[str, list] = {}      # enum dropdowns: {"param": ["opt1", "opt2"]}
     _field_references: list[str] = []        # field dropdowns: ["generated_field", "reference_field"]
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        # receives typed execution context instead of plain dict
+        # access state: context.get_state("key", default)
         # must return only fields declared in outputs
         pass
 
@@ -597,6 +649,7 @@ uv run pytest --cov=lib --cov=app tests/
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 
 class MyBlock(BaseBlock):
@@ -605,8 +658,9 @@ class MyBlock(BaseBlock):
     inputs = ["text"]
     outputs = ["result"]
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        return {"result": data["text"].upper()}
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        text = context.get_state("text", "")
+        return {"result": text.upper()}
 ```
 
 ### adding pipeline template

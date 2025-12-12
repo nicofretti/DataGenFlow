@@ -69,9 +69,7 @@ class StructuredGenerator(BaseBlock):
         try:
             return await litellm.acompletion(**llm_params)
         except Exception as e:
-            logger.warning(
-                f"Schema enforcement failed, falling back to json_object: {e}"
-            )
+            logger.warning(f"Schema enforcement failed, falling back to json_object: {e}")
             llm_params["response_format"] = {"type": "json_object"}
             return await litellm.acompletion(**llm_params)
 

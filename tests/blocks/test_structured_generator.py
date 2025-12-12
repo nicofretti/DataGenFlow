@@ -72,7 +72,9 @@ async def test_structured_generator_schema():
 @pytest.mark.asyncio
 @patch("litellm.acompletion")
 @patch("app.llm_config_manager")
-async def test_structured_generator_with_enum_enforcement(mock_config_manager, mock_completion, make_context):
+async def test_structured_generator_with_enum_enforcement(
+    mock_config_manager, mock_completion, make_context
+):
     """test that structured generator enforces enum values in schema"""
     mock_config_manager.get_llm_model = AsyncMock(
         return_value=LLMModelConfig(

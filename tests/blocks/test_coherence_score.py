@@ -7,7 +7,9 @@ from lib.blocks.builtin.coherence_score import CoherenceScore
 async def test_coherence_score(make_context):
     block = CoherenceScore(field_name="assistant")
     result = await block.execute(
-        make_context({"assistant": "This is a sentence. This is another sentence. Final sentence here."})
+        make_context(
+            {"assistant": "This is a sentence. This is another sentence. Final sentence here."}
+        )
     )
 
     assert "coherence_score" in result

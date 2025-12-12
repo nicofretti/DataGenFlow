@@ -585,7 +585,14 @@ export default function Generator() {
                             <Text sx={{ fontSize: 0, color: "fg.muted", mb: 1, display: "block" }}>
                               Dataset Name:
                             </Text>
-                            <Text sx={{ fontSize: 1, fontFamily: "mono", color: "success.fg", fontWeight: "semibold" }}>
+                            <Text
+                              sx={{
+                                fontSize: 1,
+                                fontFamily: "mono",
+                                color: "success.fg",
+                                fontWeight: "semibold",
+                              }}
+                            >
                               {metadata.langfuse.dataset_name}
                             </Text>
                           </Box>

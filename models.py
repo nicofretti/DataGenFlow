@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class RecordStatus(str, Enum):
@@ -32,9 +32,15 @@ class Record(BaseModel):
     output: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     status: RecordStatus = RecordStatus.PENDING
-    trace: list[dict[str, Any]] | None = None
+    trace: list[dict[str, Any]] = Field(default_factory=list)
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    @field_validator("trace", mode="before")
+    @classmethod
+    def validate_trace(cls, v: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        """convert None to empty list for database nulls"""
+        return v if v is not None else []
 
 
 class GenerationConfig(BaseModel):
@@ -104,8 +110,22 @@ class Job(BaseModel):
     started_at: str
     completed_at: str | None = None
     created_at: str | None = None
-    usage: dict[str, Any] | None = None
+    usage: dict[str, Any] = Field(default_factory=dict)
     metadata: str | None = None
+
+    @field_validator("usage", mode="before")
+    @classmethod
+    def validate_usage(cls, v: dict[str, Any] | str | None) -> dict[str, Any]:
+        """convert None to empty dict, parse JSON string if needed"""
+        if v is None:
+            return {}
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return {}
+        return v
 
 
 class PipelineRecord(BaseModel):

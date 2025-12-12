@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { Box, Heading, Text, Button, IconButton, Spinner, Tooltip } from "@primer/react";
-import { PlusIcon, TrashIcon, PencilIcon, CheckCircleIcon, CircleIcon, CheckCircleFillIcon } from "@primer/octicons-react";
+import {
+  PlusIcon,
+  TrashIcon,
+  PencilIcon,
+  CheckCircleIcon,
+  CircleIcon,
+  CheckCircleFillIcon,
+} from "@primer/octicons-react";
 import { toast } from "sonner";
 import type { LLMModelConfig, EmbeddingModelConfig } from "../types";
 import { llmConfigApi } from "../services/llmConfigApi";
@@ -448,16 +455,9 @@ export default function Settings() {
           {loadingLangfuse ? (
             <Spinner size="small" />
           ) : (
-            <Tooltip
-              aria-label={langfuseEnabled ? "Enabled" : "Disabled"}
-              direction="w"
-            >
+            <Tooltip aria-label={langfuseEnabled ? "Enabled" : "Disabled"} direction="w">
               <Box sx={{ color: langfuseEnabled ? "success.fg" : "fg.muted" }}>
-                {langfuseEnabled ? (
-                  <CheckCircleFillIcon size={16} />
-                ) : (
-                  <CircleIcon size={16} />
-                )}
+                {langfuseEnabled ? <CheckCircleFillIcon size={16} /> : <CircleIcon size={16} />}
               </Box>
             </Tooltip>
           )}
@@ -486,7 +486,14 @@ export default function Settings() {
               <Text sx={{ fontSize: 1, color: "fg.muted", mb: 1, display: "block" }}>
                 Connected to:
               </Text>
-              <Text sx={{ fontSize: 2, fontFamily: "mono", color: "fg.default", fontWeight: "semibold" }}>
+              <Text
+                sx={{
+                  fontSize: 2,
+                  fontFamily: "mono",
+                  color: "fg.default",
+                  fontWeight: "semibold",
+                }}
+              >
                 {langfuseHost}
               </Text>
             </Box>
@@ -516,8 +523,7 @@ LANGFUSE_PROJECT_ID=your-project-id`}
           <Text sx={{ color: "fg.muted", fontSize: 1 }}>
             {langfuseEnabled
               ? "Langfuse is configured and ready to use. Dataset uploads and tracing are enabled."
-              : "Add the environment variables above to your .env file and restart the application."}
-            {" "}
+              : "Add the environment variables above to your .env file and restart the application."}{" "}
             <a
               href="https://langfuse.com/docs/get-started"
               target="_blank"

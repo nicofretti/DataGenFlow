@@ -6,7 +6,9 @@ from lib.blocks.builtin.diversity_score import DiversityScore
 @pytest.mark.asyncio
 async def test_diversity_score_list(make_context):
     block = DiversityScore(field_name="texts")
-    result = await block.execute(make_context({"texts": ["hello world", "goodbye world", "hello there"]}))
+    result = await block.execute(
+        make_context({"texts": ["hello world", "goodbye world", "hello there"]})
+    )
 
     assert "diversity_score" in result
     assert 0 <= result["diversity_score"] <= 1
