@@ -36,6 +36,12 @@ class Job(BaseModel):
     usage: Usage = Field(default_factory=Usage)
     metadata: str = ""
 
+    @field_validator("current_block", "current_step", "error", "metadata", mode="before")
+    @classmethod
+    def validate_str_fields(cls, v: str | None) -> str:
+        """convert None to empty string for database compatibility"""
+        return v if v is not None else ""
+
     @field_validator("usage", mode="before")
     @classmethod
     def validate_usage(cls, v: Usage | dict | str | None) -> Usage:

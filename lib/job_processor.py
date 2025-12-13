@@ -8,7 +8,7 @@ from typing import Any
 
 from loguru import logger
 
-from lib.entities import pipeline, Record
+from lib.entities import pipeline, Record, JobStatus
 from lib.job_queue import JobQueue
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
@@ -135,7 +135,7 @@ async def _process_job(
 
         for seed in seeds_data:
             job_status = job_queue.get_job(job_id)
-            if job_status and job_status.get("status") == "cancelled":
+            if job_status and job_status.status == JobStatus.CANCELLED:
                 logger.info(
                     f"[Job {job_id}] Cancelled at execution {execution_index}/{total_executions}"
                 )
@@ -210,7 +210,7 @@ async def _process_job(
                             storage,
                             job_id,
                             records_generated=records_generated,
-                            usage=json.dumps(accumulated_usage.model_dump()),
+                            usage=accumulated_usage,
                         )
                     else:
                         progress = execution_index / total_executions
@@ -270,7 +270,7 @@ async def _process_job(
                             storage,
                             job_id,
                             records_generated=records_generated,
-                            usage=json.dumps(accumulated_usage.model_dump()),
+                            usage=accumulated_usage,
                         )
 
                     # constraint checking for normal pipelines
@@ -292,7 +292,7 @@ async def _process_job(
                         job_id,
                         status="stopped",
                         completed_at=datetime.now().isoformat(),
-                        usage=json.dumps(accumulated_usage.model_dump()),
+                        usage=accumulated_usage,
                         error=f"Constraint exceeded: {constraint_name}",
                     )
                     break
@@ -318,9 +318,9 @@ async def _process_job(
             # without this check, cancellation would only stop current seed's repetitions,
             # then continue processing remaining seeds - job would keep running!
             job_status = job_queue.get_job(job_id)
-            if job_status and job_status.get("status") in ("cancelled", "stopped"):
+            if job_status and job_status.status in (JobStatus.CANCELLED, JobStatus.STOPPED):
                 logger.info(
-                    f"[Job {job_id}] Stopping seed processing: status={job_status.get('status')}"
+                    f"[Job {job_id}] Stopping seed processing: status={job_status.status}"
                 )
                 break
 
@@ -330,7 +330,7 @@ async def _process_job(
             logger.warning(f"failed to delete seed file {seed_path}: {e}")
 
         final_status = job_queue.get_job(job_id)
-        if final_status and final_status.get("status") not in ("cancelled", "stopped"):
+        if final_status and final_status.status not in (JobStatus.CANCELLED, JobStatus.STOPPED):
             accumulated_usage.end_time = time.time()
             completed_at = datetime.now().isoformat()
             await _update_job_status(

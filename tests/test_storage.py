@@ -4,7 +4,7 @@ comprehensive storage tests for records, pipelines, jobs, and export
 
 import pytest
 
-from lib.entities import Record, RecordStatus
+from lib.entities import Record, RecordStatus, JobStatus
 
 
 class TestRecordCRUD:
@@ -184,7 +184,7 @@ class TestJobCRUD:
         pipeline_id = await storage.save_pipeline("Test", {"blocks": []})
 
         job_id = await storage.create_job(
-            pipeline_id=pipeline_id, total_seeds=10, status="processing"
+            pipeline_id=pipeline_id, total_seeds=10, status=JobStatus.RUNNING
         )
         assert job_id > 0
 
@@ -192,19 +192,19 @@ class TestJobCRUD:
         assert job is not None
         assert job.pipeline_id == pipeline_id
         assert job.total_seeds == 10
-        assert job.status == "processing"
+        assert job.status == JobStatus.RUNNING
 
     @pytest.mark.asyncio
     async def test_update_job(self, storage):
         """updating job modifies fields"""
         pipeline_id = await storage.save_pipeline("Test", {"blocks": []})
-        job_id = await storage.create_job(pipeline_id, 10, "processing")
+        job_id = await storage.create_job(pipeline_id, 10, JobStatus.RUNNING)
 
-        success = await storage.update_job(job_id, status="completed", records_generated=10)
+        success = await storage.update_job(job_id, status=JobStatus.COMPLETED, records_generated=10)
         assert success is True
 
         job = await storage.get_job(job_id)
-        assert job.status == "completed"
+        assert job.status == JobStatus.COMPLETED
         assert job.records_generated == 10
 
     @pytest.mark.asyncio
@@ -212,8 +212,8 @@ class TestJobCRUD:
         """list_jobs returns jobs for pipeline"""
         pipeline_id = await storage.save_pipeline("Test", {"blocks": []})
 
-        await storage.create_job(pipeline_id, 5, "completed")
-        await storage.create_job(pipeline_id, 10, "processing")
+        await storage.create_job(pipeline_id, 5, JobStatus.COMPLETED)
+        await storage.create_job(pipeline_id, 10, JobStatus.RUNNING)
 
         jobs = await storage.list_jobs(pipeline_id)
         assert len(jobs) >= 2

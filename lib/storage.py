@@ -7,7 +7,7 @@ import aiosqlite
 from aiosqlite import Connection
 
 from config import settings
-from lib.entities import Job, PipelineRecord, Record, RecordStatus
+from lib.entities import Job, PipelineRecord, Record, RecordStatus, Usage
 
 logger = logging.getLogger(__name__)
 
@@ -543,36 +543,8 @@ class Storage:
             row = await cursor.fetchone()
             if not row:
                 return None
-
-            # handle columns that might not exist in older databases
-            row_dict = dict(row)
-
-            # parse usage json if present
-            usage = None
-            if row_dict.get("usage"):
-                try:
-                    usage = json.loads(row_dict["usage"])
-                except (json.JSONDecodeError, TypeError):
-                    pass
-
-            return Job(
-                id=row_dict["id"],
-                pipeline_id=row_dict["pipeline_id"],
-                status=row_dict["status"],
-                total_seeds=row_dict["total_seeds"],
-                current_seed=row_dict.get("current_seed", 0),
-                records_generated=row_dict["records_generated"],
-                records_failed=row_dict["records_failed"],
-                progress=row_dict.get("progress", 0.0),
-                current_block=row_dict.get("current_block"),
-                current_step=row_dict.get("current_step"),
-                error=row_dict.get("error"),
-                started_at=row_dict["started_at"],
-                completed_at=row_dict["completed_at"],
-                created_at=row_dict.get("created_at"),
-                usage=usage,
-                metadata=row_dict.get("metadata"),
-            )
+            # validators handle: usage (str→Usage), status (str→JobStatus)
+            return Job(**dict(row))
 
         return await self._execute_with_connection(_get)
 
@@ -590,45 +562,17 @@ class Storage:
                     (limit,),
                 )
             rows = await cursor.fetchall()
-
-            result = []
-            for row in rows:
-                row_dict = dict(row)
-
-                # parse usage json if present
-                usage = None
-                if row_dict.get("usage"):
-                    try:
-                        usage = json.loads(row_dict["usage"])
-                    except (json.JSONDecodeError, TypeError):
-                        pass
-
-                result.append(
-                    Job(
-                        id=row_dict["id"],
-                        pipeline_id=row_dict["pipeline_id"],
-                        status=row_dict["status"],
-                        total_seeds=row_dict["total_seeds"],
-                        current_seed=row_dict.get("current_seed", 0),
-                        records_generated=row_dict["records_generated"],
-                        records_failed=row_dict["records_failed"],
-                        progress=row_dict.get("progress", 0.0),
-                        current_block=row_dict.get("current_block"),
-                        current_step=row_dict.get("current_step"),
-                        error=row_dict.get("error"),
-                        started_at=row_dict["started_at"],
-                        completed_at=row_dict["completed_at"],
-                        created_at=row_dict.get("created_at"),
-                        usage=usage,
-                    )
-                )
-            return result
+            return [Job(**dict(row)) for row in rows]
 
         return await self._execute_with_connection(_list)
 
     async def update_job(self, job_id: int, **updates: Any) -> bool:
         if not updates:
             return False
+
+        # serialize usage to json string for database storage
+        if "usage" in updates and isinstance(updates["usage"], Usage):
+            updates["usage"] = json.dumps(updates["usage"].model_dump())
 
         # filter to only valid database fields for jobs table
         valid_fields = {
@@ -647,7 +591,7 @@ class Storage:
         update_fields = {k: v for k, v in updates.items() if k in valid_fields}
 
         if not update_fields:
-            return True  # no database fields to update, but not an error
+            return True
 
         set_clause = ", ".join(f"{k} = ?" for k in update_fields.keys())
         values: list[Any] = list(update_fields.values()) + [job_id]

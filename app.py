@@ -321,7 +321,7 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
     if active_job:
         raise HTTPException(
             status_code=409,
-            detail=f"Job {active_job['id']} is already running. "
+            detail=f"Job {active_job.id} is already running. "
             "Cancel it first or wait for completion.",
         )
 
@@ -349,7 +349,7 @@ async def get_active_job() -> dict[str, Any] | None:
     active_job = job_queue.get_active_job()
     if not active_job:
         raise HTTPException(status_code=404, detail="no active job")
-    return active_job
+    return active_job.model_dump()
 
 
 @api_router.get("/jobs/{job_id}")
@@ -358,7 +358,7 @@ async def get_job(job_id: int) -> dict[str, Any]:
     # try memory first
     job = job_queue.get_job(job_id)
     if job:
-        return job
+        return job.model_dump()
 
     # fallback to database
     job_obj = await storage.get_job(job_id)
@@ -387,7 +387,7 @@ async def list_jobs(pipeline_id: int | None = None) -> list[dict[str, Any]]:
     if pipeline_id:
         jobs = job_queue.get_pipeline_history(pipeline_id)
         if jobs:
-            return jobs
+            return [j.model_dump() for j in jobs]
 
     # fallback to database
     jobs_list = await storage.list_jobs(pipeline_id=pipeline_id, limit=10)

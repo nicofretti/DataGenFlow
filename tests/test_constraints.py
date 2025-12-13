@@ -428,7 +428,7 @@ async def test_normal_pipeline_stops_at_max_total_tokens():
 
         # simulate job processor flow
         from lib.entities import pipeline as pipeline_module
-        from models import PipelineRecord
+        from lib.entities import PipelineRecord
 
         # load pipeline
         pipeline_data = PipelineRecord(**storage.pipelines[1])
@@ -528,7 +528,7 @@ async def test_normal_pipeline_stops_at_execution_time():
         job_id = 1
 
         from lib.entities import pipeline as pipeline_module
-        from models import PipelineRecord
+        from lib.entities import PipelineRecord
 
         pipeline_data = PipelineRecord(**storage.pipelines[1])
         constraints = pipeline_module.Constraints(**pipeline_data.definition["constraints"])
@@ -580,7 +580,7 @@ async def test_normal_pipeline_cumulative_usage():
     pipeline_obj._block_instances = [MockBlock(output_tokens=100)]
 
     from lib.entities import pipeline as pipeline_module
-    from models import PipelineRecord
+    from lib.entities import PipelineRecord
 
     storage = MockStorage()
     storage.pipelines = {
@@ -640,7 +640,7 @@ async def test_invalid_constraints_continues_execution():
     pipeline_obj._block_instances = [MockBlock(output_tokens=50)]
 
     from lib.entities import pipeline as pipeline_module
-    from models import PipelineRecord
+    from lib.entities import PipelineRecord
 
     # pipeline with invalid constraints
     pipeline_data = PipelineRecord(

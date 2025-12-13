@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from lib.blocks.registry import registry
-from lib.entities import pipeline, Record
+from lib.entities import pipeline, Record, JobStatus
 from lib.entities.block_execution_context import BlockExecutionContext
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 
@@ -134,7 +134,7 @@ class Pipeline:
             # check if job was cancelled before executing next block
             if job_id > 0 and job_queue:
                 job_status = job_queue.get_job(job_id)
-                if job_status and job_status.get("status") == "cancelled":
+                if job_status and job_status.status == JobStatus.CANCELLED:
                     total_blocks = len(self._block_instances)
                     logger.info(
                         f"[{context.trace_id}] Job {job_id} cancelled at block {i + 1}/{total_blocks}"
@@ -302,7 +302,7 @@ class Pipeline:
             job_id,
             job_queue,
             storage,
-            records_generated=current_job.get("records_generated", 0) + 1,
+            records_generated=current_job.records_generated + 1,
         )
 
     async def _process_single_seed(
@@ -335,7 +335,7 @@ class Pipeline:
                 # check if job was cancelled before executing next block
                 if job_id > 0 and job_queue:
                     job_status = job_queue.get_job(job_id)
-                    if job_status and job_status.get("status") == "cancelled":
+                    if job_status and job_status.status == JobStatus.CANCELLED:
                         total_remaining = len(remaining_blocks)
                         logger.info(
                             f"[{context.trace_id}] Job {job_id} cancelled at seed "
@@ -385,8 +385,8 @@ class Pipeline:
                         usage=context.usage.model_dump(),
                     )
 
-                # get current cumulative usage and add this seed's usage (usage always exists due to validator)
-                usage_model = pipeline.Usage(**current_job["usage"])
+                # get current cumulative usage and add this seed's usage
+                usage_model = current_job.usage
                 usage_model.input_tokens += context.usage.input_tokens
                 usage_model.output_tokens += context.usage.output_tokens
                 usage_model.cached_tokens += context.usage.cached_tokens
@@ -395,7 +395,7 @@ class Pipeline:
                     job_id,
                     job_queue,
                     storage,
-                    usage=json.dumps(usage_model.model_dump()),
+                    usage=usage_model,
                 )
                 logger.info(
                     f"[Job {job_id}] Updated usage after seed "
@@ -427,7 +427,7 @@ class Pipeline:
                 job_id,
                 job_queue,
                 storage,
-                records_failed=current_job.get("records_failed", 0) + 1,
+                records_failed=current_job.records_failed + 1,
             )
             return None
         finally:
@@ -486,7 +486,7 @@ class Pipeline:
             # check if job was cancelled before processing next seed
             if job_id > 0 and job_queue:
                 job_status = job_queue.get_job(job_id)
-                if job_status and job_status.get("status") == "cancelled":
+                if job_status and job_status.status == JobStatus.CANCELLED:
                     total_seeds = len(seeds)
                     logger.info(
                         f"[Job {job_id}] Multiplier pipeline cancelled at "
@@ -521,14 +521,9 @@ class Pipeline:
             if not current_job:
                 continue
 
-            # parse usage from job (usage always exists due to validator)
+            # usage is already a Usage object
             try:
-                usage_data = current_job["usage"]
-                if isinstance(usage_data, str):
-                    usage_data = json.loads(usage_data)
-                current_usage = pipeline.Usage(**usage_data)
-
-                exceeded, constraint_name = constraints.is_exceeded(current_usage)
+                exceeded, constraint_name = constraints.is_exceeded(current_job.usage)
                 if not exceeded:
                     continue
 
