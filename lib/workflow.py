@@ -6,10 +6,9 @@ from datetime import datetime
 from typing import Any
 
 from lib.blocks.registry import registry
-from lib.entities import pipeline
+from lib.entities import pipeline, Record
 from lib.entities.block_execution_context import BlockExecutionContext
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
-from models import Record
 
 logger = logging.getLogger(__name__)
 

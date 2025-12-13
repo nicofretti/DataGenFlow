@@ -4,7 +4,7 @@ comprehensive storage tests for records, pipelines, jobs, and export
 
 import pytest
 
-from models import Record, RecordStatus
+from lib.entities import Record, RecordStatus
 
 
 class TestRecordCRUD:

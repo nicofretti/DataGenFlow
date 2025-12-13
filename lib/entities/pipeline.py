@@ -91,3 +91,18 @@ class Usage(BaseModel):
         if self.end_time:
             return self.end_time - self.start_time
         return time.time() - self.start_time
+
+
+class BlockDefinition(BaseModel):
+    type: str
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+class Pipeline(BaseModel):
+    name: str
+    blocks: list[BlockDefinition]
+
+
+class SeedInput(BaseModel):
+    repetitions: int = Field(default=1, description="Number of times to execute pipeline")
+    metadata: dict[str, Any] = Field(..., description="Variables for pipeline execution")

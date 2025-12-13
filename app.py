@@ -19,7 +19,7 @@ from lib.schema_utils import compute_accumulated_state_schema
 from lib.storage import Storage
 from lib.templates import template_registry
 from lib.workflow import Pipeline as WorkflowPipeline
-from models import (
+from lib.entities import (
     ConnectionTestResult,
     EmbeddingModelConfig,
     LLMModelConfig,

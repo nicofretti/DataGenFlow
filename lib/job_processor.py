@@ -8,11 +8,10 @@ from typing import Any
 
 from loguru import logger
 
-from lib.entities import pipeline
+from lib.entities import pipeline, Record
 from lib.job_queue import JobQueue
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
-from models import Record
 
 
 async def _update_job_status(

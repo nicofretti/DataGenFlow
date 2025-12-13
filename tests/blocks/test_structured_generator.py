@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from lib.blocks.builtin.structured_generator import StructuredGenerator
-from models import LLMModelConfig, LLMProvider
+from lib.entities import LLMModelConfig, LLMProvider
 
 
 @pytest.mark.asyncio

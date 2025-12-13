@@ -7,7 +7,7 @@ import aiosqlite
 from aiosqlite import Connection
 
 from config import settings
-from models import Job, PipelineRecord, Record, RecordStatus
+from lib.entities import Job, PipelineRecord, Record, RecordStatus
 
 logger = logging.getLogger(__name__)
 

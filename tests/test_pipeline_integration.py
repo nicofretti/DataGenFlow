@@ -1,8 +1,7 @@
 import pytest
 
-from lib.entities import pipeline as pipeline_entities
+from lib.entities import pipeline as pipeline_entities, Record
 from lib.workflow import Pipeline as WorkflowPipeline
-from models import Record
 
 
 @pytest.mark.asyncio

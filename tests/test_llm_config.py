@@ -3,7 +3,7 @@ import pytest_asyncio
 
 from lib.llm_config import LLMConfigManager, LLMConfigNotFoundError
 from lib.storage import Storage
-from models import EmbeddingModelConfig, LLMModelConfig, LLMProvider
+from lib.entities import EmbeddingModelConfig, LLMModelConfig, LLMProvider
 
 
 @pytest_asyncio.fixture

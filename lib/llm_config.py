@@ -8,7 +8,7 @@ import litellm
 from config import settings
 from lib.errors import PipelineError
 from lib.storage import Storage
-from models import (
+from lib.entities import (
     ConnectionTestResult,
     EmbeddingModelConfig,
     LLMModelConfig,
