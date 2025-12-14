@@ -468,10 +468,9 @@ async def test_normal_pipeline_stops_at_max_total_tokens():
             result = await pipeline_obj.execute(metadata)
 
             # accumulate usage
-            if hasattr(result, "usage") and result.usage:
-                accumulated_usage.input_tokens += result.usage.get("input_tokens", 0)
-                accumulated_usage.output_tokens += result.usage.get("output_tokens", 0)
-                accumulated_usage.cached_tokens += result.usage.get("cached_tokens", 0)
+            accumulated_usage.input_tokens += result.usage.input_tokens
+            accumulated_usage.output_tokens += result.usage.output_tokens
+            accumulated_usage.cached_tokens += result.usage.cached_tokens
 
             records_generated += 1
 
@@ -562,10 +561,9 @@ async def test_normal_pipeline_stops_at_execution_time():
             metadata: dict[str, Any] = seed.get("metadata", {})  # type: ignore[assignment]
             result = await pipeline_obj.execute(metadata)
 
-            if hasattr(result, "usage") and result.usage:
-                accumulated_usage.input_tokens += result.usage.get("input_tokens", 0)
-                accumulated_usage.output_tokens += result.usage.get("output_tokens", 0)
-                accumulated_usage.cached_tokens += result.usage.get("cached_tokens", 0)
+            accumulated_usage.input_tokens += result.usage.input_tokens
+            accumulated_usage.output_tokens += result.usage.output_tokens
+            accumulated_usage.cached_tokens += result.usage.cached_tokens
 
             records_generated += 1
 
@@ -635,10 +633,9 @@ async def test_normal_pipeline_cumulative_usage():
         metadata: dict[str, Any] = seed.get("metadata", {})
         result = await pipeline_obj.execute(metadata)
 
-        if hasattr(result, "usage") and result.usage:
-            accumulated_usage.input_tokens += result.usage.get("input_tokens", 0)
-            accumulated_usage.output_tokens += result.usage.get("output_tokens", 0)
-            accumulated_usage.cached_tokens += result.usage.get("cached_tokens", 0)
+        accumulated_usage.input_tokens += result.usage.input_tokens
+        accumulated_usage.output_tokens += result.usage.output_tokens
+        accumulated_usage.cached_tokens += result.usage.cached_tokens
 
         records_generated += 1
 
@@ -686,9 +683,9 @@ async def test_invalid_constraints_continues_execution():
     result = await pipeline_obj.execute({"test": "data"})
 
     assert result is not None
-    # empty constraints should not restrict execution
-    assert constraints.max_total_tokens is None
-    assert constraints.max_total_execution_time is None
+    # empty constraints should not restrict execution (-1 = unlimited)
+    assert constraints.max_total_tokens == -1
+    assert constraints.max_total_execution_time == -1
 
 
 @pytest.mark.asyncio
@@ -729,10 +726,9 @@ async def test_constraint_enforced_at_exact_boundary():
     for i in range(max_iterations):
         result = await pipeline_obj.execute({"test": f"seed{i}"})
 
-        if hasattr(result, "usage") and result.usage:
-            accumulated_usage.input_tokens += result.usage.get("input_tokens", 0)
-            accumulated_usage.output_tokens += result.usage.get("output_tokens", 0)
-            accumulated_usage.cached_tokens += result.usage.get("cached_tokens", 0)
+        accumulated_usage.input_tokens += result.usage.input_tokens
+        accumulated_usage.output_tokens += result.usage.output_tokens
+        accumulated_usage.cached_tokens += result.usage.cached_tokens
 
         records_generated += 1
 

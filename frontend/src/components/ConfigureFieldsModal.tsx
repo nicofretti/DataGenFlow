@@ -43,7 +43,13 @@ export default function ConfigureFieldsModal({
       }
       const pipelineData = await pipelineRes.json();
 
-      if (pipelineData.validation_config?.field_order) {
+      const hasExistingConfig =
+        pipelineData.validation_config?.field_order &&
+        (pipelineData.validation_config.field_order.primary.length > 0 ||
+          pipelineData.validation_config.field_order.secondary.length > 0 ||
+          pipelineData.validation_config.field_order.hidden.length > 0);
+
+      if (hasExistingConfig) {
         // use existing configuration
         setPrimaryFields(pipelineData.validation_config.field_order.primary || []);
         setSecondaryFields(pipelineData.validation_config.field_order.secondary || []);

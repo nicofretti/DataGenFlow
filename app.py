@@ -592,7 +592,7 @@ async def get_accumulated_state_schema(pipeline_id: int) -> dict[str, list[str]]
     if not pipeline_data:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
-    blocks = pipeline_data.definition["blocks"]
+    blocks = pipeline_data.definition.get("blocks", [])
     fields = compute_accumulated_state_schema(blocks)
     return {"fields": fields}
 
