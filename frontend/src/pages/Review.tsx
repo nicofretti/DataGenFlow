@@ -577,10 +577,14 @@ export default function Review() {
                   })()
                 : "N/A";
 
+            const inputTokens = job.usage.input_tokens ?? 0;
+            const outputTokens = job.usage.output_tokens ?? 0;
+            const cachedTokens = job.usage.cached_tokens ?? 0;
+
             return (
               <Box sx={{ display: "flex", gap: 2 }}>
                 <Tooltip
-                  aria-label={`Tokens: ↓ Input: ${job.usage.input_tokens.toLocaleString()} ↑ Output: ${job.usage.output_tokens.toLocaleString()} ⟳ Cached: ${job.usage.cached_tokens.toLocaleString()}`}
+                  aria-label={`Tokens: ↓ Input: ${inputTokens.toLocaleString()} ↑ Output: ${outputTokens.toLocaleString()} ⟳ Cached: ${cachedTokens.toLocaleString()}`}
                   direction="w"
                 >
                   <Box
@@ -600,11 +604,7 @@ export default function Review() {
                       <SparklesFillIcon size={12} />
                     </Box>
                     <Text sx={{ fontSize: 1, fontFamily: "mono", color: "fg.default" }}>
-                      {(
-                        job.usage.input_tokens +
-                        job.usage.output_tokens +
-                        job.usage.cached_tokens
-                      ).toLocaleString()}{" "}
+                      {(inputTokens + outputTokens + cachedTokens).toLocaleString()}{" "}
                       tk
                     </Text>
                   </Box>
