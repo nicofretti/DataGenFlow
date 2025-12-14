@@ -26,32 +26,40 @@ class JSONFieldExtractorBlock(BaseBlock):
     def __init__(
         self,
         source_field: str = "parsed_json",
-        mappings: list[dict[str, str]] | str | None = None,
+        mappings: list[dict[str, str]] | dict[str, Any] | str | None = None,
     ):
         """
         Args:
             source_field: Field containing the nested structure
             mappings: List of mappings [{"from": "path.to.field", "to": "output_name"}]
-                     Can be a list or JSON string
+                     Can be a list, dict (UI quirk), or JSON string
         """
         import json
+
+        # declare types for instance variables
+        self.source_field: str
+        self.mappings: list[dict[str, str]]
 
         # handle UI quirk: mappings might be double-nested
         if isinstance(mappings, dict) and "mappings" in mappings:
             # UI sent: {"source_field": "...", "mappings": [...]}
-            self.source_field = mappings.get("source_field", source_field)
-            self.mappings = mappings.get("mappings", [])
+            self.source_field = str(mappings.get("source_field", source_field))
+            raw_mappings = mappings.get("mappings", [])
+            self.mappings = raw_mappings if isinstance(raw_mappings, list) else []
         else:
             self.source_field = source_field
             # handle mappings as string (JSON) or list
             if isinstance(mappings, str):
                 try:
-                    self.mappings = json.loads(mappings)
+                    parsed = json.loads(mappings)
+                    self.mappings = parsed if isinstance(parsed, list) else []
                 except json.JSONDecodeError:
                     logger.error(f"failed to parse mappings as json: {mappings}")
                     self.mappings = []
+            elif isinstance(mappings, list):
+                self.mappings = mappings
             else:
-                self.mappings = mappings or []
+                self.mappings = []
 
         # validate mappings is a list
         if not isinstance(self.mappings, list):
@@ -60,7 +68,9 @@ class JSONFieldExtractorBlock(BaseBlock):
 
         # set dynamic outputs based on mappings
         if self.mappings:
-            self.outputs = [m.get("to", "") for m in self.mappings if isinstance(m, dict) and "to" in m]
+            self.outputs = [
+                m.get("to", "") for m in self.mappings if isinstance(m, dict) and "to" in m
+            ]
 
     def _resolve_path(self, data: Any, path: str) -> Any:
         """resolve nested path like 'qa_pairs.0.question' in data structure"""
@@ -97,7 +107,7 @@ class JSONFieldExtractorBlock(BaseBlock):
 
     def _extract_fields(self, data: dict[str, Any]) -> dict[str, Any]:
         """extract fields based on mappings configuration"""
-        result = {}
+        result: dict[str, Any] = {}
 
         # get source data
         source_data = data.get(self.source_field)

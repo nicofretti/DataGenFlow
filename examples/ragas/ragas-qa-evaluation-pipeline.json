@@ -1,0 +1,78 @@
+{
+  "name": "QA Generation with RAGAS Evaluation",
+  "description": "Generate QA pairs from documents and automatically evaluate quality using RAGAS metrics",
+  "blocks": [
+    {
+      "type": "Markdown Chunker",
+      "config": {
+        "chunk_size": 500,
+        "chunk_overlap": 50
+      }
+    },
+    {
+      "type": "Structured Generator",
+      "config": {
+        "system_prompt": "Generate 3-5 comprehensive questions about the given text.\n\nThe questions should:\n- Test understanding of key concepts\n- Cover different aspects of the content\n- Be clear and specific\n\nExample:\n\nText: \"Photosynthesis is the process by which plants convert sunlight into energy. Chlorophyll in leaves absorbs light, which triggers chemical reactions that produce glucose.\"\n\nQuestions:\nWhat is photosynthesis?\nWhat role does chlorophyll play in photosynthesis?\nWhat is the end product of photosynthesis?",
+        "user_template": "Now generate questions for this text:\n\n{{chunk_text}}",
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "qa_pairs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string",
+                    "description": "A comprehensive question about the text"
+                  },
+                  "answer": {
+                    "type": "string",
+                    "description": "A detailed answer to the question"
+                  },
+                  "ground_truth": {
+                    "type": "string",
+                    "description": "The ideal reference answer"
+                  },
+                  "contexts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Relevant text passages that support the answer"
+                  }
+                },
+                "required": ["question", "answer", "ground_truth", "contexts"]
+              }
+            }
+          },
+          "required": ["qa_pairs"]
+        },
+        "temperature": 0.7,
+        "max_tokens": 8192
+      }
+    },
+    {
+      "type": "JSON Field Extractor",
+      "config": {
+        "field_mappings": {
+          "generated": "generated",
+          "qa_pairs": "generated.qa_pairs"
+        }
+      }
+    },
+    {
+      "type": "Ragas Batch Metrics",
+      "config": {
+        "metrics": [
+          "answer_relevancy",
+          "faithfulness",
+          "context_precision",
+          "context_recall"
+        ],
+        "flag_low_scores": true,
+        "score_threshold": 0.7
+      }
+    }
+  ]
+}

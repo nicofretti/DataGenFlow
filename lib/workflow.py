@@ -67,6 +67,11 @@ class Pipeline:
     def _validate_output(self, block: Any, result: dict[str, Any]) -> None:
         declared = set(block.outputs)
         actual = set(result.keys())
+
+        # skip validation if block declares "*" (any outputs allowed)
+        if "*" in declared:
+            return
+
         if not actual.issubset(declared):
             extra = actual - declared
             raise ValidationError(
@@ -116,7 +121,7 @@ class Pipeline:
         trace_id = str(uuid.uuid4())
         accumulated_data = initial_data.copy()
         accumulated_usage = pipeline.Usage()
-        trace = []
+        trace: list[dict[str, Any]] = []
 
         logger.info(
             f"[{trace_id}] Starting pipeline '{self.name}' with {len(self._block_instances)} blocks"
