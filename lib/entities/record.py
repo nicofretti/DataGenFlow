@@ -21,6 +21,7 @@ class Record(BaseModel):
     @field_validator("trace", mode="before")
     @classmethod
     def validate_trace(cls, v: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        """convert None to [] for database compatibility (NULL in database)"""
         return v if v is not None else []
 
 class RecordUpdate(BaseModel):

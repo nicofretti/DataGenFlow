@@ -8,7 +8,7 @@ from typing import Any
 
 from loguru import logger
 
-from lib.entities import pipeline, Record, JobStatus
+from lib.entities import JobStatus, Record, pipeline
 from lib.job_queue import JobQueue
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
@@ -95,7 +95,9 @@ async def _process_job(
         constraints = pipeline.Constraints()
         if pipeline_data.definition.get("constraints"):
             try:
-                constraints = pipeline.Constraints(**pipeline_data.definition["constraints"])
+                constraints = pipeline.Constraints(
+                    **pipeline_data.definition["constraints"]
+                )
             except (ValueError, KeyError) as e:
                 logger.warning(f"Invalid constraints for pipeline {pipeline_id}: {e}")
 
@@ -119,7 +121,11 @@ async def _process_job(
         seeds_data = data if isinstance(data, list) else [data]
 
         total_executions = sum(
-            (seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1)
+            (
+                seed.get("repetitions", 1)
+                if isinstance(seed.get("repetitions"), int)
+                else 1
+            )
             for seed in seeds_data
         )
 
@@ -151,7 +157,7 @@ async def _process_job(
                 execution_index += 1
 
                 job_status = job_queue.get_job(job_id)
-                if job_status and job_status.get("status") == "cancelled":
+                if job_status and job_status.status == JobStatus.CANCELLED:
                     cancel_msg = (
                         f"[Job {job_id}] Cancelled at "
                         f"execution {execution_index}/{total_executions}"
@@ -187,16 +193,9 @@ async def _process_job(
                         # multiplier results already saved in workflow
                         records_generated += len(results)
                         for result_item in results:
-                            if result_item.usage:
-                                accumulated_usage.input_tokens += result_item.usage.get(
-                                    "input_tokens", 0
-                                )
-                                accumulated_usage.output_tokens += result_item.usage.get(
-                                    "output_tokens", 0
-                                )
-                                accumulated_usage.cached_tokens += result_item.usage.get(
-                                    "cached_tokens", 0
-                                )
+                            accumulated_usage.input_tokens += result_item.usage.input_tokens
+                            accumulated_usage.output_tokens += result_item.usage.output_tokens
+                            accumulated_usage.cached_tokens += result_item.usage.cached_tokens
 
                         # update usage after processing multiplier seed
                         logger.info(
@@ -239,16 +238,9 @@ async def _process_job(
                         exec_result: pipeline.ExecutionResult = result
 
                         # extract usage from result
-                        if exec_result.usage:
-                            accumulated_usage.input_tokens += exec_result.usage.get(
-                                "input_tokens", 0
-                            )
-                            accumulated_usage.output_tokens += exec_result.usage.get(
-                                "output_tokens", 0
-                            )
-                            accumulated_usage.cached_tokens += exec_result.usage.get(
-                                "cached_tokens", 0
-                            )
+                        accumulated_usage.input_tokens += exec_result.usage.input_tokens
+                        accumulated_usage.output_tokens += exec_result.usage.output_tokens
+                        accumulated_usage.cached_tokens += exec_result.usage.cached_tokens
 
                         record = Record(
                             metadata=metadata,
@@ -256,7 +248,9 @@ async def _process_job(
                             trace=exec_result.trace,
                         )
 
-                        await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
+                        await storage.save_record(
+                            record, pipeline_id=pipeline_id, job_id=job_id
+                        )
                         records_generated += 1
 
                         logger.info(
@@ -280,7 +274,9 @@ async def _process_job(
                     if not constraints:
                         continue
 
-                    exceeded, constraint_name = constraints.is_exceeded(accumulated_usage)
+                    exceeded, constraint_name = constraints.is_exceeded(
+                        accumulated_usage
+                    )
                     if not exceeded:
                         continue
 
@@ -290,7 +286,7 @@ async def _process_job(
                         job_queue,
                         storage,
                         job_id,
-                        status="stopped",
+                        status=JobStatus.STOPPED,
                         completed_at=datetime.now().isoformat(),
                         usage=accumulated_usage,
                         error=f"Constraint exceeded: {constraint_name}",
@@ -300,7 +296,9 @@ async def _process_job(
                 except Exception as e:
                     records_failed += 1
                     error_msg = str(e)
-                    logger.error(f"[Job {job_id}] Execution {execution_index} failed: {e}")
+                    logger.error(
+                        f"[Job {job_id}] Execution {execution_index} failed: {e}"
+                    )
 
                     await _update_job_status(
                         job_queue,
@@ -318,7 +316,10 @@ async def _process_job(
             # without this check, cancellation would only stop current seed's repetitions,
             # then continue processing remaining seeds - job would keep running!
             job_status = job_queue.get_job(job_id)
-            if job_status and job_status.status in (JobStatus.CANCELLED, JobStatus.STOPPED):
+            if job_status and job_status.status in (
+                JobStatus.CANCELLED,
+                JobStatus.STOPPED,
+            ):
                 logger.info(
                     f"[Job {job_id}] Stopping seed processing: status={job_status.status}"
                 )
@@ -330,7 +331,10 @@ async def _process_job(
             logger.warning(f"failed to delete seed file {seed_path}: {e}")
 
         final_status = job_queue.get_job(job_id)
-        if final_status and final_status.status not in (JobStatus.CANCELLED, JobStatus.STOPPED):
+        if final_status and final_status.status not in (
+            JobStatus.CANCELLED,
+            JobStatus.STOPPED,
+        ):
             accumulated_usage.end_time = time.time()
             completed_at = datetime.now().isoformat()
             await _update_job_status(

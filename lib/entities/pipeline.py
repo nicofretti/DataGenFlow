@@ -1,7 +1,7 @@
 import time
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ExecutionResult(BaseModel):
@@ -22,27 +22,36 @@ class ExecutionResult(BaseModel):
     result: dict[str, Any]  # final output data from pipeline
     trace: list[dict[str, Any]]  # execution history (block inputs/outputs)
     trace_id: str  # unique id for this execution (for observability)
-    usage: dict[str, Any]  # token usage for this execution
+    usage: "Usage"  # token usage for this execution
 
 
 class Constraints(BaseModel):
-    """constraints for pipeline execution. all fields optional."""
+    """constraints for pipeline execution. -1 means unlimited."""
 
-    max_total_tokens: int | None = Field(
-        None, ge=0, description="maximum total tokens (sum of input+output+cached)"
+    max_total_tokens: int = Field(
+        -1, ge=-1, description="maximum total tokens (sum of input+output+cached), -1 = unlimited"
     )
-    max_total_input_tokens: int | None = Field(
-        None, ge=0, description="maximum input tokens"
+    max_total_input_tokens: int = Field(
+        -1, ge=-1, description="maximum input tokens, -1 = unlimited"
     )
-    max_total_output_tokens: int | None = Field(
-        None, ge=0, description="maximum output tokens"
+    max_total_output_tokens: int = Field(
+        -1, ge=-1, description="maximum output tokens, -1 = unlimited"
     )
-    max_total_cached_tokens: int | None = Field(
-        None, ge=0, description="maximum cached tokens"
+    max_total_cached_tokens: int = Field(
+        -1, ge=-1, description="maximum cached tokens, -1 = unlimited"
     )
-    max_total_execution_time: int | None = Field(
-        None, ge=0, description="maximum execution time in seconds"
+    max_total_execution_time: int = Field(
+        -1, ge=-1, description="maximum execution time in seconds, -1 = unlimited"
     )
+
+    @field_validator(
+        "max_total_tokens", "max_total_input_tokens", "max_total_output_tokens",
+        "max_total_cached_tokens", "max_total_execution_time", mode="before"
+    )
+    @classmethod
+    def validate_constraint_fields(cls, v: int | None) -> int:
+        """convert None to -1 for database compatibility"""
+        return -1 if v is None else v
 
     def is_exceeded(self, usage: "Usage") -> tuple[bool, str | None]:
         """check if any constraint is exceeded. returns (exceeded, constraint_name)."""
@@ -67,7 +76,7 @@ class Constraints(BaseModel):
         ]
 
         for limit, current, name in checks:
-            if limit is not None and current >= limit:
+            if limit >= 0 and current >= limit:
                 return True, name
         return False, None
 
@@ -91,6 +100,20 @@ class Usage(BaseModel):
         if self.end_time:
             return self.end_time - self.start_time
         return time.time() - self.start_time
+
+
+class FieldOrder(BaseModel):
+    """field ordering configuration for validation ui."""
+
+    primary: list[str] = Field(default_factory=list)
+    secondary: list[str] = Field(default_factory=list)
+    hidden: list[str] = Field(default_factory=list)
+
+
+class ValidationConfig(BaseModel):
+    """validation configuration for pipeline records."""
+
+    field_order: FieldOrder
 
 
 class BlockDefinition(BaseModel):

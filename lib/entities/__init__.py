@@ -4,7 +4,8 @@ from lib.entities.job import Job, JobStatus, TERMINAL_STATUSES
 from lib.entities.record import Record, RecordStatus, RecordUpdate
 from lib.entities.pipeline import (
     Pipeline, BlockDefinition, SeedInput,
-    Usage, Constraints, ExecutionResult
+    Usage, Constraints, ExecutionResult,
+    ValidationConfig, FieldOrder
 )
 from lib.entities.llm_config import (
     LLMProvider, LLMModelConfig, EmbeddingModelConfig, ConnectionTestResult
@@ -21,6 +22,7 @@ __all__ = [
     # Pipeline domain
     "Pipeline", "BlockDefinition", "SeedInput",
     "Usage", "Constraints", "ExecutionResult",
+    "ValidationConfig", "FieldOrder",
     # LLM Config domain
     "LLMProvider", "LLMModelConfig", "EmbeddingModelConfig", "ConnectionTestResult",
     # Database domain

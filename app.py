@@ -8,6 +8,7 @@ from fastapi import APIRouter, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
+from pydantic import ValidationError as PydanticValidationError
 
 from config import settings
 from lib.blocks.registry import registry
@@ -29,6 +30,7 @@ from lib.entities import (
     RecordUpdate,
     SeedInput,
     SeedValidationRequest,
+    ValidationConfig,
 )
 
 storage = Storage()
@@ -556,7 +558,7 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
                         "result": r.result,
                         "trace": r.trace,
                         "trace_id": r.trace_id,
-                        "usage": r.usage,
+                        "usage": r.usage.model_dump(),
                     }
                     for r in exec_result
                 ]
@@ -567,7 +569,7 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
                 "result": exec_result.result,
                 "trace": exec_result.trace,
                 "trace_id": exec_result.trace_id,
-                "usage": exec_result.usage,
+                "usage": exec_result.usage.model_dump(),
             }
     except HTTPException:
         # Let HTTPException propagate to FastAPI
@@ -600,25 +602,16 @@ async def update_validation_config(
     pipeline_id: int, validation_config: dict[str, Any]
 ) -> dict[str, bool]:
     """update the validation_config for a pipeline"""
-    # validate structure
-    if "field_order" not in validation_config:
-        raise HTTPException(
-            status_code=400, detail="validation_config must have field_order property"
-        )
-
-    field_order = validation_config["field_order"]
-    if not isinstance(field_order, dict):
-        raise HTTPException(status_code=400, detail="field_order must be an object")
-
-    required_keys = {"primary", "secondary", "hidden"}
-    if not all(key in field_order for key in required_keys):
-        raise HTTPException(
-            status_code=400,
-            detail=f"field_order must have {required_keys} arrays",
-        )
+    # validate structure using pydantic
+    try:
+        validated_config = ValidationConfig(**validation_config)
+    except PydanticValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     # update database
-    success = await storage.update_pipeline_validation_config(pipeline_id, validation_config)
+    success = await storage.update_pipeline_validation_config(
+        pipeline_id, validated_config.model_dump()
+    )
     if not success:
         raise HTTPException(status_code=404, detail="pipeline not found")
 

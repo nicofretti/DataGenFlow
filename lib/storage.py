@@ -454,7 +454,7 @@ class Storage:
                 definition=json.loads(row["definition"]),
                 created_at=row["created_at"],
                 validation_config=(
-                    json.loads(row["validation_config"]) if row["validation_config"] else None
+                    json.loads(row["validation_config"]) if row["validation_config"] else {}
                 ),
             )
 
@@ -472,7 +472,7 @@ class Storage:
                     definition=json.loads(row["definition"]),
                     created_at=row["created_at"],
                     validation_config=(
-                        json.loads(row["validation_config"]) if row["validation_config"] else None
+                        json.loads(row["validation_config"]) if row["validation_config"] else {}
                     ),
                 )
                 for row in rows

@@ -92,7 +92,7 @@ class Pipeline:
 
         if not self._block_instances:
             return pipeline.ExecutionResult(
-                result=initial_data, trace=[], trace_id=trace_id, usage={}
+                result=initial_data, trace=[], trace_id=trace_id, usage=pipeline.Usage()
             )
 
         first_block = self._block_instances[0]
@@ -144,7 +144,7 @@ class Pipeline:
                         result=context.accumulated_state,
                         trace=context.trace,
                         trace_id=context.trace_id,
-                        usage=context.usage.model_dump(),
+                        usage=context.usage,
                     )
 
             block_name = block.__class__.__name__
@@ -221,7 +221,7 @@ class Pipeline:
             result=context.accumulated_state,
             trace=context.trace,
             trace_id=context.trace_id,
-            usage=context.usage.model_dump(),
+            usage=context.usage,
         )
 
     async def _execute_block_in_seed(
@@ -373,7 +373,7 @@ class Pipeline:
                         result=context.accumulated_state,
                         trace=context.trace,
                         trace_id=context.trace_id,
-                        usage=context.usage.model_dump(),
+                        usage=context.usage,
                     )
 
                 current_job = job_queue.get_job(job_id)
@@ -382,7 +382,7 @@ class Pipeline:
                         result=context.accumulated_state,
                         trace=context.trace,
                         trace_id=context.trace_id,
-                        usage=context.usage.model_dump(),
+                        usage=context.usage,
                     )
 
                 # get current cumulative usage and add this seed's usage
@@ -409,7 +409,7 @@ class Pipeline:
                 result=context.accumulated_state,
                 trace=context.trace,
                 trace_id=context.trace_id,
-                usage=context.usage.model_dump(),
+                usage=context.usage,
             )
         except Exception:
             logger.exception(

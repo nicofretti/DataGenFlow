@@ -1,12 +1,9 @@
-import json
-import logging
 import threading
-import time
 from collections import defaultdict, deque
 from datetime import datetime
 from typing import Any
 
-from lib.entities import Job, JobStatus, TERMINAL_STATUSES
+from lib.entities import TERMINAL_STATUSES, Job, JobStatus
 
 
 class JobQueue:
@@ -21,12 +18,18 @@ class JobQueue:
         self._lock = threading.Lock()
 
     def create_job(
-        self, job_id: int, pipeline_id: int, total_seeds: int, status: JobStatus = JobStatus.RUNNING
+        self,
+        job_id: int,
+        pipeline_id: int,
+        total_seeds: int,
+        status: JobStatus = JobStatus.RUNNING,
     ) -> None:
         """register a new job in memory"""
         with self._lock:
             if self._active_job is not None:
-                raise RuntimeError(f"Job {self._active_job} is already running. Cancel it first.")
+                raise RuntimeError(
+                    f"Job {self._active_job} is already running. Cancel it first."
+                )
 
             self._jobs[job_id] = Job(
                 id=job_id,
@@ -115,7 +118,9 @@ class JobQueue:
         """get last 10 jobs for a pipeline"""
         with self._lock:
             job_ids = list(self._job_history.get(pipeline_id, []))
-            return [self._jobs[jid].model_copy() for jid in job_ids if jid in self._jobs]
+            return [
+                self._jobs[jid].model_copy() for jid in job_ids if jid in self._jobs
+            ]
 
     def _add_to_history(self, pipeline_id: int, job_id: int) -> None:
         """add job to pipeline history (max 10 jobs)"""
