@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from lib.entities import pipeline
+from lib.entities import pipeline, JobStatus
 from lib.workflow import Pipeline
 
 
@@ -47,18 +47,46 @@ class MockJobQueue:
         self.jobs = {}
 
     def get_job(self, job_id):
-        return self.jobs.get(job_id)
+        from lib.entities import Job, JobStatus
+        job_data = self.jobs.get(job_id)
+        if job_data is None:
+            return None
+        # return Job object instead of dict, providing defaults for required fields
+        if isinstance(job_data, dict):
+            # ensure all required fields exist with defaults
+            defaults = {
+                "id": job_id,
+                "pipeline_id": 1,
+                "status": JobStatus.RUNNING,
+                "total_seeds": 1,
+                "started_at": "2024-01-01T00:00:00",
+            }
+            # merge defaults with actual data (actual data takes precedence)
+            full_data = {**defaults, **job_data}
+            return Job(**full_data)
+        return job_data
 
     def update_job(self, job_id, **updates):
+        from lib.entities import Usage, JobStatus
         if job_id not in self.jobs:
-            self.jobs[job_id] = {}
+            self.jobs[job_id] = {
+                "id": job_id,
+                "pipeline_id": 1,
+                "status": JobStatus.RUNNING,
+                "total_seeds": 1,
+                "started_at": "2024-01-01T00:00:00",
+            }
 
-        # parse usage json if present (mimics real job_queue behavior)
-        if "usage" in updates and isinstance(updates["usage"], str):
-            try:
-                updates["usage"] = json.loads(updates["usage"])
-            except (json.JSONDecodeError, TypeError):
-                pass
+        # convert usage to dict for storage
+        if "usage" in updates:
+            usage = updates["usage"]
+            if isinstance(usage, Usage):
+                updates["usage"] = usage.model_dump()
+            elif isinstance(usage, str):
+                try:
+                    updates["usage"] = json.loads(usage)
+                except (json.JSONDecodeError, TypeError):
+                    pass
 
         self.jobs[job_id].update(updates)
 
@@ -127,17 +155,11 @@ async def test_multiplier_pipeline_stops_at_max_total_tokens():
     # verify job was marked as stopped
     job = job_queue.get_job(job_id)
     assert job is not None
-    assert job.get("status") == "stopped", f"Expected status 'stopped', got {job.get('status')}"
+    assert job.status == JobStatus.STOPPED, f"Expected status STOPPED, got {job.status}"
 
     # verify usage in job exceeds the constraint
-    usage_data = job.get("usage")
-    if isinstance(usage_data, str):
-        usage_data = json.loads(usage_data)
-    total_tokens = (
-        usage_data.get("input_tokens", 0)
-        + usage_data.get("output_tokens", 0)
-        + usage_data.get("cached_tokens", 0)
-    )
+    usage_data = job.usage
+    total_tokens = usage_data.input_tokens + usage_data.output_tokens + usage_data.cached_tokens
     assert total_tokens >= 500, f"Expected total_tokens >= 500, got {total_tokens}"
 
 
@@ -191,7 +213,7 @@ async def test_multiplier_pipeline_completes_without_constraints():
 
     # verify job was NOT marked as stopped
     job = job_queue.get_job(job_id)
-    assert job.get("status") != "stopped"
+    assert job.status != JobStatus.STOPPED
 
 
 @pytest.mark.asyncio
@@ -240,7 +262,7 @@ async def test_multiplier_pipeline_with_max_total_input_tokens():
 
     # verify stopped status
     job = job_queue.get_job(job_id)
-    assert job.get("status") == "stopped"
+    assert job.status == JobStatus.STOPPED
 
 
 @pytest.mark.asyncio
@@ -286,7 +308,7 @@ async def test_multiplier_pipeline_with_max_total_output_tokens():
 
     # verify execution stopped before all seeds
     assert len(results) < 10
-    assert job_queue.get_job(job_id).get("status") == "stopped"
+    assert job_queue.get_job(job_id).status == JobStatus.STOPPED
 
 
 @pytest.mark.asyncio
@@ -379,7 +401,7 @@ async def test_constraint_checking_uses_cumulative_usage():
 
     # with 200 tokens already used, should stop after ~1 seed (200 + 170 = 370)
     assert len(results) <= 2, f"Expected <= 2 results with pre-existing usage, got {len(results)}"
-    assert job_queue.get_job(job_id).get("status") == "stopped"
+    assert job_queue.get_job(job_id).status == JobStatus.STOPPED
 
 
 # ============================================================================
@@ -471,8 +493,8 @@ async def test_normal_pipeline_stops_at_max_total_tokens():
         # verify job marked as stopped
         job = job_queue.get_job(job_id)
         assert job is not None
-        assert job.get("status") == "stopped"
-        assert "max_total_tokens" in job.get("error", "")
+        assert job.status == JobStatus.STOPPED
+        assert "max_total_tokens" in (job.error or "")
 
         # verify usage exceeds constraint
         assert accumulated_usage.total_tokens >= 400
@@ -564,8 +586,8 @@ async def test_normal_pipeline_stops_at_execution_time():
         )
 
         job = job_queue.get_job(job_id)
-        assert job.get("status") == "stopped"
-        assert "max_total_execution_time" in job.get("error", "")
+        assert job.status == JobStatus.STOPPED
+        assert "max_total_execution_time" in (job.error or "")
 
     finally:
         Path(seed_file).unlink(missing_ok=True)
@@ -627,7 +649,7 @@ async def test_normal_pipeline_cumulative_usage():
 
     # with 250 pre-existing + 170 per seed, should stop after 1-2 seeds
     assert records_generated <= 2, f"Expected <= 2 with pre-existing usage, got {records_generated}"
-    assert job_queue.get_job(job_id).get("status") == "stopped"
+    assert job_queue.get_job(job_id).status == JobStatus.STOPPED
     assert accumulated_usage.total_tokens >= 500
 
 
@@ -726,4 +748,4 @@ async def test_constraint_enforced_at_exact_boundary():
         f"Expected exactly 3 records at boundary, got {records_generated}"
     )
     assert accumulated_usage.total_tokens == 600
-    assert job_queue.get_job(job_id).get("status") == "stopped"
+    assert job_queue.get_job(job_id).status == JobStatus.STOPPED

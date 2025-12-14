@@ -531,7 +531,7 @@ class Pipeline:
                     f"[Job {job_id}] Multiplier pipeline stopped: "
                     f"{constraint_name} exceeded"
                 )
-                current_usage.end_time = time.time()
+                current_job.usage.end_time = time.time()
 
                 await self._update_job_progress(
                     job_id,
@@ -539,7 +539,7 @@ class Pipeline:
                     storage,
                     status="stopped",
                     completed_at=datetime.now().isoformat(),
-                    usage=json.dumps(current_usage.model_dump()),
+                    usage=current_job.usage,
                     error=f"Constraint exceeded: {constraint_name}",
                 )
                 break

@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from lib.entities import pipeline as pipeline_entities
+from lib.entities import JobStatus
 from lib.job_queue import JobQueue
 from lib.storage import Storage
 from lib.workflow import Pipeline
@@ -77,14 +78,14 @@ async def test_job_cancellation_stops_processing_remaining_seeds():
         # process seeds like job_processor does
         for seed in seeds_data:
             job_status = job_queue.get_job(job_id)
-            if job_status and job_status.get("status") == "cancelled":
+            if job_status and job_status.status == JobStatus.CANCELLED:
                 break
 
             repetitions = seed.get("repetitions", 1)
             assert isinstance(repetitions, int)
             for i in range(repetitions):
                 job_status = job_queue.get_job(job_id)
-                if job_status and job_status.get("status") == "cancelled":
+                if job_status and job_status.status == JobStatus.CANCELLED:
                     break
 
                 metadata = seed["metadata"]
@@ -100,13 +101,13 @@ async def test_job_cancellation_stops_processing_remaining_seeds():
             # CRITICAL: check if cancelled after inner loop completes
             # without this, job would continue to next seed
             job_status = job_queue.get_job(job_id)
-            if job_status and job_status.get("status") in ("cancelled", "stopped"):
+            if job_status and job_status.status in (JobStatus.CANCELLED, JobStatus.STOPPED):
                 break
 
     # verify job was cancelled and stopped processing
     final_job = job_queue.get_job(job_id)
     assert final_job is not None
-    assert final_job["status"] == "cancelled"
+    assert final_job.status == JobStatus.CANCELLED
 
     # should only execute once (first execution that triggered cancellation)
     # without the fix, it would execute all 10 times
@@ -173,7 +174,7 @@ async def test_job_cancellation_stops_between_blocks_normal_pipeline():
     # verify job was cancelled
     final_job = job_queue.get_job(job_id)
     assert final_job is not None
-    assert final_job["status"] == "cancelled"
+    assert final_job.status == JobStatus.CANCELLED
 
     # should only execute first block before cancellation
     # without the fix, all 3 TextGenerators would execute (5 total blocks)
@@ -247,7 +248,7 @@ async def test_job_cancellation_stops_multiplier_pipeline_between_seeds():
     # verify job was cancelled
     final_job = job_queue.get_job(job_id)
     assert final_job is not None
-    assert final_job["status"] == "cancelled"
+    assert final_job.status == JobStatus.CANCELLED
 
     # should only process 1 seed before cancellation
     # without the fix, all 5 seeds would be processed
@@ -319,7 +320,7 @@ async def test_job_cancellation_stops_multiplier_pipeline_between_blocks():
     # verify job was cancelled
     final_job = job_queue.get_job(job_id)
     assert final_job is not None
-    assert final_job["status"] == "cancelled"
+    assert final_job.status == JobStatus.CANCELLED
 
     # should stop after first TextGenerator in seed
     # without the fix, both TextGenerators would execute (2 total)
