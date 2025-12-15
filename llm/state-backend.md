@@ -17,24 +17,36 @@
 lib/
   blocks/
     builtin/              # stable blocks
-      llm.py              # LLMBlock
-      validator.py        # ValidatorBlock, JSONValidatorBlock
-      output.py           # OutputBlock
-    custom/               # experimental blocks
-    base.py               # BaseBlock interface
-    registry.py           # auto-discovery
-  templates/              # yaml pipeline templates
-    __init__.py           # TemplateRegistry
-  errors.py               # PipelineError, BlockNotFoundError, etc
-  workflow.py             # Pipeline class
-  storage.py              # Storage class (sqlite crud)
-  generator.py            # Generator class (llm wrapper)
-  template_renderer.py    # Jinja2 renderer
-  job_queue.py            # JobQueue (in-memory)
-  job_processor.py        # background job processing
+      text_generator.py      # TextGenerator
+      structured_generator.py # StructuredGenerator
+      validator.py           # ValidatorBlock
+      json_validator.py      # JSONValidatorBlock
+      diversity_score.py     # DiversityScore
+      coherence_score.py     # CoherenceScore
+      rouge_score.py         # RougeScore
+      markdown_multiplier.py # MarkdownMultiplierBlock
+      langfuse.py            # LangfuseBlock
+    custom/                  # experimental blocks
+    base.py                  # BaseBlock interface
+    config.py                # BlockConfigSchema (schema extraction)
+    registry.py              # auto-discovery
+  entities/                  # pydantic models
+    block_execution_context.py  # BlockExecutionContext
+    pipeline.py              # ExecutionResult, Constraints, Usage
+    api.py, database.py, job.py, record.py, llm_config.py
+  templates/                 # yaml pipeline templates
+    __init__.py              # TemplateRegistry
+  errors.py                  # PipelineError, BlockNotFoundError, etc
+  workflow.py                # Pipeline class
+  storage.py                 # Storage class (sqlite crud)
+  template_renderer.py       # Jinja2 renderer
+  job_queue.py               # JobQueue (in-memory)
+  job_processor.py           # background job processing
+  llm_config.py              # LLMConfigManager
+  constants.py               # constants (RECORD_UPDATABLE_FIELDS)
 
-app.py                    # fastapi app, lifespan, endpoints
-config.py                 # Settings (env vars)
+app.py                       # fastapi app, lifespan, endpoints
+config.py                    # Settings (env vars)
 ```
 
 ## api endpoints
@@ -325,9 +337,12 @@ when DEBUG=true:
 
 ### BaseBlock interface
 ```python
+from lib.entities.block_execution_context import BlockExecutionContext
+
 class BaseBlock:
     name: str
     description: str
+    category: str  # generators, validators, metrics, seeders, general
     inputs: list[str]
     outputs: list[str]
 
@@ -336,18 +351,24 @@ class BaseBlock:
     _field_references: list[str]              # field reference dropdowns
     _config_descriptions: dict[str, str]      # inline help text
 
-    async def execute(data: dict) -> dict:
+    async def execute(context: BlockExecutionContext) -> dict:
+        # receives typed execution context instead of plain dict
         # must return only declared outputs
         pass
 
     @classmethod
+    def get_config_schema() -> dict:
+        # returns config schema for ui (auto-generated from __init__)
+        pass
+
+    @classmethod
     def get_schema() -> dict:
-        # returns schema for ui (auto-generated from __init__)
+        # returns full schema (inputs, outputs, config, category, is_multiplier)
         pass
 ```
 
 ### block config schema
-- extracts from `__init__` signature using inspect
+- extracts from `__init__` signature using inspect (via BlockConfigSchema.get_config_schema)
 - type hints → json schema types (str, int, float, bool, dict, list)
 - dict[str, Any] → type: "object" (json editor in ui)
 - list → type: "array"
@@ -361,50 +382,59 @@ class BaseBlock:
   - inputs: []
   - outputs: assistant, system, user
   - config: model, temperature, max_tokens, system_prompt, user_prompt
+  - category: generators
 - **StructuredGenerator**: generates json via litellm with schema
   - inputs: []
   - outputs: generated
   - config: json_schema (dict), model, temperature, max_tokens, user_prompt
+  - category: generators
 - **MarkdownMultiplierBlock**: splits markdown into chunks (must be first block)
   - inputs: [] (requires file_content from metadata)
   - outputs: content (per chunk)
   - config: none
   - is_multiplier: true
+  - category: seeders
   - generates N seeds from single input
 - **ValidatorBlock**: validates text length
   - inputs: text, assistant
   - outputs: text, valid, assistant
   - config: min_length, max_length, forbidden_words
+  - category: validators
 - **JSONValidatorBlock**: parses json from any field (handles both strings and parsed objects)
   - inputs: * (all accumulated state)
   - outputs: valid, parsed_json
   - config: field_name, required_fields, strict
-- **OutputBlock**: formats output with jinja2
-  - inputs: * (all accumulated state)
-  - outputs: pipeline_output
-  - config: format_template
+  - category: validators
 - **DiversityScore**: calculates lexical diversity
   - inputs: []
   - outputs: diversity_score
   - config: field_name
+  - category: metrics
 - **CoherenceScore**: calculates text coherence
   - inputs: []
   - outputs: coherence_score
   - config: field_name
+  - category: metrics
 - **RougeScore**: calculates rouge score
   - inputs: []
   - outputs: rouge_score
   - config: generated_field, reference_field, rouge_type
+  - category: metrics
+- **LangfuseBlock**: logs execution to Langfuse observability platform
+  - inputs: * (all accumulated state)
+  - outputs: langfuse_trace_url
+  - config: public_key, secret_key, host, session_id
+  - category: general
 
 ### block discovery
 - registry scans: lib/blocks/builtin/, lib/blocks/custom/, user_blocks/
 - auto-discovers classes inheriting BaseBlock
 - no manual registration needed
 
-## jinja2 templates
+### jinja2 templates
 
 ### runtime rendering
-- LLMBlock renders system/user templates before llm call
+- TextGenerator/StructuredGenerator render system/user templates before llm call
 - uses accumulated_data as context
 - supports: variables, conditionals, loops, filters
 - custom filters: tojson, truncate
@@ -427,7 +457,7 @@ class BaseBlock:
 ### flow
 1. metadata loaded as initial accumulated_data
 2. blocks can modify variables
-3. LLMBlock renders templates with current state
+3. TextGenerator/StructuredGenerator renders templates with current state
 4. pipeline_output extracted from final accumulated_state
 
 ## constraint enforcement

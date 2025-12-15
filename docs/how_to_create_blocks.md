@@ -48,12 +48,16 @@ DataGenFlow includes these atomic blocks:
 **Seeders:**
 - **MarkdownMultiplierBlock**: Split markdown documents into chunks for batch processing
 
+**Observability:**
+- **LangfuseBlock**: Log execution traces to Langfuse observability platform
+
 You can create custom blocks to add your own logic and integrate with external services.
 
 ## Quick Example
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 
 class UppercaseBlock(BaseBlock):
@@ -61,11 +65,12 @@ class UppercaseBlock(BaseBlock):
 
     name = "Uppercase"
     description = "Convert text to uppercase"
+    category = "general"
     inputs = ["text"]
     outputs = ["result"]
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        text = data.get("text", "")
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        text = context.get_state("text", "")
         return {"result": text.upper()}
 ```
 
@@ -77,6 +82,7 @@ That's it! Save this in `user_blocks/uppercase.py` and it's automatically availa
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 
 class MyBlock(BaseBlock):
     # ...
@@ -89,6 +95,7 @@ All custom blocks must inherit from `BaseBlock`.
 ```python
 name = "My Block"           # Display name in UI
 description = "What it does" # Help text for users
+category = "general"         # generators, validators, metrics, seeders, general
 inputs = ["field1", "field2"]  # Expected input fields
 outputs = ["result"]        # Output field names
 ```
@@ -220,9 +227,9 @@ This will generate a UI with:
 ### Execute Method
 
 ```python
-async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-    # 1. Extract inputs
-    input_value = data.get("input_field")
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+    # 1. Extract inputs from accumulated state
+    input_value = context.get_state("input_field")
 
     # 2. Process data
     result = self._do_something(input_value)
@@ -231,10 +238,14 @@ async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
     return {"output_field": result}
 ```
 
-The `data` dict contains:
-- All outputs from previous blocks
-- Initial seed metadata
-- This is called "accumulated state"
+The `context` is a BlockExecutionContext object containing:
+- `accumulated_state`: All outputs from previous blocks + initial seed metadata
+- `trace_id`: Unique execution identifier
+- `job_id`: 0 for API calls, >0 for background jobs
+- `pipeline_id`: Which pipeline is executing
+- `usage`: Cumulative token usage
+- `trace`: Execution history
+- `constraints`: Pipeline limits
 
 ## Step-by-Step Guide
 
@@ -261,17 +272,19 @@ Use this for blocks you might contribute back to the project.
 my custom block that does X
 """
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 
 class MyBlock(BaseBlock):
     name = "My Block"
     description = "Describe what your block does"
+    category = "general"
     inputs = ["required_field"]
     outputs = ["result"]
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         # your logic here
-        value = data.get("required_field")
+        value = context.get_state("required_field")
         result = value.upper()  # example
         return {"result": result}
 ```
@@ -312,6 +325,7 @@ Run: `pytest tests/`
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 
 class SentenceCaseBlock(BaseBlock):
@@ -319,11 +333,12 @@ class SentenceCaseBlock(BaseBlock):
 
     name = "Sentence Case"
     description = "Capitalize first letter, lowercase the rest"
+    category = "general"
     inputs = ["text"]
     outputs = ["result"]
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        text = data.get("text", "")
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        text = context.get_state("text", "")
 
         # early return for empty input
         if not text:
@@ -338,6 +353,7 @@ class SentenceCaseBlock(BaseBlock):
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 
 class TruncateBlock(BaseBlock):
@@ -345,6 +361,7 @@ class TruncateBlock(BaseBlock):
 
     name = "Truncate"
     description = "Limit text to maximum length"
+    category = "general"
     inputs = ["text"]
     outputs = ["result"]
 
@@ -352,8 +369,8 @@ class TruncateBlock(BaseBlock):
         self.max_length = max_length
         self.suffix = suffix
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        text = data.get("text", "")
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        text = context.get_state("text", "")
 
         # no truncation needed
         if len(text) <= self.max_length:
@@ -373,6 +390,7 @@ class TruncateBlock(BaseBlock):
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 
 class CombineBlock(BaseBlock):
@@ -380,15 +398,16 @@ class CombineBlock(BaseBlock):
 
     name = "Combine Text"
     description = "Join two text fields with a separator"
+    category = "general"
     inputs = ["text1", "text2"]
     outputs = ["combined", "length"]
 
     def __init__(self, separator: str = " "):
         self.separator = separator
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        text1 = data.get("text1", "")
-        text2 = data.get("text2", "")
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        text1 = context.get_state("text1", "")
+        text2 = context.get_state("text2", "")
 
         combined = f"{text1}{self.separator}{text2}"
 
@@ -402,6 +421,7 @@ class CombineBlock(BaseBlock):
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 import httpx
 
@@ -410,14 +430,15 @@ class TranslateBlock(BaseBlock):
 
     name = "Translate"
     description = "Translate text to another language"
+    category = "general"
     inputs = ["text"]
     outputs = ["translated"]
 
     def __init__(self, target_language: str = "es"):
         self.target_language = target_language
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        text = data.get("text", "")
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        text = context.get_state("text", "")
 
         # call external translation API
         async with httpx.AsyncClient() as client:
@@ -437,6 +458,7 @@ class TranslateBlock(BaseBlock):
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 import json
 
@@ -445,12 +467,13 @@ class DebugBlock(BaseBlock):
 
     name = "Debug"
     description = "Print all available data"
+    category = "general"
     inputs = ["*"]  # accept everything
     outputs = ["debug_info"]
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         # format all data as JSON
-        debug_info = json.dumps(data, indent=2)
+        debug_info = json.dumps(context.accumulated_state, indent=2)
         print("DEBUG:", debug_info)
 
         return {"debug_info": debug_info}
@@ -460,6 +483,7 @@ class DebugBlock(BaseBlock):
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 from difflib import SequenceMatcher
 
@@ -468,6 +492,7 @@ class TextSimilarityBlock(BaseBlock):
 
     name = "Text Similarity"
     description = "Calculate similarity score between two text fields"
+    category = "metrics"
     inputs = []
     outputs = ["similarity_score"]
 
@@ -484,9 +509,9 @@ class TextSimilarityBlock(BaseBlock):
         self.field1 = field1
         self.field2 = field2
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        text1 = data.get(self.field1, "")
-        text2 = data.get(self.field2, "")
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        text1 = context.get_state(self.field1, "")
+        text2 = context.get_state(self.field2, "")
 
         # calculate similarity
         similarity = SequenceMatcher(None, text1, text2).ratio()
@@ -503,6 +528,7 @@ class TextSimilarityBlock(BaseBlock):
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 import jsonschema
 
@@ -511,6 +537,7 @@ class SchemaValidator(BaseBlock):
 
     name = "Schema Validator"
     description = "Validate JSON data against a custom schema"
+    category = "validators"
     inputs = []
     outputs = ["valid", "errors"]
 
@@ -525,8 +552,8 @@ class SchemaValidator(BaseBlock):
         self.data_field = data_field
         self.schema = schema or {}
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        data_to_validate = data.get(self.data_field)
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        data_to_validate = context.get_state(self.data_field)
 
         try:
             jsonschema.validate(instance=data_to_validate, schema=self.schema)
@@ -544,8 +571,8 @@ class SchemaValidator(BaseBlock):
 ### Error Handling
 
 ```python
-async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-    text = data.get("required_field")
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+    text = context.get_state("required_field")
 
     # validate input exists
     if text is None:
@@ -574,7 +601,7 @@ def __init__(self, max_length: int = 100):
 ### Async Operations
 
 ```python
-async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
     # use await for async operations
     result = await self._fetch_from_api()
 
@@ -617,22 +644,43 @@ from user_blocks.my_block import MyBlock
 async def test_basic_functionality():
     """test that block produces expected output"""
     block = MyBlock()
-    result = await block.execute({"input": "test"})
+    from lib.entities.block_execution_context import BlockExecutionContext
+    
+    context = BlockExecutionContext(
+        trace_id="test",
+        pipeline_id=1,
+        accumulated_state={"input": "test"}
+    )
+    result = await block.execute(context)
     assert result["output"] == "expected"
 
 @pytest.mark.asyncio
 async def test_with_config():
     """test block with custom configuration"""
     block = MyBlock(param=123)
-    result = await block.execute({"input": "test"})
+    from lib.entities.block_execution_context import BlockExecutionContext
+    
+    context = BlockExecutionContext(
+        trace_id="test",
+        pipeline_id=1,
+        accumulated_state={"input": "test"}
+    )
+    result = await block.execute(context)
     assert result["output"] == "expected with param"
 
 @pytest.mark.asyncio
 async def test_missing_input():
     """test error handling for missing inputs"""
     block = MyBlock()
+    from lib.entities.block_execution_context import BlockExecutionContext
+    
+    context = BlockExecutionContext(
+        trace_id="test",
+        pipeline_id=1,
+        accumulated_state={}  # no input provided
+    )
     with pytest.raises(ValueError):
-        await block.execute({})  # no input provided
+        await block.execute(context)
 ```
 
 Run tests:
@@ -665,10 +713,10 @@ In the Review tab:
 ### Print Debugging
 
 ```python
-async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-    print(f"DEBUG: input data = {data}")
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+    print(f"DEBUG: input data = {context.accumulated_state}")
 
-    result = self._process(data)
+    result = self._process(context.accumulated_state)
 
     print(f"DEBUG: result = {result}")
 
@@ -682,8 +730,8 @@ Check terminal/logs for output.
 ### Conditional Logic
 
 ```python
-async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-    text = data.get("text", "")
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+    text = context.get_state("text", "")
 
     # early return for edge cases
     if not text:
@@ -700,10 +748,10 @@ async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
 ```python
 from lib.template_renderer import render_template
 
-async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
     # use jinja2 templates with accumulated state
     template = "Hello {{ name }}, you are {{ age }} years old"
-    result = render_template(template, data)
+    result = render_template(template, context.accumulated_state)
     return {"result": result}
 ```
 
@@ -714,11 +762,11 @@ async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
 # Block 2 outputs: {"uppercase": "HELLO"}
 # Block 3 receives: {"text": "hello", "count": 5, "uppercase": "HELLO"}
 
-async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
     # access outputs from previous blocks
-    original = data.get("text")
-    uppercase = data.get("uppercase")
-    count = data.get("count")
+    original = context.get_state("text")
+    uppercase = context.get_state("uppercase")
+    count = context.get_state("count")
 
     # all previous outputs available
     return {"combined": f"{uppercase} ({count})"}

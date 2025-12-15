@@ -12,6 +12,10 @@
 - **output validation**: blocks must return only declared outputs (enforced at runtime)
 - **execution trace**: full history with input/output/accumulated_state/execution_time per step
 - **trace_id**: unique identifier per execution for log correlation
+- **BlockExecutionContext**: type-safe execution context passed to all blocks (replaces dict[str, Any])
+  - sentinel values: job_id=0 for API calls, job_id>0 for background jobs
+  - field validators: None → {} or [] automatic conversion
+  - no None checks needed: trace_id always present, usage always exists
 - **usage tracking**: automatic token usage tracking (input/output/cached tokens + timing)
 - **pipeline constraints**: optional limits (max tokens, max execution time) stop job when exceeded
   - constraints stored in pipeline.definition["constraints"]
@@ -20,10 +24,6 @@
 - **pipeline_output**: special field for visualization (any block can set, defaults to assistant or last block's first output)
 - **error handling**: structured exceptions with context (BlockNotFoundError, BlockExecutionError, ValidationError)
 - **pipeline templates**: pre-configured pipelines for quick start
-- **BlockExecutionContext**: type-safe execution context passed to all blocks (replaces dict[str, Any])
-  - sentinel values: job_id=0 for API calls, job_id>0 for background jobs
-  - field validators: None → {} or [] automatic conversion
-  - no None checks needed: trace_id always present, usage always exists
 
 ### stack
 - backend: fastapi + aiosqlite + pydantic + jinja2 + pyyaml + litellm + rouge-score
@@ -41,7 +41,9 @@ lib/
     config.py         # BlockConfigSchema (schema extraction with defaults/enums/field_refs)
     registry.py       # auto-discovery engine
   entities/
+    block_execution_context.py  # BlockExecutionContext
     pipeline.py       # ExecutionResult, Constraints, Usage pydantic models
+    api.py, database.py, job.py, record.py, llm_config.py
   templates/          # pipeline templates (yaml files)
     __init__.py       # TemplateRegistry class
   errors.py           # custom exception classes
@@ -50,14 +52,16 @@ lib/
   template_renderer.py  # Jinja2 template renderer
   job_queue.py        # JobQueue class (in-memory job tracking)
   job_processor.py    # background job processing (usage tracking + constraint enforcement)
+  llm_config.py       # LLMConfigManager
+  constants.py        # constants (RECORD_UPDATABLE_FIELDS)
 
 frontend/
   src/
     pages/
-      Builder.tsx     # visual pipeline builder
       Pipelines.tsx   # pipeline manager
       Generator.tsx   # dataset generation
       Review.tsx      # review records with trace
+      Settings.tsx    # LLM configuration
 
 tests/
   conftest.py         # test configuration (test db, fixtures)
@@ -148,7 +152,7 @@ class BaseBlock:
 
 ### builtin blocks
 
-**8 atomic blocks (research blocks removed)**
+**8 atomic blocks + 1 observability block**
 
 **generators:**
 - **TextGenerator**: generate text using litellm
@@ -202,6 +206,12 @@ class BaseBlock:
   - inputs: * (all accumulated state)
   - outputs: valid (bool), parsed_json (object/null)
   - config: field_name, required_fields, strict
+
+**observability:**
+- **LangfuseBlock**: log execution to Langfuse observability platform
+  - inputs: * (all accumulated state)
+  - outputs: langfuse_trace_url
+  - config: public_key, secret_key, host, session_id
 
 ## error handling
 
@@ -616,7 +626,7 @@ uv run pytest --cov=lib --cov=app tests/
 **production ready** - full-stack data generation platform with visual pipeline builder
 
 ### core features
-- 8 atomic blocks: TextGenerator, StructuredGenerator, MarkdownMultiplierBlock, ValidatorBlock, JSONValidatorBlock, DiversityScore, CoherenceScore, RougeScore
+- 9 blocks: TextGenerator, StructuredGenerator, MarkdownMultiplierBlock, ValidatorBlock, JSONValidatorBlock, DiversityScore, CoherenceScore, RougeScore, LangfuseBlock
 - block auto-discovery from builtin/, custom/, user_blocks/
 - visual reactflow pipeline editor with drag-and-drop
 - jinja2 template rendering with custom filters
@@ -628,14 +638,16 @@ uv run pytest --cov=lib --cov=app tests/
 - execution trace with timing and accumulated state
 - structured error handling with context
 - cross-platform sqlite storage with migrations
-- 88 passing tests
+- BlockExecutionContext for type-safe block execution
+- LLM configuration management (multiple providers/models)
 
 ### ui
-- 3 pages: Pipelines (templates + editor), Generator (upload + progress), Review (cards + trace)
+- 4 pages: Pipelines (templates + list + editor), Generator (upload + progress), Review (cards + trace), Settings (LLM config)
 - primer react components with dark mode
 - real-time job progress (2-second polling)
 - accumulated state visualization per block
 - validation before pipeline save
+- LLM configuration UI with provider selection
 
 ---
 
@@ -655,6 +667,7 @@ from typing import Any
 class MyBlock(BaseBlock):
     name = "My Block"
     description = "Does something useful"
+    category = "general"  # generators, validators, metrics, seeders, general
     inputs = ["text"]
     outputs = ["result"]
 

@@ -17,16 +17,22 @@ Complete technical documentation for DataGenFlow developers.
 ```text
 lib/
   blocks/
-    builtin/          # Stable blocks (llm, validator, json_validator, output)
+    builtin/          # Stable blocks (text_generator, structured_generator, validators, metrics)
     custom/           # Experimental blocks
     base.py           # BaseBlock interface
+    config.py         # BlockConfigSchema (schema extraction)
     registry.py       # Auto-discovery engine
+  entities/           # Pydantic models
+    block_execution_context.py  # BlockExecutionContext
+    pipeline.py       # ExecutionResult, Constraints, Usage
+    api.py, database.py, job.py, record.py, llm_config.py
   templates/          # Pipeline templates (YAML)
   errors.py           # Custom exception classes
   workflow.py         # Pipeline execution with tracing
   storage.py          # Database operations (aiosqlite)
-  generator.py        # LLM wrapper (OpenAI-compatible)
   template_renderer.py  # Jinja2 template rendering
+  llm_config.py       # LLMConfigManager
+  constants.py        # Constants (RECORD_UPDATABLE_FIELDS)
 
 frontend/
   src/
@@ -34,6 +40,7 @@ frontend/
       Pipelines.tsx   # Visual pipeline builder and manager
       Generator.tsx   # Dataset generation with progress tracking
       Review.tsx      # Review records with execution traces
+      Settings.tsx    # LLM configuration
     components/
       pipeline-editor/  # ReactFlow-based visual editor
 
@@ -382,17 +389,19 @@ make lint-frontend  # Check
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 
 class MyBlock(BaseBlock):
     # Required class attributes
     name: str = "My Block"
     description: str = "What this block does"
+    category: str = "general"  # generators, validators, metrics, seeders, general
     inputs: list[str] = ["input_field"]
     outputs: list[str] = ["output_field"]
     
     # Optional: Get config schema for UI
-    def get_schema(self) -> dict[str, Any]:
+    def get_config_schema(self) -> dict[str, Any]:
         return {
             "my_param": {
                 "type": "string",
@@ -402,12 +411,12 @@ class MyBlock(BaseBlock):
         }
     
     # Required: Execute logic
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         # Access config
         param = self.config.get("my_param", "default")
         
-        # Access input
-        input_value = data["input_field"]
+        # Access input from accumulated state
+        input_value = context.get_state("input_field")
         
         # Your logic here
         result = process(input_value, param)
@@ -432,13 +441,20 @@ class MyBlock(BaseBlock):
 
 ```python
 import pytest
+from lib.entities.block_execution_context import BlockExecutionContext
 from your_block import MyBlock
 
 @pytest.mark.asyncio
 async def test_my_block():
     block = MyBlock(config={"my_param": "test"})
     
-    result = await block.execute({"input_field": "test data"})
+    context = BlockExecutionContext(
+        trace_id="test",
+        pipeline_id=1,
+        accumulated_state={"input_field": "test data"}
+    )
+    
+    result = await block.execute(context)
     
     assert "output_field" in result
     assert result["output_field"] == expected_value

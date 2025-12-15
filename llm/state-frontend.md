@@ -20,6 +20,7 @@ frontend/
       Pipelines.tsx      # template cards + pipeline list + reactflow editor
       Generator.tsx      # seed upload + job progress + error handling
       Review.tsx         # card-based records with collapsible trace, job filter
+      Settings.tsx       # LLM configuration (providers, models, API keys)
     components/
       GlobalJobIndicator.tsx  # header job status indicator
       ErrorModal.tsx          # error dialog for validation/network errors
@@ -92,6 +93,14 @@ frontend/
   - records appear incrementally as backend saves them (~5-7 sec intervals)
   - view stability: tracks current record by ID, not array index
   - when new records arrive, current view stays on same record (single mode)
+
+### Settings.tsx
+- LLM configuration management
+- provider/model selection with presets
+- API key configuration
+- connection testing
+- default model selection
+- supports multiple LLM providers (OpenAI, Anthropic, Ollama, etc.)
 
 ## components
 
