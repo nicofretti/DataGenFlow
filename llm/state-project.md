@@ -2,439 +2,215 @@
 > The file should reflect the current status of the project for remembering purposes
 > to describe the actual design, decisions and implementations. It must be technical and include the minimal number of words
 
-# technical reference
+# project state
 
 ## architecture
 
 ### core concepts
-- **block-based pipelines**: compose workflows from reusable blocks
-- **sequential execution**: blocks execute in order, accumulated state flows through
-- **output validation**: blocks must return only declared outputs (enforced at runtime)
-- **execution trace**: full history with input/output/accumulated_state/execution_time per step
-- **trace_id**: unique identifier per execution for log correlation
-- **BlockExecutionContext**: type-safe execution context passed to all blocks (replaces dict[str, Any])
-  - sentinel values: job_id=0 for API calls, job_id>0 for background jobs
-  - field validators: None → {} or [] automatic conversion
-  - no None checks needed: trace_id always present, usage always exists
-- **usage tracking**: automatic token usage tracking (input/output/cached tokens + timing)
-- **pipeline constraints**: optional limits (max tokens, max execution time) stop job when exceeded
-  - constraints stored in pipeline.definition["constraints"]
-  - enforced in two paths: workflow.py (multiplier) and job_processor.py (normal)
-  - job status becomes "stopped" with constraint error message
-- **pipeline_output**: special field for visualization (any block can set, defaults to assistant or last block's first output)
-- **error handling**: structured exceptions with context (BlockNotFoundError, BlockExecutionError, ValidationError)
-- **pipeline templates**: pre-configured pipelines for quick start
+- **block pipelines**: compose workflows from reusable blocks
+- **sequential execution**: blocks in order, accumulated state flows through
+- **output validation**: blocks return only declared outputs (runtime enforced)
+- **trace**: full history (input/output/accumulated_state/execution_time per step)
+- **trace_id**: unique per execution for log correlation
+- **BlockExecutionContext**: type-safe context (job_id=0 for API, job_id>0 for jobs)
+- **usage tracking**: automatic token tracking (input/output/cached + timing)
+- **constraints**: optional limits (tokens, time) stop job when exceeded
+- **pipeline_output**: visualization field (defaults to assistant or last block output)
+- **error handling**: structured exceptions with context
 
 ### stack
-- backend: fastapi + aiosqlite + pydantic + jinja2 + pyyaml + litellm + rouge-score
-- frontend: react + typescript + primer react + reactflow
-- testing: pytest + pytest-asyncio
-- tools: uv (python), yarn (js)
+backend: fastapi + aiosqlite + pydantic + jinja2 + litellm + rouge-score
+frontend: react + typescript + primer + reactflow + monaco + shadcn/ui
+testing: pytest + pytest-asyncio
+tools: uv (python), yarn (js)
 
 ### directory structure
 ```
 lib/
   blocks/
-    builtin/          # atomic blocks (text_generator, structured_generator, metrics, validators)
-    custom/           # experimental blocks
+    builtin/          # 9 blocks (text/structured gen, multiplier, validators, metrics, langfuse)
+    custom/           # experimental
     base.py           # BaseBlock interface
-    config.py         # BlockConfigSchema (schema extraction with defaults/enums/field_refs)
-    registry.py       # auto-discovery engine
-  entities/
-    block_execution_context.py  # BlockExecutionContext
-    pipeline.py       # ExecutionResult, Constraints, Usage pydantic models
-    api.py, database.py, job.py, record.py, llm_config.py
-  templates/          # pipeline templates (yaml files)
-    __init__.py       # TemplateRegistry class
-  errors.py           # custom exception classes
-  workflow.py         # Pipeline class (execution + validation + tracing)
-  storage.py          # Storage class (crud + migrations)
-  template_renderer.py  # Jinja2 template renderer
-  job_queue.py        # JobQueue class (in-memory job tracking)
-  job_processor.py    # background job processing (usage tracking + constraint enforcement)
+    config.py         # schema extraction
+    registry.py       # auto-discovery
+  entities/           # pydantic models (BlockExecutionContext, Pipeline, Job, Record, etc)
+  templates/          # yaml templates + TemplateRegistry
+  errors.py           # structured exceptions
+  workflow.py         # Pipeline execution + validation + tracing
+  storage.py          # sqlite crud + migrations
+  template_renderer.py  # jinja2 renderer
+  job_queue.py        # in-memory tracking
+  job_processor.py    # background processing + usage + constraints
   llm_config.py       # LLMConfigManager
-  constants.py        # constants (RECORD_UPDATABLE_FIELDS)
 
-frontend/
-  src/
-    pages/
-      Pipelines.tsx   # pipeline manager
-      Generator.tsx   # dataset generation
-      Review.tsx      # review records with trace
-      Settings.tsx    # LLM configuration
+frontend/src/
+  pages/              # Pipelines, Generator, Review, Settings
+  components/         # GlobalJobIndicator, pipeline-editor/, settings/, ui/
 
 tests/
-  conftest.py         # test configuration (test db, fixtures)
+  conftest.py         # test db setup
   blocks/             # block unit tests
-  test_api.py         # api endpoint tests
-  test_workflow.py    # pipeline execution tests
-  test_storage_comprehensive.py  # storage crud tests
-  test_integration.py # end-to-end tests
-  test_error_handling_api.py  # error handling tests
+  integration/        # end-to-end tests
+  test_*.py           # api, workflow, storage, constraints, cancellation
 ```
 
 ## execution model
 
 ### BlockExecutionContext
-**type-safe execution context** passed to all blocks (lib/entities/block_execution_context.py)
+type-safe context passed to all blocks (lib/entities/block_execution_context.py)
 
 ```python
 class BlockExecutionContext(BaseModel):
-    trace_id: str                      # unique execution identifier
-    job_id: int = 0                    # 0 = API call, >0 = background job
-    pipeline_id: int                   # which pipeline is executing
-    accumulated_state: dict[str, Any]  # outputs from previous blocks
-    usage: Usage                       # cumulative token usage
+    trace_id: str                      # unique execution id
+    job_id: int = 0                    # 0=API, >0=job
+    pipeline_id: int
+    accumulated_state: dict[str, Any]  # previous outputs
+    usage: Usage                       # token tracking
     trace: list[dict[str, Any]]        # execution history
-    constraints: Constraints           # pipeline limits
+    constraints: Constraints           # limits
 ```
 
-**key benefits:**
-- **no None checks**: trace_id always present, job_id uses sentinel value (0)
-- **type safety**: IDE autocomplete and type checking
-- **clear semantics**: `if job_id > 0:` instead of `if job_id:`
-- **single source of truth**: all execution state in one place
-
-**field validators:**
-- Job.usage: None → {} (empty dict)
-- Record.trace: None → [] (empty list)
-- eliminates redundant None checks throughout codebase
-
-**usage pattern:**
-```python
-async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
-    # access previous outputs
-    user_input = context.get_state("user", "")
-
-    # check if background job
-    if context.job_id > 0:
-        # job-specific logic
-        pass
-
-    # trace_id always present (no None check)
-    metadata = {"trace_id": context.trace_id}
-
-    return {"output": "..."}
-```
+**benefits**: no None checks, type safety, sentinel job_id, single source of truth
+**validators**: Job.usage None→{}, Record.trace None→[]
 
 ## block system
 
 ### BaseBlock interface
 ```python
-from lib.entities.block_execution_context import BlockExecutionContext
-
 class BaseBlock:
-    name: str              # display name
-    description: str       # what it does
-    inputs: list[str]      # required input fields
-    outputs: list[str]     # declared output fields
-
-    # optional class attributes for UI configuration
-    _config_enums: dict[str, list] = {}      # enum dropdowns: {"param": ["opt1", "opt2"]}
-    _field_references: list[str] = []        # field dropdowns: ["generated_field", "reference_field"]
+    name: str
+    description: str
+    inputs: list[str]
+    outputs: list[str]
+    _config_enums: dict[str, list] = {}      # dropdown options
+    _field_references: list[str] = []        # field dropdowns
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
-        # receives typed execution context instead of plain dict
-        # access state: context.get_state("key", default)
-        # must return only fields declared in outputs
+        # must return only declared outputs
         pass
 
-    def get_schema(self) -> dict:
-        # returns schema with defaults, enums, and field_refs extracted from __init__
+    def get_schema() -> dict:
+        # auto-extracts from __init__ signature
         pass
 ```
 
-### block discovery
-- registry scans: `lib/blocks/builtin/`, `lib/blocks/custom/`, `user_blocks/`
-- discovers all classes inheriting from BaseBlock
-- auto-registers on startup
-- no manual registration needed
-
-### builtin blocks
-
-**8 atomic blocks + 1 observability block**
+### builtin blocks (9 total)
 
 **generators:**
-- **TextGenerator**: generate text using litellm
-  - inputs: [] (optional: system, user from data)
-  - outputs: assistant, system, user
-  - config: model, temperature, max_tokens, system_prompt, user_prompt
-  - uses litellm.acompletion for multi-provider LLM access
-  - auto-detects ollama: adds "ollama/" prefix and fixes api_base url
-
-- **StructuredGenerator**: generate structured JSON using litellm
-  - inputs: [] (optional: user_prompt from data)
-  - outputs: generated (dict)
-  - config: json_schema, model, temperature, max_tokens, user_prompt
-  - uses litellm response_format for JSON mode
-  - auto-detects ollama: adds "ollama/" prefix and fixes api_base url
+- TextGenerator: litellm text (system_prompt, user_prompt, model, temp, max_tokens) → assistant, system, user
+- StructuredGenerator: litellm json (json_schema, user_prompt, model, temp, max_tokens) → generated
 
 **multipliers:**
-- **MarkdownMultiplierBlock**: split markdown into chunks (must be first block)
-  - inputs: [] (requires file_content from metadata)
-  - outputs: content (per chunk)
-  - config: none
-  - is_multiplier: true
-  - generates N seeds from single input file
-
-**metrics (individual blocks, configurable field names):**
-- **DiversityScore**: calculate lexical diversity for text variations
-  - inputs: []
-  - outputs: diversity_score (float 0-1)
-  - config: field_name (default: "assistant")
-  - _field_references: ["field_name"]
-
-- **CoherenceScore**: measure text coherence based on sentence structure
-  - inputs: []
-  - outputs: coherence_score (float 0-1)
-  - config: field_name (default: "assistant")
-  - _field_references: ["field_name"]
-
-- **RougeScore**: calculate ROUGE score comparing generated vs reference text
-  - inputs: []
-  - outputs: rouge_score (float 0-1)
-  - config: generated_field, reference_field, rouge_type
-  - _config_enums: {"rouge_type": ["rouge1", "rouge2", "rougeL"]}
-  - _field_references: ["generated_field", "reference_field"]
+- MarkdownMultiplierBlock: split markdown (file_content required, is_multiplier: true) → content (per chunk)
 
 **validators:**
-- **ValidatorBlock**: validates text/assistant against rules
-  - inputs: text, assistant (prefers non-empty)
-  - outputs: text, valid, assistant
+- ValidatorBlock: text rules (min_length, max_length, forbidden_words) → text, valid, assistant
+- JSONValidatorBlock: parse json (field_name, required_fields, strict) → valid, parsed_json
 
-- **JSONValidatorBlock**: parse and validate JSON from any field
-  - inputs: * (all accumulated state)
-  - outputs: valid (bool), parsed_json (object/null)
-  - config: field_name, required_fields, strict
+**metrics:**
+- DiversityScore: lexical diversity (field_name) → diversity_score
+- CoherenceScore: text coherence (field_name) → coherence_score
+- RougeScore: rouge comparison (generated_field, reference_field, rouge_type) → rouge_score
 
 **observability:**
-- **LangfuseBlock**: log execution to Langfuse observability platform
-  - inputs: * (all accumulated state)
-  - outputs: langfuse_trace_url
-  - config: public_key, secret_key, host, session_id
+- LangfuseBlock: logging (public_key, secret_key, host, session_id) → langfuse_trace_url
+
+### discovery
+registry scans lib/blocks/builtin/, lib/blocks/custom/, user_blocks/ for BaseBlock subclasses
 
 ## error handling
 
-### custom exceptions (lib/errors.py)
+### exceptions (lib/errors.py)
 ```python
 class PipelineError(Exception):
-    """Base exception for all pipeline-related errors"""
-    def __init__(self, message: str, detail: dict | None = None):
-        self.message = message
-        self.detail = detail or {}
+    message: str
+    detail: dict | None
 
-class BlockNotFoundError(PipelineError):
-    """Raised when a block type is not registered"""
-    # detail includes: block_type, available_blocks
-
-class BlockExecutionError(PipelineError):
-    """Raised when a block fails during execution"""
-    # detail includes: block_type, step, error, input
-
-class ValidationError(PipelineError):
-    """Raised when a block returns fields not declared in outputs"""
-    # detail includes: block_type, declared_outputs, actual_outputs, extra_fields
+class BlockNotFoundError(PipelineError):  # detail: block_type, available_blocks
+class BlockExecutionError(PipelineError):  # detail: block_type, step, error, input
+class ValidationError(PipelineError):      # detail: declared_outputs, actual_outputs, extra_fields
 ```
 
-### error responses
-All API errors return structured JSON:
-```json
-{
-  "error": "Block 'LLMBlock' failed at step 2: Connection timeout",
-  "detail": {
-    "block_type": "LLMBlock",
-    "step": 2,
-    "error": "Connection timeout",
-    "input": {...}
-  }
-}
-```
-
-### job cancellation handling
-**critical fix:** job cancellation now properly stops background processing at 4 checkpoints:
-- normal pipeline: before each block (workflow.py:126-137)
-- multiplier pipeline: before each seed (workflow.py:438-443)
-- multiplier pipeline: before each block within seed (workflow.py:312-317)
-- job processor: after inner loop completes (job_processor.py:310-318)
-
-previously, cancellation only broke from inner loops (repetitions) but continued processing remaining seeds. now cancellation stops immediately at next checkpoint.
+all API errors return: `{"error": "message", "detail": {...}}`
 
 ## pipeline execution
 
 ### signature
 ```python
-# normal pipeline (single result)
-async def execute(self, initial_data: dict[str, Any]) -> tuple[dict[str, Any], list[dict], str]:
-    # returns: (result, trace, trace_id)
+# normal: single result
+async def execute(initial_data: dict) -> tuple[dict, list[dict], str]:
+    return (result, trace, trace_id)
 
-# multiplier pipeline (multiple results)
-async def execute(self, initial_data: dict[str, Any]) -> list[tuple[dict[str, Any], list[dict], str]]:
-    # returns: [(result, trace, trace_id), ...]
+# multiplier: multiple results
+async def execute(initial_data: dict) -> list[tuple[dict, list[dict], str]]:
+    return [(result, trace, trace_id), ...]
 ```
 
-### multiplier detection
-```python
-has_multiplier = (
-    len(pipeline._block_instances) > 0
-    and getattr(pipeline._block_instances[0], "is_multiplier", False)
-)
-```
-multiplier blocks must be first in pipeline and generate multiple seeds from single input
+multiplier detection: `getattr(first_block, "is_multiplier", False)`
 
 ### flow
+1. generate trace_id (uuid)
+2. copy initial_data to accumulated_data
+3. for each block:
+   - execute with accumulated_data
+   - validate output matches declared outputs
+   - merge result into accumulated_data
+   - set pipeline_output if last block and not set
+   - append to trace
+4. return (accumulated_data, trace, trace_id)
+
+multiplier flow: first block generates N seeds, execute remaining blocks per seed, save incrementally
+
+### trace format
 ```python
-async def execute(self, initial_data: dict[str, Any]) -> tuple[dict[str, Any], list[dict], str]:
-    trace_id = str(uuid.uuid4())
-    accumulated_data = initial_data.copy()
-    trace = []
-
-    logger.info(f"[{trace_id}] Starting pipeline '{self.name}' with {len(self._block_instances)} blocks")
-
-    for i, block in enumerate(self._block_instances):
-        logger.debug(f"[{trace_id}] Executing block {i + 1}/{len(self._block_instances)}: {block_name}")
-
-        start_time = time.time()
-        try:
-            # 1. execute block with accumulated data
-            result = await block.execute(accumulated_data)
-            execution_time = time.time() - start_time
-
-            logger.debug(f"[{trace_id}] {block_name} completed in {execution_time:.3f}s")
-
-            # 2. validate output matches declared schema
-            self._validate_output(block, result)
-
-            # 3. merge result into accumulated data
-            accumulated_data.update(result)
-
-            # 4. set pipeline_output if not already set and this is the last block
-            if is_last_block and "pipeline_output" not in accumulated_data:
-                if "assistant" in accumulated_data:
-                    accumulated_data["pipeline_output"] = accumulated_data["assistant"]
-                elif block.outputs:
-                    accumulated_data["pipeline_output"] = accumulated_data[block.outputs[0]]
-
-            # 5. capture trace
-            trace.append({
-                "block_type": block_name,
-                "input": block_input,
-                "output": result,
-                "accumulated_state": accumulated_data.copy(),
-                "execution_time": execution_time
-            })
-        except ValidationError:
-            logger.error(f"[{trace_id}] {block_name} validation error at step {i + 1}")
-            raise
-        except Exception as e:
-            logger.error(f"[{trace_id}] {block_name} failed at step {i + 1}: {str(e)}")
-            raise BlockExecutionError(...)
-
-    logger.info(f"[{trace_id}] Pipeline '{self.name}' completed successfully")
-    return accumulated_data, trace, trace_id
-```
-
-### key patterns
-- **trace_id**: unique uuid per execution, included in all logs for correlation
-- **execution_time**: per-block timing captured in trace
-- **accumulated state**: union of all block outputs flows through pipeline
-- **output validation**: `actual_keys.issubset(declared_keys)` enforced
-- **trace format**: `[{block_type, input, output, accumulated_state, execution_time}, ...]`
-- **pipeline_output**: last-wins if multiple blocks set it
-- **error context**: BlockExecutionError includes block name, step number, input data
-
-## jinja2 template system
-
-### template renderer (lib/template_renderer.py)
-```python
-class TemplateRenderer:
-    """jinja2-based template renderer with custom filters"""
-
-    def render(self, template_str: str, context: dict[str, Any]) -> str:
-        # renders jinja2 template with context
-        # supports: variables, conditionals, loops, filters, nested access
-```
-
-### supported syntax
-```jinja2
-# variables
-{{ variable }}
-
-# conditionals
-{% if condition %}...{% endif %}
-
-# loops
-{% for item in list %}{{ item }}{% endfor %}
-
-# filters
-{{ variable | upper }}
-{{ dict | tojson }}
-{{ long_text | truncate(50) }}
-
-# nested access
-{{ metadata.field.nested }}
-```
-
-### custom filters
-- **tojson**: pretty-print dicts/lists as JSON
-- **truncate(length)**: truncate strings with ellipsis
-
-### runtime template rendering
-- templates in seed files use jinja2 syntax: `{{ variable }}`
-- TextGenerator/StructuredGenerator render prompts with current accumulated state
-- variables can be modified by blocks before generation
-- templates always use latest values from accumulated state
-
-### example flow
-```json
 {
-  "metadata": {
-    "role": "assistant",
-    "topic": "AI"
-  }
+    "block_type": "ValidatorBlock",
+    "input": {"assistant": "hello"},
+    "output": {"valid": True, "assistant": "hello"},
+    "accumulated_state": {"assistant": "hello", "valid": True, ...},
+    "execution_time": 0.001
 }
 ```
-1. initial state: `role = "assistant"`, `topic = "AI"`
-2. blocks can modify: `accumulated_state["role"] = "expert"`
-3. TextGenerator renders prompt: `"You are an expert. Explain AI."`
-4. rendered values saved to record
+
+## jinja2 templates
+
+### renderer (lib/template_renderer.py)
+renders jinja2 with custom filters (tojson, truncate)
+supports: variables `{{ var }}`, conditionals `{% if %}`, loops `{% for %}`, filters `{{ var | upper }}`
+
+### runtime rendering
+- seed metadata loaded as initial accumulated_state
+- blocks can modify variables
+- TextGenerator/StructuredGenerator render prompts with current state
+- templates always use latest values
+
+### example
+```json
+{"metadata": {"role": "assistant", "topic": "AI"}}
+```
+→ blocks modify role to "expert"
+→ TextGenerator renders: "You are an expert. Explain AI."
 
 ## pipeline templates
 
-### template registry (lib/templates/__init__.py)
-```python
-class TemplateRegistry:
-    def __init__(self, templates_dir: Path | None = None):
-        self.templates_dir = templates_dir or Path(__file__).parent
-        self._templates: dict[str, dict[str, Any]] = {}
-        self._load_templates()  # loads *.yaml files
+### TemplateRegistry (lib/templates/)
+loads *.yaml from lib/templates/, auto-discovered on startup
 
-    def list_templates(self) -> list[dict[str, Any]]:
-        # returns: [{"id": "...", "name": "...", "description": "..."}, ...]
-
-    def get_template(self, template_id: str) -> dict[str, Any] | None:
-        # returns template definition with blocks
-```
-
-### template format (YAML)
+### format
 ```yaml
 name: Template Name
-description: What this template does
+description: What it does
 blocks:
   - type: TextGenerator
     config:
       user_prompt: "Generate text about {{ topic }}"
       temperature: 0.7
-
-  - type: JSONValidatorBlock
-    config:
-      field_name: "assistant"
-      strict: false
 ```
 
-### built-in templates
-- **json_generation**: Extract title and description from text (StructuredGenerator + JSONValidator)
-- **text_classification**: Classify text into categories with confidence (StructuredGenerator + JSONValidator)
-- **qa_generation**: Generate Q&A pairs from text (TextGenerator + StructuredGenerator + JSONValidator)
+### built-in (3 templates)
+- **json_generation**: extract title/description (StructuredGenerator + JSONValidator)
+- **text_classification**: classify with confidence (StructuredGenerator + JSONValidator)
+- **qa_generation**: generate Q&A pairs (TextGenerator + StructuredGenerator + JSONValidator)
 
 ## storage
 
@@ -567,254 +343,96 @@ When `DEBUG=true`:
 
 ## testing
 
-### test database isolation
-- environment variable set in `tests/conftest.py` before any imports
-- `DATABASE_PATH=data/test_qa_records.db`
-- session fixture deletes test db before and after all tests
-- production database (`data/qa_records.db`) never touched by tests
+### structure
+blocks/, integration/, test_api.py, test_workflow.py, test_storage.py, test_constraints.py, test_job_cancellation.py
 
-### test fixtures
-```python
-# conftest.py
-@pytest.fixture(scope="session", autouse=True)
-def cleanup_test_db():
-    """Clean up test database before and after test session"""
-    test_db = Path("data/test_qa_records.db")
-    if test_db.exists():
-        test_db.unlink()
-    yield
-    if test_db.exists():
-        test_db.unlink()
+### patterns
+- DATABASE_PATH=data/test_qa_records.db (isolated from production)
+- session fixture: cleanup before/after tests
+- @pytest.mark.asyncio for async tests
+- pipeline.execute() returns (result, trace, trace_id)
 
-@pytest.fixture(scope="function")
-def client():
-    """Create test client with lifespan handling"""
-    from app import app
-    with TestClient(app) as client:
-        yield client
-```
+### run
+`uv run pytest tests/ -v` or `uv run pytest --cov=lib --cov=app tests/`
 
-### test structure
-- **blocks/**: unit tests for each block
-- **test_api.py**: api endpoint tests
-- **test_workflow.py**: pipeline execution tests
-- **test_storage_comprehensive.py**: storage crud tests
-- **test_integration.py**: end-to-end scenarios
-- **test_error_handling_api.py**: error handling tests
+## status
 
-### key patterns
-- use `@pytest.mark.asyncio` for async tests
-- `pipeline.execute()` returns `(result, trace, trace_id)` tuple
-- mock Generator with `@patch('lib.generator.Generator.generate')`
-- test database automatically created/cleaned up
-- client fixture handles app lifespan events
+production-ready full-stack data generation platform
 
-### running tests
-```bash
-# all tests
-uv run pytest tests/ -v
-
-# specific suite
-uv run pytest tests/blocks/ -v
-
-# with coverage
-uv run pytest --cov=lib --cov=app tests/
-```
-
-## current status
-
-**production ready** - full-stack data generation platform with visual pipeline builder
-
-### core features
-- 9 blocks: TextGenerator, StructuredGenerator, MarkdownMultiplierBlock, ValidatorBlock, JSONValidatorBlock, DiversityScore, CoherenceScore, RougeScore, LangfuseBlock
-- block auto-discovery from builtin/, custom/, user_blocks/
-- visual reactflow pipeline editor with drag-and-drop
-- jinja2 template rendering with custom filters
-- 3 yaml pipeline templates
-- background job processing with real-time progress tracking
-- full crud api for pipelines, jobs, records
-- incremental record visibility during execution
-- job-scoped operations (delete, export, filter)
-- execution trace with timing and accumulated state
-- structured error handling with context
-- cross-platform sqlite storage with migrations
-- BlockExecutionContext for type-safe block execution
-- LLM configuration management (multiple providers/models)
-
-### ui
-- 4 pages: Pipelines (templates + list + editor), Generator (upload + progress), Review (cards + trace), Settings (LLM config)
-- primer react components with dark mode
-- real-time job progress (2-second polling)
-- accumulated state visualization per block
-- validation before pipeline save
-- LLM configuration UI with provider selection
-
----
+### features
+- 9 blocks (generators, multiplier, validators, metrics, observability)
+- auto-discovery from builtin/custom/user_blocks
+- reactflow visual editor with drag-drop
+- jinja2 templates + 3 yaml templates
+- background jobs with real-time progress
+- incremental record visibility
+- job-scoped delete/export/filter
+- execution trace with timing
+- structured errors with context
+- sqlite with migrations
+- type-safe BlockExecutionContext
+- LLM/embedding config management (multi-provider)
+- 4 pages: Pipelines, Generator, Review, Settings
+- primer + dark mode
+- accumulated state visualization
+- constraint enforcement (tokens, time)
 
 ## common tasks
 
-### adding new block
-1. create file in `lib/blocks/custom/myblock.py`
-2. inherit from BaseBlock
-3. define name, description, inputs, outputs
-4. implement `async def execute()`
-
+### add block
 ```python
+# lib/blocks/custom/myblock.py
 from lib.blocks.base import BaseBlock
 from lib.entities.block_execution_context import BlockExecutionContext
-from typing import Any
 
 class MyBlock(BaseBlock):
-    name = "My Block"
-    description = "Does something useful"
-    category = "general"  # generators, validators, metrics, seeders, general
-    inputs = ["text"]
-    outputs = ["result"]
-
-    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
-        text = context.get_state("text", "")
-        return {"result": text.upper()}
+    name, description, category, inputs, outputs = ...
+    async def execute(self, context: BlockExecutionContext) -> dict:
+        return {"result": context.get_state("text", "").upper()}
 ```
 
-### adding pipeline template
-1. create yaml file in `lib/templates/my_template.yaml`
-2. define name, description, blocks
-
+### add template
 ```yaml
+# lib/templates/my_template.yaml
 name: My Template
 description: What it does
 blocks:
   - type: TextGenerator
     config:
-      user_prompt: "Generate about {{ topic }}"
-      temperature: 0.7
-
-  - type: JSONValidatorBlock
-    config:
-      field_name: "assistant"
+      user_prompt: "Generate {{ topic }}"
 ```
 
-auto-discovered on startup, available via `GET /api/templates`
-
-### seed file format
-seed files provide metadata variables for pipeline execution:
-
+### seed format
 ```json
-[
-  {
-    "repetitions": 2,
-    "metadata": {
-      "system": "You are a {{ role }} who specializes in {{ domain }}.",
-      "user": "Explain {{ topic }} in simple terms.",
-      "role": "teacher",
-      "domain": "physics",
-      "topic": "gravity"
-    }
-  }
-]
+[{"repetitions": 2, "metadata": {"system": "You are {{ role }}", "role": "teacher"}}]
 ```
+metadata → initial accumulated_state → blocks execute → templates render → pipeline_output extracted
 
-**flow:**
-1. metadata loaded as initial accumulated state
-2. pipeline blocks execute, can access and modify variables
-3. TextGenerator/StructuredGenerator render prompts with current accumulated state
-4. pipeline_output extracted from final trace's accumulated_state
-5. record saved with output field (extracted from pipeline_output)
-
-### adding storage method
-```python
-async def my_method(self, param: str) -> Any:
-    async def _operation(db):
-        cursor = await db.execute("SELECT * FROM table WHERE field = ?", (param,))
-        return await cursor.fetchone()
-    return await self._execute_with_connection(_operation)
-```
-
-### debugging with trace_id
-1. enable debug mode: `DEBUG=true` in .env
-2. execute pipeline, note trace_id in response
-3. grep logs for trace_id: `grep "a1b2c3d4" logs.txt`
-4. see full execution flow with timing
+### debug with trace_id
+DEBUG=true, grep logs for trace_id, see execution flow with timing
 
 ## important notes
 
 ### output validation
-- blocks MUST return only declared outputs
-- extra fields cause ValidationError
-- enforced at runtime in pipeline.execute()
-- error includes: block_type, declared_outputs, actual_outputs, extra_fields
+blocks MUST return only declared outputs, extra fields cause ValidationError (enforced at runtime)
 
 ### pipeline_output
-- any block can set it (last one wins)
-- defaults to assistant field if not set
-- defaults to last block's first output if no assistant
+any block can set it (last wins), defaults to assistant or last block's first output
 
 ### accumulated state
-- union of all block outputs
-- flows through entire pipeline
-- each block sees all previous outputs
+union of all block outputs, flows through pipeline, each block sees all previous outputs
 
 ### trace format
-```python
-{
-    "block_type": "ValidatorBlock",
-    "input": {"assistant": "hello"},
-    "output": {"valid": True, "assistant": "hello"},
-    "accumulated_state": {"assistant": "hello", "valid": True, ...},
-    "execution_time": 0.001
-}
-```
+`{block_type, input, output, accumulated_state, execution_time}`
 
-### error handling
-- all errors return structured JSON with error + detail
-- BlockNotFoundError includes available_blocks list
-- BlockExecutionError includes block_type, step, error, input
-- ValidationError includes declared vs actual outputs
+### job cancellation
+4 checkpoints: normal pipeline (before each block), multiplier (before each seed + before each block within seed), job processor (after inner loop)
 
 ### debug logging
-- trace_id correlates logs with API responses
-- execution_time per block in trace
-- logger.debug shows block execution flow
-- logger.error shows failures with context
+trace_id correlates logs with API responses, execution_time per block in trace
 
 ### test database
-- tests use `data/test_qa_records.db`
-- production uses `data/qa_records.db`
-- automatic cleanup before/after tests
-- no manual intervention needed
-
-## debugging
-
-### common issues
-- **block not discovered**: check file in builtin/custom/user_blocks, check BaseBlock inheritance
-- **output validation error**: check block returns only declared outputs
-- **storage method error**: use _execute_with_connection helper
-- **test async fixture error**: use @pytest.mark.asyncio
-- **test database not cleaned**: check conftest.py fixture running
-
-### useful commands
-```bash
-# check registered blocks
-curl http://localhost:8000/api/blocks | jq
-
-# list templates
-curl http://localhost:8000/api/templates | jq
-
-# create pipeline from template
-curl -X POST http://localhost:8000/api/pipelines/from_template/text_generation
-
-# execute pipeline
-curl -X POST http://localhost:8000/api/pipelines/1/execute \
-  -H "Content-Type: application/json" \
-  -d '{"text": "test"}' | jq
-
-# check trace_id in logs
-grep "a1b2c3d4" logs.txt
-```
+tests use data/test_qa_records.db, production uses data/qa_records.db, automatic cleanup
 
 ## kiss principles
-- minimal abstraction layers
-- flat structure over deep nesting
-- explicit over implicit
-- simple composition over inheritance
-- keep it simple, stupid
+minimal abstraction, flat structure over nesting, explicit over implicit, simple composition over inheritance

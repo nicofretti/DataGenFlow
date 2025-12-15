@@ -2,54 +2,43 @@
 > The file should reflect the current backend status for remembering purposes
 > to describe the actual api design, endpoints and implementation decisions. It must be technical and include the minimal number of words
 
-# backend reference
+# backend state
 
 ## stack
-- fastapi (web framework)
-- aiosqlite (async database)
-- pydantic (validation)
-- jinja2 (template rendering)
-- pyyaml (template files)
-- litellm (multi-provider llm calls)
+fastapi + aiosqlite + pydantic + jinja2 + pyyaml + litellm + rouge-score
 
 ## structure
 ```
 lib/
   blocks/
-    builtin/              # stable blocks
-      text_generator.py      # TextGenerator
-      structured_generator.py # StructuredGenerator
-      validator.py           # ValidatorBlock
-      json_validator.py      # JSONValidatorBlock
-      diversity_score.py     # DiversityScore
-      coherence_score.py     # CoherenceScore
-      rouge_score.py         # RougeScore
-      markdown_multiplier.py # MarkdownMultiplierBlock
-      langfuse.py            # LangfuseBlock
-    custom/                  # experimental blocks
-    base.py                  # BaseBlock interface
-    config.py                # BlockConfigSchema (schema extraction)
-    registry.py              # auto-discovery
-  entities/                  # pydantic models
-    block_execution_context.py  # BlockExecutionContext
-    pipeline.py              # ExecutionResult, Constraints, Usage
-    api.py, database.py, job.py, record.py, llm_config.py
-  templates/                 # yaml pipeline templates
-    __init__.py              # TemplateRegistry
-  errors.py                  # PipelineError, BlockNotFoundError, etc
-  workflow.py                # Pipeline class
-  storage.py                 # Storage class (sqlite crud)
-  template_renderer.py       # Jinja2 renderer
-  job_queue.py               # JobQueue (in-memory)
-  job_processor.py           # background job processing
-  llm_config.py              # LLMConfigManager
-  constants.py               # constants (RECORD_UPDATABLE_FIELDS)
-
-app.py                       # fastapi app, lifespan, endpoints
-config.py                    # Settings (env vars)
+    builtin/              # 9 blocks: text_generator, structured_generator, validator,
+                          # json_validator, diversity_score, coherence_score,
+                          # rouge_score, markdown_multiplier, langfuse
+    custom/               # user experimental blocks
+    base.py               # BaseBlock interface
+    config.py             # schema extraction from __init__
+    registry.py           # auto-discovery from builtin/custom/user_blocks
+  entities/               # pydantic models
+    block_execution_context.py, pipeline.py, api.py, database.py,
+    job.py, record.py, llm_config.py
+  templates/              # yaml templates + TemplateRegistry
+  errors.py               # PipelineError, BlockNotFoundError, BlockExecutionError, ValidationError
+  workflow.py             # Pipeline execution + validation + tracing
+  storage.py              # sqlite crud + migrations
+  template_renderer.py    # jinja2 with custom filters
+  job_queue.py            # in-memory job tracking
+  job_processor.py        # background processing + usage tracking + constraints
+  llm_config.py           # LLMConfigManager
+  constants.py            # RECORD_UPDATABLE_FIELDS
+app.py                    # endpoints + lifespan
+config.py                 # env Settings
 ```
 
 ## api endpoints
+
+### core
+- `GET /health` - health check
+- `GET /api/langfuse/status` - langfuse integration status
 
 ### blocks
 - `GET /api/blocks` - list registered blocks with schemas
@@ -62,11 +51,15 @@ config.py                    # Settings (env vars)
 - `POST /api/pipelines` - create pipeline
 - `GET /api/pipelines` - list all
 - `GET /api/pipelines/{id}` - get by id
+- `PUT /api/pipelines/{id}` - update pipeline
 - `DELETE /api/pipelines/{id}` - delete
 - `POST /api/pipelines/{id}/execute` - execute, returns {result, trace, trace_id}
+- `GET /api/pipelines/{id}/accumulated_state_schema` - get required fields
+- `PUT /api/pipelines/{id}/validation_config` - update validation config
 
 ### jobs
 - `POST /api/generate` - start job (file upload), returns {job_id}
+- `POST /api/generate_from_file` - legacy endpoint
 - `GET /api/jobs/active` - get running job
 - `GET /api/jobs/{id}` - get job status
 - `GET /api/jobs?pipeline_id={id}` - list jobs for pipeline
@@ -80,20 +73,39 @@ config.py                    # Settings (env vars)
 - `GET /api/export?status={s}&job_id={j}` - export jsonl string
 - `GET /api/export/download?status={s}&job_id={j}` - download file
 
+### seeds
+- `POST /api/seeds/validate` - validate seeds against pipeline requirements
+
+### llm config
+- `GET /api/llm-models` - list llm configs
+- `GET /api/llm-models/{name}` - get config
+- `POST /api/llm-models` - create config
+- `PUT /api/llm-models/{name}` - update config
+- `DELETE /api/llm-models/{name}` - delete config
+- `POST /api/llm-models/test` - test connection
+
+### embedding config
+- `GET /api/embedding-models` - list embedding configs
+- `GET /api/embedding-models/{name}` - get config
+- `POST /api/embedding-models` - create config
+- `PUT /api/embedding-models/{name}` - update config
+- `DELETE /api/embedding-models/{name}` - delete config
+- `POST /api/embedding-models/test` - test connection
+
 ## database schema
 
 ```sql
 CREATE TABLE pipelines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    definition TEXT NOT NULL,  -- json
+    definition TEXT NOT NULL,  -- json: {blocks: [{type, config}], constraints: {...}}
     created_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     pipeline_id INTEGER NOT NULL,
-    status TEXT NOT NULL,
+    status TEXT NOT NULL,  -- running|completed|failed|cancelled|stopped
     total_seeds INTEGER NOT NULL,
     current_seed INTEGER DEFAULT 0,
     records_generated INTEGER DEFAULT 0,
@@ -101,6 +113,7 @@ CREATE TABLE jobs (
     progress REAL DEFAULT 0.0,
     current_block TEXT,
     current_step TEXT,
+    usage TEXT,  -- json: {total_tokens, total_input_tokens, total_output_tokens, total_cached_tokens, start_time, end_time}
     started_at TIMESTAMP NOT NULL,
     completed_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL,
@@ -114,11 +127,33 @@ CREATE TABLE records (
     status TEXT NOT NULL,
     pipeline_id INTEGER,
     job_id INTEGER,
-    trace TEXT,              -- json
+    trace TEXT,  -- json: [{block_type, input, output, accumulated_state, execution_time}]
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     FOREIGN KEY (pipeline_id) REFERENCES pipelines(id),
     FOREIGN KEY (job_id) REFERENCES jobs(id)
+);
+
+CREATE TABLE llm_models (
+    name TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    api_base TEXT,
+    api_key TEXT,
+    is_default INTEGER DEFAULT 0,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE embedding_models (
+    name TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    api_base TEXT,
+    api_key TEXT,
+    is_default INTEGER DEFAULT 0,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
 );
 ```
 
@@ -325,13 +360,12 @@ class Settings:
     HOST: str               # default: 0.0.0.0
     PORT: int               # default: 8000
     DEBUG: bool             # default: false
+    LANGFUSE_PUBLIC_KEY: str   # optional
+    LANGFUSE_SECRET_KEY: str   # optional
+    LANGFUSE_HOST: str         # default: https://cloud.langfuse.com
 ```
 
-### debug mode
-when DEBUG=true:
-- logging level: DEBUG
-- logs include: trace_id, module name, execution timing
-- example: `[a1b2c3d4] LLMBlock completed in 3.124s`
+debug mode: logging.DEBUG, detailed logs with trace_id, execution timing per block
 
 ## block system
 
@@ -378,53 +412,24 @@ class BaseBlock:
 - `_config_descriptions` → description fields in schema
 
 ### builtin blocks
-- **TextGenerator**: generates text via litellm
-  - inputs: []
+- **TextGenerator**: text via litellm (system_prompt, user_prompt, model, temperature, max_tokens)
   - outputs: assistant, system, user
-  - config: model, temperature, max_tokens, system_prompt, user_prompt
-  - category: generators
-- **StructuredGenerator**: generates json via litellm with schema
-  - inputs: []
+- **StructuredGenerator**: json via litellm (json_schema, user_prompt, model, temperature, max_tokens)
   - outputs: generated
-  - config: json_schema (dict), model, temperature, max_tokens, user_prompt
-  - category: generators
-- **MarkdownMultiplierBlock**: splits markdown into chunks (must be first block)
-  - inputs: [] (requires file_content from metadata)
+- **MarkdownMultiplierBlock**: split markdown into chunks (is_multiplier: true, must be first)
   - outputs: content (per chunk)
-  - config: none
-  - is_multiplier: true
-  - category: seeders
-  - generates N seeds from single input
-- **ValidatorBlock**: validates text length
-  - inputs: text, assistant
+- **ValidatorBlock**: validate text (min_length, max_length, forbidden_words)
   - outputs: text, valid, assistant
-  - config: min_length, max_length, forbidden_words
-  - category: validators
-- **JSONValidatorBlock**: parses json from any field (handles both strings and parsed objects)
-  - inputs: * (all accumulated state)
+- **JSONValidatorBlock**: parse json from field (field_name, required_fields, strict)
   - outputs: valid, parsed_json
-  - config: field_name, required_fields, strict
-  - category: validators
-- **DiversityScore**: calculates lexical diversity
-  - inputs: []
+- **DiversityScore**: lexical diversity (field_name)
   - outputs: diversity_score
-  - config: field_name
-  - category: metrics
-- **CoherenceScore**: calculates text coherence
-  - inputs: []
+- **CoherenceScore**: text coherence (field_name)
   - outputs: coherence_score
-  - config: field_name
-  - category: metrics
-- **RougeScore**: calculates rouge score
-  - inputs: []
+- **RougeScore**: rouge comparison (generated_field, reference_field, rouge_type)
   - outputs: rouge_score
-  - config: generated_field, reference_field, rouge_type
-  - category: metrics
-- **LangfuseBlock**: logs execution to Langfuse observability platform
-  - inputs: * (all accumulated state)
+- **LangfuseBlock**: observability logging (public_key, secret_key, host, session_id)
   - outputs: langfuse_trace_url
-  - config: public_key, secret_key, host, session_id
-  - category: general
 
 ### block discovery
 - registry scans: lib/blocks/builtin/, lib/blocks/custom/, user_blocks/
@@ -491,22 +496,13 @@ pipelines support optional execution limits:
 ```python
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # startup
     await storage.init_db()
-    job_processor.start()
-
+    # configure langfuse if credentials set
+    if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
+        litellm.success_callback = ["langfuse"]
     yield
-
-    # shutdown
-    job_processor.stop()
+    await storage.close()
 ```
 
-## cors
-- allows all origins (*)
-- allows credentials
-- exposes content-disposition header (for downloads)
-
-## static files
-- frontend built to frontend/dist
-- served at /
-- spa fallback for client-side routing
+cors: allow all origins (*), allow credentials, expose content-disposition
+static: frontend/dist served at /, spa fallback for routing
