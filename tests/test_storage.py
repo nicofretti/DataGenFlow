@@ -4,7 +4,7 @@ comprehensive storage tests for records, pipelines, jobs, and export
 
 import pytest
 
-from lib.entities import Record, RecordStatus, JobStatus
+from lib.entities import Record, RecordCreate, RecordStatus, JobStatus
 
 
 class TestRecordCRUD:
@@ -13,7 +13,7 @@ class TestRecordCRUD:
     @pytest.mark.asyncio
     async def test_save_and_retrieve_record(self, storage):
         """saving a record returns id and allows retrieval"""
-        record = Record(
+        record = RecordCreate(
             output="test output",
             metadata={"key": "value"},
             status=RecordStatus.PENDING,
@@ -39,7 +39,7 @@ class TestRecordCRUD:
     @pytest.mark.asyncio
     async def test_update_record(self, storage):
         """updating record modifies fields and timestamp"""
-        record = Record(output="original", metadata={}, status=RecordStatus.PENDING)
+        record = RecordCreate(output="original", metadata={}, status=RecordStatus.PENDING)
         record_id = await storage.save_record(record)
 
         success = await storage.update_record(
@@ -63,7 +63,7 @@ class TestRecordCRUD:
         """get_all supports pagination"""
         # create test records
         for i in range(5):
-            record = Record(output=f"output{i}", metadata={"index": i})
+            record = RecordCreate(output=f"output{i}", metadata={"index": i})
             await storage.save_record(record)
 
         # test pagination
@@ -76,8 +76,8 @@ class TestRecordCRUD:
     @pytest.mark.asyncio
     async def test_list_records_with_status_filter(self, storage):
         """get_all filters by status"""
-        pending = Record(output="pending", metadata={}, status=RecordStatus.PENDING)
-        accepted = Record(output="accepted", metadata={}, status=RecordStatus.ACCEPTED)
+        pending = RecordCreate(output="pending", metadata={}, status=RecordStatus.PENDING)
+        accepted = RecordCreate(output="accepted", metadata={}, status=RecordStatus.ACCEPTED)
 
         await storage.save_record(pending)
         await storage.save_record(accepted)
@@ -93,7 +93,7 @@ class TestRecordCRUD:
         """delete_all_records removes all records"""
         # create some records
         for i in range(3):
-            record = Record(output=f"test{i}", metadata={})
+            record = RecordCreate(output=f"test{i}", metadata={})
             await storage.save_record(record)
 
         initial_count = len(await storage.get_all())
@@ -164,7 +164,7 @@ class TestPipelineCRUD:
         pipeline_id = await storage.save_pipeline("Test", {"blocks": []})
 
         # create record linked to pipeline
-        record = Record(output="test", metadata={})
+        record = RecordCreate(output="test", metadata={})
         await storage.save_record(record, pipeline_id=pipeline_id)
 
         # delete pipeline
@@ -228,7 +228,7 @@ class TestExport:
         import json
 
         for i in range(2):
-            record = Record(output=f"output{i}", metadata={"index": i})
+            record = RecordCreate(output=f"output{i}", metadata={"index": i})
             await storage.save_record(record)
 
         jsonl = await storage.export_jsonl()
@@ -249,8 +249,8 @@ class TestExport:
         """export_jsonl filters by status"""
         import json
 
-        pending = Record(output="pending", metadata={}, status=RecordStatus.PENDING)
-        accepted = Record(output="accepted", metadata={}, status=RecordStatus.ACCEPTED)
+        pending = RecordCreate(output="pending", metadata={}, status=RecordStatus.PENDING)
+        accepted = RecordCreate(output="accepted", metadata={}, status=RecordStatus.ACCEPTED)
 
         await storage.save_record(pending)
         await storage.save_record(accepted)
@@ -268,9 +268,9 @@ class TestExport:
         import json
 
         pipeline_id = await storage.save_pipeline("Test", {"blocks": []})
-        job_id = await storage.create_job(pipeline_id, 1, "completed")
+        job_id = await storage.create_job(pipeline_id, 1, JobStatus.COMPLETED)
 
-        record = Record(output="test", metadata={})
+        record = RecordCreate(output="test", metadata={})
         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
 
         job_jsonl = await storage.export_jsonl(job_id=job_id)
@@ -288,7 +288,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_unicode_handling(self, storage):
         """storage handles unicode correctly"""
-        record = Record(output="测试 مرحبا", metadata={"unicode": "Привет 你好"})
+        record = RecordCreate(output="测试 مرحبا", metadata={"unicode": "Привет 你好"})
 
         record_id = await storage.save_record(record)
         retrieved = await storage.get_by_id(record_id)
@@ -308,7 +308,7 @@ class TestEdgeCases:
             }
         ]
 
-        record = Record(output="test", metadata={}, trace=trace)
+        record = RecordCreate(output="test", metadata={}, trace=trace)
         record_id = await storage.save_record(record)
 
         retrieved = await storage.get_by_id(record_id)
@@ -320,7 +320,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_empty_metadata(self, storage):
         """records with empty metadata work correctly"""
-        record = Record(output="test", metadata={})
+        record = RecordCreate(output="test", metadata={})
         record_id = await storage.save_record(record)
 
         retrieved = await storage.get_by_id(record_id)

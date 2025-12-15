@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from lib.entities.pipeline import Constraints, Usage
+from lib.entities.pipeline import Constraints, Usage, TraceEntry
 
 
 class BlockExecutionContext(BaseModel):
@@ -26,7 +26,7 @@ class BlockExecutionContext(BaseModel):
         default_factory=dict, description="outputs from previous blocks"
     )
     usage: Usage = Field(default_factory=Usage, description="cumulative token usage")
-    trace: list[dict[str, Any]] = Field(
+    trace: list[TraceEntry] = Field(
         default_factory=list, description="execution history up to this block"
     )
     constraints: Constraints = Field(

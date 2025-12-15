@@ -1,9 +1,12 @@
 import threading
 from collections import defaultdict, deque
 from datetime import datetime
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from lib.entities import TERMINAL_STATUSES, Job, JobStatus
+
+if TYPE_CHECKING:
+    from lib.storage import Storage
 
 
 class JobQueue:
@@ -125,3 +128,12 @@ class JobQueue:
     def _add_to_history(self, pipeline_id: int, job_id: int) -> None:
         """add job to pipeline history (max 10 jobs)"""
         self._job_history[pipeline_id].append(job_id)
+
+    async def update_and_persist(
+        self, job_id: int, storage: "Storage", **updates: Any
+    ) -> bool:
+        """update job in both memory and database"""
+        if not self.update_job(job_id, **updates):
+            return False
+        await storage.update_job(job_id, **updates)
+        return True

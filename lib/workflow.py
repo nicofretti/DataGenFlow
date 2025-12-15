@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from lib.blocks.registry import registry
-from lib.entities import pipeline, Record, JobStatus
+from lib.entities import pipeline, RecordCreate, JobStatus, TraceEntry
 from lib.entities.block_execution_context import BlockExecutionContext
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 
@@ -28,9 +28,7 @@ class Pipeline:
         if not job_id or not job_queue:
             return
 
-        job_queue.update_job(job_id, **updates)
-        if storage:
-            await storage.update_job(job_id, **updates)
+        await job_queue.update_and_persist(job_id, storage, **updates)
 
     def _initialize_blocks(self) -> None:
         for block_def in self.blocks:
@@ -186,13 +184,13 @@ class Pipeline:
                 context.update(result)
 
                 context.trace.append(
-                    {
-                        "block_type": block_name,
-                        "input": block_input,
-                        "output": result,
-                        "accumulated_state": context.accumulated_state.copy(),
-                        "execution_time": execution_time,
-                    }
+                    TraceEntry(
+                        block_type=block_name,
+                        input=block_input,
+                        output=result,
+                        accumulated_state=context.accumulated_state.copy(),
+                        execution_time=execution_time,
+                    )
                 )
             except ValidationError:
                 # re-raise validation errors as-is
@@ -253,25 +251,25 @@ class Pipeline:
             self._validate_output(block, result)
             context.update(result)
             context.trace.append(
-                {
-                    "block_type": block_name,
-                    "input": block_input,
-                    "output": result,
-                    "accumulated_state": context.accumulated_state.copy(),
-                    "execution_time": block_execution_time,
-                }
+                TraceEntry(
+                    block_type=block_name,
+                    input=block_input,
+                    output=result,
+                    accumulated_state=context.accumulated_state.copy(),
+                    execution_time=block_execution_time,
+                )
             )
         except Exception as e:
             logger.exception(
                 f"[{context.trace_id}] {block_name} failed at seed {seed_idx + 1}"
             )
             context.trace.append(
-                {
-                    "block_type": block_name,
-                    "input": block_input,
-                    "output": None,
-                    "error": str(e),
-                }
+                TraceEntry(
+                    block_type=block_name,
+                    input=block_input,
+                    output=None,
+                    error=str(e),
+                )
             )
             raise
 
@@ -279,14 +277,14 @@ class Pipeline:
         self,
         initial_data: dict[str, Any],
         accumulated_data: dict[str, Any],
-        trace: list[dict[str, Any]],
+        trace: list[TraceEntry],
         pipeline_id: int,
         job_id: int,
         job_queue: Any,
         storage: Any,
     ) -> None:
         """save completed seed result and update counters"""
-        record = Record(
+        record = RecordCreate(
             metadata=initial_data, output=json.dumps(accumulated_data), trace=trace
         )
         await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
@@ -537,7 +535,7 @@ class Pipeline:
                     job_id,
                     job_queue,
                     storage,
-                    status="stopped",
+                    status=JobStatus.STOPPED,
                     completed_at=datetime.now().isoformat(),
                     usage=current_job.usage,
                     error=f"Constraint exceeded: {constraint_name}",

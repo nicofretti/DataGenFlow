@@ -90,6 +90,11 @@ class MockJobQueue:
 
         self.jobs[job_id].update(updates)
 
+    async def update_and_persist(self, job_id, storage, **updates):
+        """mock update_and_persist for testing"""
+        self.update_job(job_id, **updates)
+        return True
+
 
 class MockStorage:
     """mock storage for testing"""

@@ -7,7 +7,11 @@ import aiosqlite
 from aiosqlite import Connection
 
 from config import settings
-from lib.entities import Job, PipelineRecord, Record, RecordStatus, Usage
+from lib.constants import RECORD_UPDATABLE_FIELDS, JOB_UPDATABLE_FIELDS
+from lib.entities import (
+    Job, JobStatus, PipelineRecord, Record, RecordCreate, RecordStatus, Usage,
+    LLMModelConfig, LLMProvider, EmbeddingModelConfig,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +230,7 @@ class Storage:
             return result
 
     async def save_record(
-        self, record: Record, pipeline_id: int | None = None, job_id: int | None = None
+        self, record: RecordCreate, pipeline_id: int | None = None, job_id: int | None = None
     ) -> int:
         now = datetime.now()
 
@@ -311,7 +315,7 @@ class Storage:
         if not updates:
             return False
 
-        valid_fields = {"output", "status", "metadata"}
+        valid_fields = RECORD_UPDATABLE_FIELDS
         update_fields: dict[str, Any] = {k: v for k, v in updates.items() if k in valid_fields}
 
         if not update_fields:
@@ -357,9 +361,8 @@ class Storage:
         update_fields: dict[str, Any] = {}
 
         # add standard field updates
-        valid_fields = {"output", "status", "metadata"}
         for k, v in standard_updates.items():
-            if k in valid_fields:
+            if k in RECORD_UPDATABLE_FIELDS:
                 update_fields[k] = v
 
         # add the updated trace
@@ -523,7 +526,9 @@ class Storage:
 
         return await self._execute_with_connection(_delete)
 
-    async def create_job(self, pipeline_id: int, total_seeds: int, status: str = "running") -> int:
+    async def create_job(
+        self, pipeline_id: int, total_seeds: int, status: JobStatus = JobStatus.RUNNING
+    ) -> int:
         now = datetime.now()
 
         async def _create(db: Connection) -> int:
@@ -531,7 +536,7 @@ class Storage:
                 "INSERT INTO jobs (pipeline_id, status, total_seeds, started_at, created_at) "
                 "VALUES (?, ?, ?, ?, ?)"
             )
-            cursor = await db.execute(sql, (pipeline_id, status, total_seeds, now, now))
+            cursor = await db.execute(sql, (pipeline_id, status.value, total_seeds, now, now))
             return cursor.lastrowid if cursor.lastrowid is not None else 0
 
         return await self._execute_with_connection(_create)
@@ -575,20 +580,7 @@ class Storage:
             updates["usage"] = json.dumps(updates["usage"].model_dump())
 
         # filter to only valid database fields for jobs table
-        valid_fields = {
-            "status",
-            "total_seeds",
-            "current_seed",
-            "records_generated",
-            "records_failed",
-            "progress",
-            "current_block",
-            "current_step",
-            "error",
-            "completed_at",
-            "usage",
-        }
-        update_fields = {k: v for k, v in updates.items() if k in valid_fields}
+        update_fields = {k: v for k, v in updates.items() if k in JOB_UPDATABLE_FIELDS}
 
         if not update_fields:
             return True
@@ -608,29 +600,46 @@ class Storage:
             await self._conn.close()
             self._conn = None
 
-    async def list_llm_models(self) -> list[dict[str, Any]]:
+    async def list_llm_models(self) -> list[LLMModelConfig]:
         """list all configured llm models"""
 
-        async def _list(db: Connection) -> list[dict[str, Any]]:
+        async def _list(db: Connection) -> list[LLMModelConfig]:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM llm_models")
             rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
+            return [
+                LLMModelConfig(
+                    name=row["name"],
+                    provider=LLMProvider(row["provider"]),
+                    endpoint=row["endpoint"],
+                    api_key=row["api_key"],
+                    model_name=row["model_name"],
+                )
+                for row in rows
+            ]
 
         return await self._execute_with_connection(_list)
 
-    async def get_llm_model(self, name: str) -> dict[str, Any] | None:
+    async def get_llm_model(self, name: str) -> LLMModelConfig | None:
         """get llm model config by name"""
 
-        async def _get(db: Connection) -> dict[str, Any] | None:
+        async def _get(db: Connection) -> LLMModelConfig | None:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM llm_models WHERE name = ?", (name,))
             row = await cursor.fetchone()
-            return dict(row) if row else None
+            if not row:
+                return None
+            return LLMModelConfig(
+                name=row["name"],
+                provider=LLMProvider(row["provider"]),
+                endpoint=row["endpoint"],
+                api_key=row["api_key"],
+                model_name=row["model_name"],
+            )
 
         return await self._execute_with_connection(_get)
 
-    async def save_llm_model(self, config: dict[str, Any]) -> None:
+    async def save_llm_model(self, config: LLMModelConfig) -> None:
         """create or update llm model config (upsert)"""
 
         async def _save(db: Connection) -> None:
@@ -645,11 +654,11 @@ class Storage:
                     model_name = excluded.model_name
                 """,
                 (
-                    config["name"],
-                    config["provider"],
-                    config["endpoint"],
-                    config.get("api_key"),
-                    config["model_name"],
+                    config.name,
+                    config.provider.value,
+                    config.endpoint,
+                    config.api_key,
+                    config.model_name,
                 ),
             )
 
@@ -664,29 +673,48 @@ class Storage:
 
         return await self._execute_with_connection(_delete)
 
-    async def list_embedding_models(self) -> list[dict[str, Any]]:
+    async def list_embedding_models(self) -> list[EmbeddingModelConfig]:
         """list all configured embedding models"""
 
-        async def _list(db: Connection) -> list[dict[str, Any]]:
+        async def _list(db: Connection) -> list[EmbeddingModelConfig]:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM embedding_models")
             rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
+            return [
+                EmbeddingModelConfig(
+                    name=row["name"],
+                    provider=LLMProvider(row["provider"]),
+                    endpoint=row["endpoint"],
+                    api_key=row["api_key"],
+                    model_name=row["model_name"],
+                    dimensions=row["dimensions"] or 0,
+                )
+                for row in rows
+            ]
 
         return await self._execute_with_connection(_list)
 
-    async def get_embedding_model(self, name: str) -> dict[str, Any] | None:
+    async def get_embedding_model(self, name: str) -> EmbeddingModelConfig | None:
         """get embedding model config by name"""
 
-        async def _get(db: Connection) -> dict[str, Any] | None:
+        async def _get(db: Connection) -> EmbeddingModelConfig | None:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM embedding_models WHERE name = ?", (name,))
             row = await cursor.fetchone()
-            return dict(row) if row else None
+            if not row:
+                return None
+            return EmbeddingModelConfig(
+                name=row["name"],
+                provider=LLMProvider(row["provider"]),
+                endpoint=row["endpoint"],
+                api_key=row["api_key"],
+                model_name=row["model_name"],
+                dimensions=row["dimensions"] or 0,
+            )
 
         return await self._execute_with_connection(_get)
 
-    async def save_embedding_model(self, config: dict[str, Any]) -> None:
+    async def save_embedding_model(self, config: EmbeddingModelConfig) -> None:
         """create or update embedding model config (upsert)"""
 
         async def _save(db: Connection) -> None:
@@ -703,12 +731,12 @@ class Storage:
                     dimensions = excluded.dimensions
                 """,
                 (
-                    config["name"],
-                    config["provider"],
-                    config["endpoint"],
-                    config.get("api_key"),
-                    config["model_name"],
-                    config.get("dimensions"),
+                    config.name,
+                    config.provider.value,
+                    config.endpoint,
+                    config.api_key,
+                    config.model_name,
+                    config.dimensions,
                 ),
             )
 

@@ -1,11 +1,12 @@
 """domain entities organized by concern"""
 
 from lib.entities.job import Job, JobStatus, TERMINAL_STATUSES
-from lib.entities.record import Record, RecordStatus, RecordUpdate
+from lib.entities.record import Record, RecordCreate, RecordStatus, RecordUpdate
 from lib.entities.pipeline import (
     Pipeline, BlockDefinition, SeedInput,
     Usage, Constraints, ExecutionResult,
-    ValidationConfig, FieldOrder
+    ValidationConfig, FieldOrder, TraceEntry,
+    PipelineDefinition,
 )
 from lib.entities.llm_config import (
     LLMProvider, LLMModelConfig, EmbeddingModelConfig, ConnectionTestResult
@@ -18,11 +19,12 @@ __all__ = [
     # Job domain
     "Job", "JobStatus", "TERMINAL_STATUSES",
     # Record domain
-    "Record", "RecordStatus", "RecordUpdate",
+    "Record", "RecordCreate", "RecordStatus", "RecordUpdate",
     # Pipeline domain
     "Pipeline", "BlockDefinition", "SeedInput",
     "Usage", "Constraints", "ExecutionResult",
-    "ValidationConfig", "FieldOrder",
+    "ValidationConfig", "FieldOrder", "TraceEntry",
+    "PipelineDefinition",
     # LLM Config domain
     "LLMProvider", "LLMModelConfig", "EmbeddingModelConfig", "ConnectionTestResult",
     # Database domain

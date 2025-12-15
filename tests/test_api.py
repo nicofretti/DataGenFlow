@@ -282,6 +282,7 @@ class TestAPISeedValidation:
         assert any("text" in error for error in result["errors"])
 
     def test_validate_seeds_missing_metadata(self, client):
+        """seeds missing metadata are rejected by pydantic validation (422)"""
         pipeline_data = {
             "name": "Test Pipeline",
             "blocks": [{"type": "ValidatorBlock", "config": {"min_length": 1}}],
@@ -289,17 +290,14 @@ class TestAPISeedValidation:
         create_response = client.post("/api/pipelines", json=pipeline_data)
         pipeline_id = create_response.json()["id"]
 
+        # missing required 'metadata' field - pydantic will reject this
         seeds = [{"repetitions": 1}]
 
         response = client.post(
             "/api/seeds/validate", json={"pipeline_id": pipeline_id, "seeds": seeds}
         )
-        assert response.status_code == 200
-
-        result = response.json()
-        assert result["valid"] is False
-        assert len(result["errors"]) >= 1
-        assert any("not well structured" in error.lower() for error in result["errors"])
+        # pydantic validation rejects malformed seeds with 422
+        assert response.status_code == 422
 
     def test_validate_seeds_zero_repetitions_warning(self, client):
         pipeline_data = {

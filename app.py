@@ -16,16 +16,17 @@ from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 from lib.job_processor import process_job_in_thread
 from lib.job_queue import JobQueue
 from lib.llm_config import LLMConfigManager, LLMConfigNotFoundError
-from lib.schema_utils import compute_accumulated_state_schema
+from lib.constants import RECORD_UPDATABLE_FIELDS
 from lib.storage import Storage
 from lib.templates import template_registry
 from lib.workflow import Pipeline as WorkflowPipeline
 from lib.entities import (
     ConnectionTestResult,
     EmbeddingModelConfig,
+    JobStatus,
     LLMModelConfig,
     PipelineRecord,
-    Record,
+    RecordCreate,
     RecordStatus,
     RecordUpdate,
     SeedInput,
@@ -96,48 +97,28 @@ async def langfuse_status() -> dict[str, Any]:
     }
 
 
-def _validate_seed_structure(seed: dict[str, Any]) -> tuple[bool, bool, int]:
-    """check seed structure and repetitions.
+def _validate_seed_repetitions(seed: SeedInput) -> tuple[bool, int]:
+    """check seed repetitions.
 
-    returns (has_structure_error, has_repetition_error, zero_rep_count)
+    returns (has_repetition_error, zero_rep_count)
     """
-    if not isinstance(seed, dict):
-        return (True, False, 0)
-
-    if "metadata" not in seed:
-        return (True, False, 0)
-
-    if not isinstance(seed["metadata"], dict):
-        return (True, False, 0)
-
-    repetitions = seed.get("repetitions", 1)
-    if repetitions == 0:
-        return (False, False, 1)
-    if not isinstance(repetitions, int) or repetitions < 0:
-        return (False, True, 0)
-
-    return (False, False, 0)
+    if seed.repetitions == 0:
+        return (False, 1)
+    if seed.repetitions < 0:
+        return (True, 0)
+    return (False, 0)
 
 
-def _validate_seed_fields(seed: dict[str, Any], required_inputs: list[str]) -> set[str]:
+def _validate_seed_fields(seed: SeedInput, required_inputs: list[str]) -> set[str]:
     """return set of missing required fields in seed metadata"""
-    if not isinstance(seed, dict) or "metadata" not in seed:
-        return set()
-
-    metadata = seed["metadata"]
-    if not isinstance(metadata, dict):
-        return set()
-
-    return {field for field in required_inputs if field not in metadata}
+    return {field for field in required_inputs if field not in seed.metadata}
 
 
 def _build_validation_errors(
-    structure_err: bool, repetition_err: bool, missing: set[str], block_name: str
+    repetition_err: bool, missing: set[str], block_name: str
 ) -> list[str]:
     """build error messages from validation flags"""
     errors = []
-    if structure_err:
-        errors.append("Some seeds are not well structured (missing 'metadata' or invalid format)")
     if repetition_err:
         errors.append("Some seeds have invalid repetitions (must be positive integer)")
     if missing:
@@ -164,20 +145,15 @@ async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=f"block type '{blocks[0]['type']}' not found")
 
     required_inputs = block_class.get_required_fields(blocks[0].get("config", {}))
-    structure_err, repetition_err, zero_count, missing_fields = False, False, 0, set()
+    repetition_err, zero_count, missing_fields = False, 0, set()
 
     for seed in request.seeds:
-        s_err, r_err, z_count = _validate_seed_structure(seed)
-        structure_err, repetition_err, zero_count = (
-            structure_err or s_err,
-            repetition_err or r_err,
-            zero_count + z_count,
-        )
+        r_err, z_count = _validate_seed_repetitions(seed)
+        repetition_err = repetition_err or r_err
+        zero_count += z_count
         missing_fields.update(_validate_seed_fields(seed, required_inputs))
 
-    errors = _build_validation_errors(
-        structure_err, repetition_err, missing_fields, block_class.name
-    )
+    errors = _build_validation_errors(repetition_err, missing_fields, block_class.name)
     warnings = (
         [f"{zero_count} seed(s) have repetitions=0 (will not generate records)"]
         if zero_count > 0
@@ -232,7 +208,7 @@ async def generate_from_file(
                 result, trace, trace_id = exec_result
 
                 # create record from pipeline execution
-                record = Record(
+                record = RecordCreate(
                     metadata=seed.metadata,
                     trace=trace,
                 )
@@ -338,8 +314,8 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
     )
     tmp_file = await _create_temp_seed_file(seeds, content, is_markdown, pipeline_id)
 
-    job_id = await storage.create_job(pipeline_id, total_samples, status="running")
-    job_queue.create_job(job_id, pipeline_id, total_samples, status="running")
+    job_id = await storage.create_job(pipeline_id, total_samples, status=JobStatus.RUNNING)
+    job_queue.create_job(job_id, pipeline_id, total_samples, status=JobStatus.RUNNING)
     process_job_in_thread(job_id, pipeline_id, str(tmp_file), job_queue, storage)
 
     return {"job_id": job_id}
@@ -377,7 +353,7 @@ async def cancel_job(job_id: int) -> dict[str, str]:
         raise HTTPException(status_code=404, detail="job not found")
 
     # update database
-    await storage.update_job(job_id, status="cancelled")
+    await storage.update_job(job_id, status=JobStatus.CANCELLED)
 
     return {"message": "Job cancelled"}
 
@@ -427,9 +403,8 @@ async def update_record(record_id: int, update: RecordUpdate) -> dict[str, bool]
     updates = update.model_dump(exclude_unset=True)
 
     # separate standard fields from accumulated_state field updates
-    standard_fields = {"output", "status", "metadata"}
-    standard_updates = {k: v for k, v in updates.items() if k in standard_fields}
-    accumulated_state_updates = {k: v for k, v in updates.items() if k not in standard_fields}
+    standard_updates = {k: v for k, v in updates.items() if k in RECORD_UPDATABLE_FIELDS}
+    accumulated_state_updates = {k: v for k, v in updates.items() if k not in RECORD_UPDATABLE_FIELDS}
 
     # if there are accumulated_state field updates, handle them specially
     if accumulated_state_updates:
@@ -593,7 +568,7 @@ async def get_accumulated_state_schema(pipeline_id: int) -> dict[str, list[str]]
         raise HTTPException(status_code=404, detail="pipeline not found")
 
     blocks = pipeline_data.definition.get("blocks", [])
-    fields = compute_accumulated_state_schema(blocks)
+    fields = registry.compute_accumulated_state_schema(blocks)
     return {"fields": fields}
 
 

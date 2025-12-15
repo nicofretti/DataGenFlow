@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any
 
 import litellm
@@ -79,8 +80,6 @@ class StructuredGenerator(BaseBlock):
             result = json.loads(content)
             return result if isinstance(result, dict) else {"raw_response": content}
         except json.JSONDecodeError:
-            import re
-
             json_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", content, re.DOTALL)
             if json_match:
                 result = json.loads(json_match.group(1))

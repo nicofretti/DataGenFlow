@@ -8,18 +8,10 @@ from typing import Any
 
 from loguru import logger
 
-from lib.entities import JobStatus, Record, pipeline
+from lib.entities import JobStatus, RecordCreate, pipeline, PipelineDefinition
 from lib.job_queue import JobQueue
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
-
-
-async def _update_job_status(
-    job_queue: JobQueue, storage: Storage, job_id: int, **kwargs: Any
-) -> None:
-    """update job in both memory and database"""
-    job_queue.update_job(job_id, **kwargs)
-    await storage.update_job(job_id, **kwargs)
 
 
 def process_job_in_thread(
@@ -79,11 +71,10 @@ async def _process_job(
     try:
         pipeline_data = await storage.get_pipeline(pipeline_id)
         if not pipeline_data:
-            await _update_job_status(
-                job_queue,
-                storage,
+            await job_queue.update_and_persist(
                 job_id,
-                status="failed",
+                storage,
+                status=JobStatus.FAILED,
                 error="Pipeline not found",
                 completed_at=datetime.now().isoformat(),
             )
@@ -91,15 +82,9 @@ async def _process_job(
 
         pipeline_obj = WorkflowPipeline.load_from_dict(pipeline_data.definition)
 
-        # load constraints from pipeline (always create object, even if empty)
-        constraints = pipeline.Constraints()
-        if pipeline_data.definition.get("constraints"):
-            try:
-                constraints = pipeline.Constraints(
-                    **pipeline_data.definition["constraints"]
-                )
-            except (ValueError, KeyError) as e:
-                logger.warning(f"Invalid constraints for pipeline {pipeline_id}: {e}")
+        # load constraints from pipeline using type-safe model
+        pipeline_def = PipelineDefinition(**pipeline_data.definition)
+        constraints = pipeline_def.constraints
 
         # initialize usage tracker
         accumulated_usage = pipeline.Usage()
@@ -168,10 +153,9 @@ async def _process_job(
                 try:
                     if has_multiplier:
                         progress = execution_index / total_executions
-                        await _update_job_status(
-                            job_queue,
-                            storage,
+                        await job_queue.update_and_persist(
                             job_id,
+                            storage,
                             current_seed=execution_index,
                             total_seeds=total_executions,
                             progress=progress,
@@ -204,19 +188,17 @@ async def _process_job(
                             f"out={accumulated_usage.output_tokens}, "
                             f"cached={accumulated_usage.cached_tokens}"
                         )
-                        await _update_job_status(
-                            job_queue,
-                            storage,
+                        await job_queue.update_and_persist(
                             job_id,
+                            storage,
                             records_generated=records_generated,
                             usage=accumulated_usage,
                         )
                     else:
                         progress = execution_index / total_executions
-                        await _update_job_status(
-                            job_queue,
-                            storage,
+                        await job_queue.update_and_persist(
                             job_id,
+                            storage,
                             current_seed=execution_index,
                             total_seeds=total_executions,
                             progress=progress,
@@ -242,7 +224,7 @@ async def _process_job(
                         accumulated_usage.output_tokens += exec_result.usage.output_tokens
                         accumulated_usage.cached_tokens += exec_result.usage.cached_tokens
 
-                        record = Record(
+                        record = RecordCreate(
                             metadata=metadata,
                             output=json.dumps(exec_result.result),
                             trace=exec_result.trace,
@@ -259,10 +241,9 @@ async def _process_job(
                             f"out={accumulated_usage.output_tokens}, "
                             f"cached={accumulated_usage.cached_tokens}"
                         )
-                        await _update_job_status(
-                            job_queue,
-                            storage,
+                        await job_queue.update_and_persist(
                             job_id,
+                            storage,
                             records_generated=records_generated,
                             usage=accumulated_usage,
                         )
@@ -282,10 +263,9 @@ async def _process_job(
 
                     logger.info(f"[Job {job_id}] stopped: {constraint_name} exceeded")
                     accumulated_usage.end_time = time.time()
-                    await _update_job_status(
-                        job_queue,
-                        storage,
+                    await job_queue.update_and_persist(
                         job_id,
+                        storage,
                         status=JobStatus.STOPPED,
                         completed_at=datetime.now().isoformat(),
                         usage=accumulated_usage,
@@ -300,10 +280,9 @@ async def _process_job(
                         f"[Job {job_id}] Execution {execution_index} failed: {e}"
                     )
 
-                    await _update_job_status(
-                        job_queue,
-                        storage,
+                    await job_queue.update_and_persist(
                         job_id,
+                        storage,
                         records_failed=records_failed,
                         error=error_msg,
                     )
@@ -337,14 +316,13 @@ async def _process_job(
         ):
             accumulated_usage.end_time = time.time()
             completed_at = datetime.now().isoformat()
-            await _update_job_status(
-                job_queue,
-                storage,
+            await job_queue.update_and_persist(
                 job_id,
-                status="completed",
+                storage,
+                status=JobStatus.COMPLETED,
                 progress=1.0,
                 completed_at=completed_at,
-                usage=json.dumps(accumulated_usage.model_dump()),
+                usage=accumulated_usage,
             )
             logger.info(
                 f"[Job {job_id}] Completed: {records_generated} generated, {records_failed} failed"
@@ -355,11 +333,10 @@ async def _process_job(
         error_msg = str(e)
 
         completed_at = datetime.now().isoformat()
-        await _update_job_status(
-            job_queue,
-            storage,
+        await job_queue.update_and_persist(
             job_id,
-            status="failed",
+            storage,
+            status=JobStatus.FAILED,
             error=error_msg,
             completed_at=completed_at,
         )
