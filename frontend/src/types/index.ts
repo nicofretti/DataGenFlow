@@ -66,6 +66,7 @@ export interface Job {
   started_at: string;
   completed_at: string | null;
   usage?: JobUsage;
+  metadata?: any;
 }
 
 export interface Template {

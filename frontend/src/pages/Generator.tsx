@@ -602,7 +602,7 @@ export default function Generator() {
                   }
                 }
                 return null;
-              } catch (e) {
+              } catch {
                 return null;
               }
             })()}

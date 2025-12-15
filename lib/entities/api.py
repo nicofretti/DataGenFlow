@@ -1,4 +1,3 @@
-from typing import Any
 from pydantic import BaseModel, Field
 
 from lib.entities.pipeline import SeedInput

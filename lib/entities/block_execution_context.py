@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from lib.entities.pipeline import Constraints, Usage, TraceEntry
+from lib.entities.pipeline import Constraints, TraceEntry, Usage
 
 
 class BlockExecutionContext(BaseModel):
@@ -41,7 +41,7 @@ class BlockExecutionContext(BaseModel):
         """update accumulated_state with new outputs"""
         self.accumulated_state.update(other)
 
-    def copy(self) -> dict[str, Any]:
+    def copy(self) -> dict[str, Any]:  # type: ignore[override]
         """return dict representation for trace snapshots"""
         return {
             "trace_id": self.trace_id,

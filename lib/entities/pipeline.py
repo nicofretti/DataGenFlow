@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 
 class TraceEntry(BaseModel):
     """single entry in execution trace"""
+
     block_type: str
     input: dict[str, Any]
     output: dict[str, Any] | None = None
@@ -21,7 +22,8 @@ class ExecutionResult(BaseModel):
     conceptual hierarchy:
     - job: batch of multiple executions (e.g., 100 generated records)
     - execution: single pipeline run producing one record (this object)
-    - trace_id: unique identifier for this execution, used for grouping related LLM calls in observability tools
+    - trace_id: unique identifier for this execution, used for grouping
+      related LLM calls in observability tools
 
     for langfuse integration:
     - trace_id groups all LLM calls from this execution
@@ -144,6 +146,7 @@ class Pipeline(BaseModel):
 
 class PipelineDefinition(BaseModel):
     """pipeline definition with type-safe constraints parsing"""
+
     blocks: list[BlockDefinition] = Field(default_factory=list)
     constraints: Constraints = Field(default_factory=Constraints)
 
@@ -159,9 +162,5 @@ class PipelineDefinition(BaseModel):
 
 
 class SeedInput(BaseModel):
-    repetitions: int = Field(
-        default=1, description="Number of times to execute pipeline"
-    )
-    metadata: dict[str, Any] = Field(
-        ..., description="Variables for pipeline execution"
-    )
+    repetitions: int = Field(default=1, description="Number of times to execute pipeline")
+    metadata: dict[str, Any] = Field(..., description="Variables for pipeline execution")

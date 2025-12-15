@@ -1,7 +1,10 @@
 from enum import Enum
 from typing import Any
+
 from pydantic import BaseModel, Field, field_validator
+
 from lib.entities.pipeline import Usage
+
 
 class JobStatus(str, Enum):
     RUNNING = "running"
@@ -10,6 +13,7 @@ class JobStatus(str, Enum):
     CANCELLED = "cancelled"
     STOPPED = "stopped"
 
+
 TERMINAL_STATUSES = {
     JobStatus.COMPLETED,
     JobStatus.FAILED,
@@ -17,8 +21,10 @@ TERMINAL_STATUSES = {
     JobStatus.STOPPED,
 }
 
+
 class Job(BaseModel):
     """job record from database"""
+
     id: int
     pipeline_id: int
     status: JobStatus
@@ -44,7 +50,7 @@ class Job(BaseModel):
 
     @field_validator("usage", mode="before")
     @classmethod
-    def validate_usage(cls, v: Usage | dict | str | None) -> Usage:
+    def validate_usage(cls, v: Usage | dict[str, Any] | str | None) -> Usage:
         """convert from various formats to Usage object"""
         if v is None:
             return Usage()
@@ -52,6 +58,7 @@ class Job(BaseModel):
             return v
         if isinstance(v, str):
             import json
+
             try:
                 data = json.loads(v)
                 return Usage(**data)

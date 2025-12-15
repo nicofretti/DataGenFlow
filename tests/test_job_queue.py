@@ -1,5 +1,5 @@
-from lib.job_queue import JobQueue
 from lib.entities import JobStatus
+from lib.job_queue import JobQueue
 
 
 def test_update_job_sets_completed_at_and_clears_active():

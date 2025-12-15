@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from lib.entities import pipeline, JobStatus
+from lib.entities import JobStatus, pipeline
 from lib.workflow import Pipeline
 
 
@@ -48,6 +48,7 @@ class MockJobQueue:
 
     def get_job(self, job_id):
         from lib.entities import Job, JobStatus
+
         job_data = self.jobs.get(job_id)
         if job_data is None:
             return None
@@ -67,7 +68,8 @@ class MockJobQueue:
         return job_data
 
     def update_job(self, job_id, **updates):
-        from lib.entities import Usage, JobStatus
+        from lib.entities import JobStatus, Usage
+
         if job_id not in self.jobs:
             self.jobs[job_id] = {
                 "id": job_id,
@@ -454,8 +456,8 @@ async def test_normal_pipeline_stops_at_max_total_tokens():
         job_id = 1
 
         # simulate job processor flow
-        from lib.entities import pipeline as pipeline_module
         from lib.entities import PipelineRecord
+        from lib.entities import pipeline as pipeline_module
 
         # load pipeline
         pipeline_data = PipelineRecord(**storage.pipelines[1])
@@ -553,8 +555,8 @@ async def test_normal_pipeline_stops_at_execution_time():
         job_queue = MockJobQueue()
         job_id = 1
 
-        from lib.entities import pipeline as pipeline_module
         from lib.entities import PipelineRecord
+        from lib.entities import pipeline as pipeline_module
 
         pipeline_data = PipelineRecord(**storage.pipelines[1])
         constraints = pipeline_module.Constraints(**pipeline_data.definition["constraints"])
@@ -604,8 +606,8 @@ async def test_normal_pipeline_cumulative_usage():
     pipeline_obj.blocks = []
     pipeline_obj._block_instances = [MockBlock(output_tokens=100)]
 
-    from lib.entities import pipeline as pipeline_module
     from lib.entities import PipelineRecord
+    from lib.entities import pipeline as pipeline_module
 
     storage = MockStorage()
     storage.pipelines = {
@@ -663,8 +665,8 @@ async def test_invalid_constraints_continues_execution():
     pipeline_obj.blocks = []
     pipeline_obj._block_instances = [MockBlock(output_tokens=50)]
 
-    from lib.entities import pipeline as pipeline_module
     from lib.entities import PipelineRecord
+    from lib.entities import pipeline as pipeline_module
 
     # pipeline with invalid constraints
     pipeline_data = PipelineRecord(

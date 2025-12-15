@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from lib.entities import pipeline as pipeline_entities
 from lib.entities import JobStatus
+from lib.entities import pipeline as pipeline_entities
 from lib.job_queue import JobQueue
 from lib.storage import Storage
 from lib.workflow import Pipeline

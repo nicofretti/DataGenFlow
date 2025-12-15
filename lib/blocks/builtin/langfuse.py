@@ -47,9 +47,10 @@ class LangfuseDatasetBlock(BaseBlock):
                     f"Skipping upload for job {context.job_id}: "
                     f"seed {job.current_seed}/{job.total_seeds} (waiting for completion)"
                 )
-                return {
-                    "langfuse_upload_status": f"pending: waiting for job completion ({job.current_seed}/{job.total_seeds})"
-                }
+                status = (
+                    f"pending: waiting for job completion ({job.current_seed}/{job.total_seeds})"
+                )
+                return {"langfuse_upload_status": status}
 
             # check if already uploaded (idempotency)
             if job.metadata:
@@ -59,9 +60,8 @@ class LangfuseDatasetBlock(BaseBlock):
                     )
                     if metadata.get("langfuse", {}).get("uploaded"):
                         logger.info(f"Job {context.job_id} already uploaded to Langfuse, skipping")
-                        return {
-                            "langfuse_upload_status": f"already uploaded: {metadata['langfuse'].get('message', '')}"
-                        }
+                        msg = metadata["langfuse"].get("message", "")
+                        return {"langfuse_upload_status": f"already uploaded: {msg}"}
                 except (json.JSONDecodeError, TypeError):
                     pass
         except Exception as e:
@@ -132,17 +132,20 @@ class LangfuseDatasetBlock(BaseBlock):
                     "records_count": uploaded_count,
                     "records_total": len(records),
                     "error": "",
-                    "message": f"Uploaded {uploaded_count}/{len(records)} records to dataset '{dataset_name}'",
+                    "message": (
+                        f"Uploaded {uploaded_count}/{len(records)} records "
+                        f"to dataset '{dataset_name}'"
+                    ),
                 }
             }
             await storage.update_job(context.job_id, metadata=json.dumps(job_metadata))
 
             logger.info(
-                f"Uploaded {uploaded_count}/{len(records)} records to Langfuse dataset '{dataset_name}'"
+                f"Uploaded {uploaded_count}/{len(records)} records "
+                f"to Langfuse dataset '{dataset_name}'"
             )
-            return {
-                "langfuse_upload_status": f"uploaded {uploaded_count}/{len(records)} records to dataset '{dataset_name}'"
-            }
+            status = f"uploaded {uploaded_count}/{len(records)} records to dataset '{dataset_name}'"
+            return {"langfuse_upload_status": status}
 
         except Exception as e:
             logger.exception("Langfuse upload failed")

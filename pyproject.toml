@@ -61,11 +61,15 @@ plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 module = "tests.*"
-disable_error_code = ["no-untyped-def", "no-untyped-call", "var-annotated"]
+disable_error_code = ["no-untyped-def", "no-untyped-call", "var-annotated", "override", "union-attr", "arg-type", "index"]
 
 [[tool.mypy.overrides]]
 module = "lib.storage"
 disable_error_code = ["no-any-return"]
+
+[[tool.mypy.overrides]]
+module = "lib.blocks.builtin.langfuse"
+disable_error_code = ["import-untyped"]
 
 [tool.pytest.ini_options]
 markers = [

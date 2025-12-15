@@ -12,14 +12,7 @@ from pydantic import ValidationError as PydanticValidationError
 
 from config import settings
 from lib.blocks.registry import registry
-from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
-from lib.job_processor import process_job_in_thread
-from lib.job_queue import JobQueue
-from lib.llm_config import LLMConfigManager, LLMConfigNotFoundError
 from lib.constants import RECORD_UPDATABLE_FIELDS
-from lib.storage import Storage
-from lib.templates import template_registry
-from lib.workflow import Pipeline as WorkflowPipeline
 from lib.entities import (
     ConnectionTestResult,
     EmbeddingModelConfig,
@@ -33,6 +26,13 @@ from lib.entities import (
     SeedValidationRequest,
     ValidationConfig,
 )
+from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
+from lib.job_processor import process_job_in_thread
+from lib.job_queue import JobQueue
+from lib.llm_config import LLMConfigManager, LLMConfigNotFoundError
+from lib.storage import Storage
+from lib.templates import template_registry
+from lib.workflow import Pipeline as WorkflowPipeline
 
 storage = Storage()
 job_queue = JobQueue()
@@ -114,9 +114,7 @@ def _validate_seed_fields(seed: SeedInput, required_inputs: list[str]) -> set[st
     return {field for field in required_inputs if field not in seed.metadata}
 
 
-def _build_validation_errors(
-    repetition_err: bool, missing: set[str], block_name: str
-) -> list[str]:
+def _build_validation_errors(repetition_err: bool, missing: set[str], block_name: str) -> list[str]:
     """build error messages from validation flags"""
     errors = []
     if repetition_err:
@@ -404,7 +402,9 @@ async def update_record(record_id: int, update: RecordUpdate) -> dict[str, bool]
 
     # separate standard fields from accumulated_state field updates
     standard_updates = {k: v for k, v in updates.items() if k in RECORD_UPDATABLE_FIELDS}
-    accumulated_state_updates = {k: v for k, v in updates.items() if k not in RECORD_UPDATABLE_FIELDS}
+    accumulated_state_updates = {
+        k: v for k, v in updates.items() if k not in RECORD_UPDATABLE_FIELDS
+    }
 
     # if there are accumulated_state field updates, handle them specially
     if accumulated_state_updates:

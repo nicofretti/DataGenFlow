@@ -1,11 +1,14 @@
 from enum import Enum
+
 from pydantic import BaseModel, Field, field_validator
+
 
 class LLMProvider(str, Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
     OLLAMA = "ollama"
+
 
 class LLMModelConfig(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
@@ -20,6 +23,7 @@ class LLMModelConfig(BaseModel):
         """convert None to empty string for database compatibility"""
         return v if v is not None else ""
 
+
 class EmbeddingModelConfig(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     provider: LLMProvider
@@ -33,6 +37,7 @@ class EmbeddingModelConfig(BaseModel):
     def validate_str_fields(cls, v: str | None) -> str:
         """convert None to empty string for database compatibility"""
         return v if v is not None else ""
+
 
 class ConnectionTestResult(BaseModel):
     success: bool

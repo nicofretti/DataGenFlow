@@ -1,6 +1,7 @@
 import pytest
 
-from lib.entities import pipeline as pipeline_entities, RecordCreate
+from lib.entities import RecordCreate
+from lib.entities import pipeline as pipeline_entities
 from lib.workflow import Pipeline as WorkflowPipeline
 
 

@@ -8,7 +8,7 @@ from typing import Any
 
 from loguru import logger
 
-from lib.entities import JobStatus, RecordCreate, pipeline, PipelineDefinition
+from lib.entities import JobStatus, PipelineDefinition, RecordCreate, pipeline
 from lib.job_queue import JobQueue
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
@@ -106,11 +106,7 @@ async def _process_job(
         seeds_data = data if isinstance(data, list) else [data]
 
         total_executions = sum(
-            (
-                seed.get("repetitions", 1)
-                if isinstance(seed.get("repetitions"), int)
-                else 1
-            )
+            (seed.get("repetitions", 1) if isinstance(seed.get("repetitions"), int) else 1)
             for seed in seeds_data
         )
 
@@ -230,9 +226,7 @@ async def _process_job(
                             trace=exec_result.trace,
                         )
 
-                        await storage.save_record(
-                            record, pipeline_id=pipeline_id, job_id=job_id
-                        )
+                        await storage.save_record(record, pipeline_id=pipeline_id, job_id=job_id)
                         records_generated += 1
 
                         logger.info(
@@ -255,9 +249,7 @@ async def _process_job(
                     if not constraints:
                         continue
 
-                    exceeded, constraint_name = constraints.is_exceeded(
-                        accumulated_usage
-                    )
+                    exceeded, constraint_name = constraints.is_exceeded(accumulated_usage)
                     if not exceeded:
                         continue
 
@@ -276,9 +268,7 @@ async def _process_job(
                 except Exception as e:
                     records_failed += 1
                     error_msg = str(e)
-                    logger.error(
-                        f"[Job {job_id}] Execution {execution_index} failed: {e}"
-                    )
+                    logger.error(f"[Job {job_id}] Execution {execution_index} failed: {e}")
 
                     await job_queue.update_and_persist(
                         job_id,
@@ -299,9 +289,7 @@ async def _process_job(
                 JobStatus.CANCELLED,
                 JobStatus.STOPPED,
             ):
-                logger.info(
-                    f"[Job {job_id}] Stopping seed processing: status={job_status.status}"
-                )
+                logger.info(f"[Job {job_id}] Stopping seed processing: status={job_status.status}")
                 break
 
         try:

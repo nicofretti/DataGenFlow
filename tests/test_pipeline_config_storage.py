@@ -48,7 +48,7 @@ async def test_workflow_uses_block_configs():
     }
 
     # create pipeline from definition
-    pipeline = Pipeline(name=str(pipeline_def["name"]), blocks=list(pipeline_def["blocks"]))  # type: ignore[arg-type]
+    pipeline = Pipeline(name=str(pipeline_def["name"]), blocks=list(pipeline_def["blocks"]))
 
     # verify block was initialized with config
     assert len(pipeline._block_instances) == 1

@@ -5,6 +5,7 @@ Test configuration and fixtures
 import asyncio
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -52,16 +53,6 @@ def client():
 
 
 @pytest.fixture
-def sample_record():
-    """sample record with new model structure"""
-    from models import Record, RecordStatus
-
-    return Record(
-        output="test output", metadata={"test_key": "test_value"}, status=RecordStatus.PENDING
-    )
-
-
-@pytest.fixture
 def sample_seed():
     """sample seed file data with new format"""
     return {
@@ -106,7 +97,7 @@ def make_context():
     from lib.entities.block_execution_context import BlockExecutionContext
 
     def _make(
-        data: dict | None = None,
+        data: dict[str, Any] | None = None,
         trace_id: str = "test-trace",
         job_id: int = 0,
         pipeline_id: int = 1,

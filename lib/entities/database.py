@@ -1,7 +1,8 @@
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
-from lib.entities.pipeline import ValidationConfig, FieldOrder
+
+from lib.entities.pipeline import FieldOrder, ValidationConfig
 
 
 class PipelineRecord(BaseModel):
@@ -17,7 +18,7 @@ class PipelineRecord(BaseModel):
 
     @field_validator("validation_config", mode="before")
     @classmethod
-    def validate_config(cls, v: ValidationConfig | dict | None) -> ValidationConfig:
+    def validate_config(cls, v: ValidationConfig | dict[str, Any] | None) -> ValidationConfig:
         """convert from dict/None to ValidationConfig"""
         if v is None or v == {}:
             return ValidationConfig(field_order=FieldOrder())

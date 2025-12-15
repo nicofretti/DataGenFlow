@@ -7,10 +7,18 @@ import aiosqlite
 from aiosqlite import Connection
 
 from config import settings
-from lib.constants import RECORD_UPDATABLE_FIELDS, JOB_UPDATABLE_FIELDS
+from lib.constants import JOB_UPDATABLE_FIELDS, RECORD_UPDATABLE_FIELDS
 from lib.entities import (
-    Job, JobStatus, PipelineRecord, Record, RecordCreate, RecordStatus, Usage,
-    LLMModelConfig, LLMProvider, EmbeddingModelConfig,
+    EmbeddingModelConfig,
+    Job,
+    JobStatus,
+    LLMModelConfig,
+    LLMProvider,
+    PipelineRecord,
+    Record,
+    RecordCreate,
+    RecordStatus,
+    Usage,
 )
 
 logger = logging.getLogger(__name__)

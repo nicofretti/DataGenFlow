@@ -519,7 +519,7 @@ export default function Review() {
                   );
                 }
               }
-            } catch (e) {
+            } catch {
               return null;
             }
           }
@@ -604,8 +604,7 @@ export default function Review() {
                       <SparklesFillIcon size={12} />
                     </Box>
                     <Text sx={{ fontSize: 1, fontFamily: "mono", color: "fg.default" }}>
-                      {(inputTokens + outputTokens + cachedTokens).toLocaleString()}{" "}
-                      tk
+                      {(inputTokens + outputTokens + cachedTokens).toLocaleString()} tk
                     </Text>
                   </Box>
                 </Tooltip>

@@ -1,10 +1,11 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
 from pydantic import BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
-    from lib.entities.pipeline import TraceEntry
+    pass
 
 
 class RecordStatus(str, Enum):
@@ -16,6 +17,7 @@ class RecordStatus(str, Enum):
 
 class RecordCreate(BaseModel):
     """record data for creation (no id, timestamps added by database)"""
+
     output: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
     status: RecordStatus = RecordStatus.PENDING
@@ -41,9 +43,11 @@ class RecordCreate(BaseModel):
 
 class Record(RecordCreate):
     """record retrieved from database (has id and timestamps)"""
+
     id: int
     created_at: datetime
     updated_at: datetime
+
 
 class RecordUpdate(BaseModel):
     model_config = {"extra": "allow"}
