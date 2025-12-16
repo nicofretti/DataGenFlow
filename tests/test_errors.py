@@ -121,7 +121,7 @@ class TestErrorHandling:
         """generator handles connection errors gracefully"""
         from lib.generator import Generator  # type: ignore[import-not-found]
 
-        from models import GenerationConfig
+        from lib.entities import GenerationConfig
 
         config = GenerationConfig(endpoint="http://invalid:99999", model="test")
         gen = Generator(config)

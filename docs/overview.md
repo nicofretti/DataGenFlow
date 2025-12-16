@@ -131,7 +131,7 @@ No manual wiring needed - every block sees all previous outputs plus the origina
   - Current block being executed
   - Success/failure counts
   - Elapsed time
-- **Job cancellation** support
+- **Immediate job cancellation** - stops at next checkpoint (before next block or seed)
 
 ### Complete Execution Traces
 

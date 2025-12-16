@@ -4,6 +4,7 @@ from llama_index.core import Document
 from llama_index.core.node_parser import MarkdownNodeParser, SentenceSplitter
 
 from lib.blocks.base import BaseMultiplierBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 
 
 class MarkdownMultiplierBlock(BaseMultiplierBlock):
@@ -60,8 +61,8 @@ class MarkdownMultiplierBlock(BaseMultiplierBlock):
         """format nodes to output dict format"""
         return [{"chunk_text": node.text, "chunk_index": idx} for idx, node in enumerate(nodes)]
 
-    async def execute(self, data: dict[str, Any]) -> list[dict[str, Any]]:  # type: ignore[override]
-        file_content = data.get("file_content", "")
+    async def execute(self, context: BlockExecutionContext) -> list[dict[str, Any]]:  # type: ignore[override]
+        file_content = context.get_state("file_content", "")
 
         if self.parser_type == "sentence":
             nodes = self._parse_with_sentence_splitter(file_content)

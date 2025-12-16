@@ -1,9 +1,10 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
 import { AlertTriangle, Info, AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
+import { toast } from "sonner";
 
 const overlayVariants = cva(
   "fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
@@ -31,9 +32,9 @@ const iconMap = {
 };
 
 const iconColorMap = {
-  danger: "text-red-800 dark:text-red-50",
-  warning: "text-yellow-800 dark:text-yellow-50",
-  info: "text-blue-800 dark:text-blue-50",
+  danger: "text-destructive",
+  warning: "text-amber-600 dark:text-amber-400",
+  info: "text-blue-600 dark:text-blue-400",
 };
 
 export function ConfirmModal({
@@ -56,6 +57,8 @@ export function ConfirmModal({
       onOpenChange(false);
     } catch (error) {
       console.error("confirm action failed:", error);
+      const message = error instanceof Error ? error.message : "Action failed. Please try again.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }

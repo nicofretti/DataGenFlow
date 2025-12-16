@@ -30,6 +30,7 @@ export const Danger: Story = {
           description="This action cannot be undone. This will permanently delete the pipeline and all associated data."
           onConfirm={async () => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
+            // eslint-disable-next-line no-console
             console.log("deleted");
           }}
           variant="danger"
@@ -53,6 +54,7 @@ export const Warning: Story = {
           description="This will reset all your preferences to default values. You can reconfigure them later."
           onConfirm={async () => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
+            // eslint-disable-next-line no-console
             console.log("reset");
           }}
           variant="warning"
@@ -76,6 +78,7 @@ export const Info: Story = {
           description="Your changes will be visible to all users immediately after publishing."
           onConfirm={async () => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
+            // eslint-disable-next-line no-console
             console.log("published");
           }}
           variant="info"
@@ -101,6 +104,7 @@ export const CustomButtons: Story = {
           description="Are you sure you want to remove this user from the project?"
           onConfirm={async () => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
+            // eslint-disable-next-line no-console
             console.log("removed");
           }}
           variant="danger"

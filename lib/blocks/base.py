@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from lib.blocks.config import BlockConfigSchema
+from lib.entities.block_execution_context import BlockExecutionContext
 
 
 class BaseBlock(ABC):
@@ -12,7 +13,7 @@ class BaseBlock(ABC):
     outputs: list[str] = []
 
     @abstractmethod
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         pass
 
     @classmethod
@@ -49,6 +50,6 @@ class BaseMultiplierBlock(BaseBlock):
     is_multiplier: bool = True
 
     @abstractmethod
-    async def execute(self, data: dict[str, Any]) -> list[dict[str, Any]]:  # type: ignore[override]
+    async def execute(self, context: BlockExecutionContext) -> list[dict[str, Any]]:  # type: ignore[override]
         """multiplier blocks return list of dicts instead of single dict"""
         pass

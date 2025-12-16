@@ -2,6 +2,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 
 
 class DiversityScore(BaseBlock):
@@ -23,8 +24,8 @@ class DiversityScore(BaseBlock):
         """
         self.field_name = field_name
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        value = data.get(self.field_name, "")
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        value = context.get_state(self.field_name, "")
 
         # if list, compare all pairs
         if isinstance(value, list):

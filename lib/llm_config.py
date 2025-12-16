@@ -6,14 +6,14 @@ from typing import Any
 import litellm
 
 from config import settings
-from lib.errors import PipelineError
-from lib.storage import Storage
-from models import (
+from lib.entities import (
     ConnectionTestResult,
     EmbeddingModelConfig,
     LLMModelConfig,
     LLMProvider,
 )
+from lib.errors import PipelineError
+from lib.storage import Storage
 
 logger = logging.getLogger(__name__)
 
@@ -46,22 +46,22 @@ class LLMConfigManager:
         4. .env fallback (LLM_ENDPOINT, LLM_API_KEY, LLM_MODEL)
         """
         if name:
-            config_dict = await self.storage.get_llm_model(name)
-            if config_dict:
-                return LLMModelConfig(**config_dict)
+            config = await self.storage.get_llm_model(name)
+            if config:
+                return config
             raise LLMConfigNotFoundError(
                 f"llm model '{name}' not found", detail={"requested_name": name}
             )
 
         # try default model
-        config_dict = await self.storage.get_llm_model("default")
-        if config_dict:
-            return LLMModelConfig(**config_dict)
+        config = await self.storage.get_llm_model("default")
+        if config:
+            return config
 
         # try first model
         all_models = await self.storage.list_llm_models()
         if all_models:
-            return LLMModelConfig(**all_models[0])
+            return all_models[0]
 
         # fallback to .env
         if settings.LLM_MODEL and settings.LLM_ENDPOINT:
@@ -81,12 +81,11 @@ class LLMConfigManager:
 
     async def list_llm_models(self) -> list[LLMModelConfig]:
         """list all configured llm models"""
-        models_dict = await self.storage.list_llm_models()
-        return [LLMModelConfig(**m) for m in models_dict]
+        return await self.storage.list_llm_models()
 
     async def save_llm_model(self, config: LLMModelConfig) -> None:
         """create or update llm model config"""
-        await self.storage.save_llm_model(config.model_dump())
+        await self.storage.save_llm_model(config)
 
     async def delete_llm_model(self, name: str) -> None:
         """delete llm model config"""
@@ -127,22 +126,22 @@ class LLMConfigManager:
         3. first model in db
         """
         if name:
-            config_dict = await self.storage.get_embedding_model(name)
-            if config_dict:
-                return EmbeddingModelConfig(**config_dict)
+            config = await self.storage.get_embedding_model(name)
+            if config:
+                return config
             raise LLMConfigNotFoundError(
                 f"embedding model '{name}' not found", detail={"requested_name": name}
             )
 
         # try default model
-        config_dict = await self.storage.get_embedding_model("default")
-        if config_dict:
-            return EmbeddingModelConfig(**config_dict)
+        config = await self.storage.get_embedding_model("default")
+        if config:
+            return config
 
         # try first model
         all_models = await self.storage.list_embedding_models()
         if all_models:
-            return EmbeddingModelConfig(**all_models[0])
+            return all_models[0]
 
         raise LLMConfigNotFoundError(
             "no embedding models configured", detail={"checked": ["database"]}
@@ -150,12 +149,11 @@ class LLMConfigManager:
 
     async def list_embedding_models(self) -> list[EmbeddingModelConfig]:
         """list all configured embedding models"""
-        models_dict = await self.storage.list_embedding_models()
-        return [EmbeddingModelConfig(**m) for m in models_dict]
+        return await self.storage.list_embedding_models()
 
     async def save_embedding_model(self, config: EmbeddingModelConfig) -> None:
         """create or update embedding model config"""
-        await self.storage.save_embedding_model(config.model_dump())
+        await self.storage.save_embedding_model(config)
 
     async def delete_embedding_model(self, name: str) -> None:
         """delete embedding model config"""

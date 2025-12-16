@@ -3,6 +3,7 @@ import re
 from typing import Any
 
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 
 
 class JSONValidatorBlock(BaseBlock):
@@ -32,8 +33,8 @@ class JSONValidatorBlock(BaseBlock):
         self.required_fields = required_fields or []
         self.strict = strict
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        field_output = data.get(self.field_name, "")
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        field_output = context.get_state(self.field_name, "")
 
         # if already parsed (e.g., from StructuredGenerator), use it directly
         if isinstance(field_output, dict) or isinstance(field_output, list):

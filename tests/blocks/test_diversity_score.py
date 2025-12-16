@@ -4,9 +4,11 @@ from lib.blocks.builtin.diversity_score import DiversityScore
 
 
 @pytest.mark.asyncio
-async def test_diversity_score_list():
+async def test_diversity_score_list(make_context):
     block = DiversityScore(field_name="texts")
-    result = await block.execute({"texts": ["hello world", "goodbye world", "hello there"]})
+    result = await block.execute(
+        make_context({"texts": ["hello world", "goodbye world", "hello there"]})
+    )
 
     assert "diversity_score" in result
     assert 0 <= result["diversity_score"] <= 1
@@ -15,9 +17,9 @@ async def test_diversity_score_list():
 
 
 @pytest.mark.asyncio
-async def test_diversity_score_identical():
+async def test_diversity_score_identical(make_context):
     block = DiversityScore(field_name="texts")
-    result = await block.execute({"texts": ["same text", "same text", "same text"]})
+    result = await block.execute(make_context({"texts": ["same text", "same text", "same text"]}))
 
     assert "diversity_score" in result
     # identical texts should have 0 diversity
@@ -25,9 +27,9 @@ async def test_diversity_score_identical():
 
 
 @pytest.mark.asyncio
-async def test_diversity_score_single_text():
+async def test_diversity_score_single_text(make_context):
     block = DiversityScore(field_name="assistant")
-    result = await block.execute({"assistant": "single text"})
+    result = await block.execute(make_context({"assistant": "single text"}))
 
     assert "diversity_score" in result
     # single text has no diversity

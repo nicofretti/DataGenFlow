@@ -3,13 +3,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from lib.blocks.builtin.structured_generator import StructuredGenerator
-from models import LLMModelConfig, LLMProvider
+from lib.entities import LLMModelConfig, LLMProvider
 
 
 @pytest.mark.asyncio
 @patch("litellm.acompletion")
 @patch("app.llm_config_manager")
-async def test_structured_generator(mock_config_manager, mock_completion):
+async def test_structured_generator(mock_config_manager, mock_completion, make_context):
     mock_config_manager.get_llm_model = AsyncMock(
         return_value=LLMModelConfig(
             name="test", provider=LLMProvider.OPENAI, endpoint="http://test", model_name="gpt-4"
@@ -30,7 +30,7 @@ async def test_structured_generator(mock_config_manager, mock_completion):
     }
 
     block = StructuredGenerator(json_schema=schema)
-    result = await block.execute({"user_prompt": "Generate person data"})
+    result = await block.execute(make_context({"user_prompt": "Generate person data"}))
 
     assert "generated" in result
     assert result["generated"]["name"] == "John"
@@ -40,7 +40,7 @@ async def test_structured_generator(mock_config_manager, mock_completion):
 @pytest.mark.asyncio
 @patch("litellm.acompletion")
 @patch("app.llm_config_manager")
-async def test_structured_generator_with_prompt(mock_config_manager, mock_completion):
+async def test_structured_generator_with_prompt(mock_config_manager, mock_completion, make_context):
     mock_config_manager.get_llm_model = AsyncMock(
         return_value=LLMModelConfig(
             name="test", provider=LLMProvider.OPENAI, endpoint="http://test", model_name="gpt-4"
@@ -56,7 +56,7 @@ async def test_structured_generator_with_prompt(mock_config_manager, mock_comple
     schema = {"type": "object", "properties": {"result": {"type": "string"}}}
 
     block = StructuredGenerator(json_schema=schema, user_prompt="Generate a test result")
-    result = await block.execute({})
+    result = await block.execute(make_context())
 
     assert result["generated"]["result"] == "test"
 
@@ -72,7 +72,9 @@ async def test_structured_generator_schema():
 @pytest.mark.asyncio
 @patch("litellm.acompletion")
 @patch("app.llm_config_manager")
-async def test_structured_generator_with_enum_enforcement(mock_config_manager, mock_completion):
+async def test_structured_generator_with_enum_enforcement(
+    mock_config_manager, mock_completion, make_context
+):
     """test that structured generator enforces enum values in schema"""
     mock_config_manager.get_llm_model = AsyncMock(
         return_value=LLMModelConfig(
@@ -100,7 +102,7 @@ async def test_structured_generator_with_enum_enforcement(mock_config_manager, m
         json_schema=schema, user_prompt="Classify sentiment: Great product!", temperature=0.7
     )
 
-    result = await block.execute({})
+    result = await block.execute(make_context())
     generated = result["generated"]
 
     # verify structure

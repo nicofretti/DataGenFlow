@@ -4,10 +4,12 @@ from lib.blocks.builtin.coherence_score import CoherenceScore
 
 
 @pytest.mark.asyncio
-async def test_coherence_score():
+async def test_coherence_score(make_context):
     block = CoherenceScore(field_name="assistant")
     result = await block.execute(
-        {"assistant": "This is a sentence. This is another sentence. Final sentence here."}
+        make_context(
+            {"assistant": "This is a sentence. This is another sentence. Final sentence here."}
+        )
     )
 
     assert "coherence_score" in result
@@ -15,9 +17,9 @@ async def test_coherence_score():
 
 
 @pytest.mark.asyncio
-async def test_coherence_score_empty():
+async def test_coherence_score_empty(make_context):
     block = CoherenceScore(field_name="assistant")
-    result = await block.execute({"assistant": ""})
+    result = await block.execute(make_context({"assistant": ""}))
 
     assert result["coherence_score"] == 0.0
 

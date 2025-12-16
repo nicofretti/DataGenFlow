@@ -1,8 +1,8 @@
 import pytest
 
+from lib.entities import RecordCreate
 from lib.entities import pipeline as pipeline_entities
 from lib.workflow import Pipeline as WorkflowPipeline
-from models import Record
 
 
 @pytest.mark.asyncio
@@ -37,14 +37,14 @@ async def test_pipeline_execution_with_trace():
         assert "assistant" in exec_result.result
         assert exec_result.result["assistant"] == "Hello! How can I help you today?"
 
-        # verify trace structure
+        # verify trace structure (TraceEntry objects)
         assert len(exec_result.trace) == 1
-        assert exec_result.trace[0]["block_type"] == "TextGenerator"
+        assert exec_result.trace[0].block_type == "TextGenerator"
 
         # verify trace has accumulated_state
-        assert "accumulated_state" in exec_result.trace[0]
+        assert exec_result.trace[0].accumulated_state is not None
         assert (
-            exec_result.trace[0]["accumulated_state"]["assistant"]
+            exec_result.trace[0].accumulated_state["assistant"]
             == "Hello! How can I help you today?"
         )
 
@@ -64,7 +64,7 @@ async def test_storage_saves_trace(storage):
         }
     ]
 
-    record = Record(
+    record = RecordCreate(
         output="test assistant",
         metadata={"system": "test system", "user": "test user"},
         trace=trace,
@@ -82,14 +82,14 @@ async def test_storage_saves_trace(storage):
 
 @pytest.mark.asyncio
 async def test_storage_handles_none_trace(storage):
-    # test that records without trace work fine
-    record = Record(
+    # test that records without trace work fine (None is converted to [])
+    record = RecordCreate(
         output="test assistant", metadata={"system": "test system", "user": "test user"}, trace=None
     )
 
     record_id = await storage.save_record(record)
 
-    # retrieve and verify
+    # retrieve and verify - validator converts None to []
     saved_record = await storage.get_by_id(record_id)
     assert saved_record is not None
-    assert saved_record.trace is None
+    assert saved_record.trace == []

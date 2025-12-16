@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
-import { Box, Heading, Text, Button, IconButton, Spinner } from "@primer/react";
-import { PlusIcon, TrashIcon, PencilIcon, CheckCircleIcon } from "@primer/octicons-react";
+import { Box, Heading, Text, Button, IconButton, Spinner, Tooltip } from "@primer/react";
+import {
+  PlusIcon,
+  TrashIcon,
+  PencilIcon,
+  CheckCircleIcon,
+  CircleIcon,
+  CheckCircleFillIcon,
+} from "@primer/octicons-react";
 import { toast } from "sonner";
 import type { LLMModelConfig, EmbeddingModelConfig } from "../types";
 import { llmConfigApi } from "../services/llmConfigApi";
@@ -19,10 +26,14 @@ export default function Settings() {
   const [testingEmbedding, setTestingEmbedding] = useState<string | null>(null);
   const [deletingLlm, setDeletingLlm] = useState<string | null>(null);
   const [deletingEmbedding, setDeletingEmbedding] = useState<string | null>(null);
+  const [langfuseEnabled, setLangfuseEnabled] = useState<boolean>(false);
+  const [langfuseHost, setLangfuseHost] = useState<string | null>(null);
+  const [loadingLangfuse, setLoadingLangfuse] = useState(true);
 
   useEffect(() => {
     loadLlmModels();
     loadEmbeddingModels();
+    loadLangfuseStatus();
   }, []);
 
   const loadLlmModels = async () => {
@@ -42,6 +53,23 @@ export default function Settings() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       toast.error(`Failed to load embedding models: ${message}`);
+    }
+  };
+
+  const loadLangfuseStatus = async () => {
+    try {
+      const res = await fetch("/api/langfuse/status");
+      if (!res.ok) {
+        throw new Error(`http ${res.status}`);
+      }
+      const data = await res.json();
+      setLangfuseEnabled(data.enabled);
+      setLangfuseHost(data.host);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error("Failed to load Langfuse status:", message);
+    } finally {
+      setLoadingLangfuse(false);
     }
   };
 
@@ -151,7 +179,7 @@ export default function Settings() {
               LLM Models
             </Heading>
             <Text sx={{ color: "fg.muted", fontSize: 1 }}>
-              configure language models for text generation
+              Configure language models for text generation
             </Text>
           </Box>
           <Button
@@ -294,7 +322,7 @@ export default function Settings() {
               Embedding Models
             </Heading>
             <Text sx={{ color: "fg.muted", fontSize: 1 }}>
-              configure models for text embeddings
+              Configure models for text embeddings
             </Text>
           </Box>
           <Button
@@ -335,7 +363,7 @@ export default function Settings() {
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "start", justifyContent: "space-between" }}>
-                  <Box sx={{ flex: 1 }}>
+                  <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
                       <Text sx={{ fontWeight: "bold", fontSize: 2, color: "fg.default" }}>
                         {model.name}
@@ -411,6 +439,101 @@ export default function Settings() {
             ))}
           </Box>
         )}
+      </Box>
+
+      {/* langfuse integration section */}
+      <Box sx={{ mt: 6 }}>
+        <Box sx={{ mb: 3, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Box>
+            <Heading as="h2" sx={{ fontSize: 3, color: "fg.default" }}>
+              Langfuse Integration
+            </Heading>
+            <Text sx={{ color: "fg.muted", fontSize: 1 }}>
+              Enable LLM tracing and dataset uploads for observability
+            </Text>
+          </Box>
+          {loadingLangfuse ? (
+            <Spinner size="small" />
+          ) : (
+            <Tooltip aria-label={langfuseEnabled ? "Enabled" : "Disabled"} direction="w">
+              <Box sx={{ color: langfuseEnabled ? "success.fg" : "fg.muted" }}>
+                {langfuseEnabled ? <CheckCircleFillIcon size={16} /> : <CircleIcon size={16} />}
+              </Box>
+            </Tooltip>
+          )}
+        </Box>
+
+        <Box
+          sx={{
+            p: 4,
+            border: "1px solid",
+            borderColor: "border.default",
+            borderRadius: 2,
+            bg: "canvas.subtle",
+          }}
+        >
+          {langfuseEnabled && langfuseHost && (
+            <Box
+              sx={{
+                mb: 3,
+                p: 3,
+                bg: "canvas.default",
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "border.default",
+              }}
+            >
+              <Text sx={{ fontSize: 1, color: "fg.muted", mb: 1, display: "block" }}>
+                Connected to:
+              </Text>
+              <Text
+                sx={{
+                  fontSize: 2,
+                  fontFamily: "mono",
+                  color: "fg.default",
+                  fontWeight: "semibold",
+                }}
+              >
+                {langfuseHost}
+              </Text>
+            </Box>
+          )}
+
+          <Box
+            as="pre"
+            sx={{
+              p: 3,
+              bg: "canvas.default",
+              border: "1px solid",
+              borderColor: "border.default",
+              borderRadius: 2,
+              fontSize: 1,
+              fontFamily: "mono",
+              color: "fg.default",
+              overflow: "auto",
+              mb: 3,
+            }}
+          >
+            {`LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_HOST=https://cloud.langfuse.com
+LANGFUSE_PROJECT_ID=your-project-id`}
+          </Box>
+
+          <Text sx={{ color: "fg.muted", fontSize: 1 }}>
+            {langfuseEnabled
+              ? "Langfuse is configured and ready to use. Dataset uploads and tracing are enabled."
+              : "Add the environment variables above to your .env file and restart the application."}{" "}
+            <a
+              href="https://langfuse.com/docs/get-started"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "inherit" }}
+            >
+              View Documentation
+            </a>
+          </Text>
+        </Box>
       </Box>
 
       {/* modals */}

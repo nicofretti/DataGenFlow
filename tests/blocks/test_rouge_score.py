@@ -4,12 +4,12 @@ from lib.blocks.builtin.rouge_score import RougeScore
 
 
 @pytest.mark.asyncio
-async def test_rouge_score_perfect_match():
+async def test_rouge_score_perfect_match(make_context):
     block = RougeScore(
         generated_field="assistant", reference_field="reference", rouge_type="rouge1"
     )
     result = await block.execute(
-        {"assistant": "The quick brown fox", "reference": "The quick brown fox"}
+        make_context({"assistant": "The quick brown fox", "reference": "The quick brown fox"})
     )
 
     assert "rouge_score" in result
@@ -17,12 +17,12 @@ async def test_rouge_score_perfect_match():
 
 
 @pytest.mark.asyncio
-async def test_rouge_score_partial_match():
+async def test_rouge_score_partial_match(make_context):
     block = RougeScore(
         generated_field="assistant", reference_field="reference", rouge_type="rouge1"
     )
     result = await block.execute(
-        {"assistant": "The quick brown dog", "reference": "The quick brown fox"}
+        make_context({"assistant": "The quick brown dog", "reference": "The quick brown fox"})
     )
 
     assert "rouge_score" in result
@@ -30,9 +30,9 @@ async def test_rouge_score_partial_match():
 
 
 @pytest.mark.asyncio
-async def test_rouge_score_empty():
+async def test_rouge_score_empty(make_context):
     block = RougeScore()
-    result = await block.execute({})
+    result = await block.execute(make_context())
 
     assert result["rouge_score"] == 0.0
 

@@ -5,6 +5,7 @@ Test configuration and fixtures
 import asyncio
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -52,16 +53,6 @@ def client():
 
 
 @pytest.fixture
-def sample_record():
-    """sample record with new model structure"""
-    from models import Record, RecordStatus
-
-    return Record(
-        output="test output", metadata={"test_key": "test_value"}, status=RecordStatus.PENDING
-    )
-
-
-@pytest.fixture
 def sample_seed():
     """sample seed file data with new format"""
     return {
@@ -100,24 +91,66 @@ def sample_pipeline_def():
     }
 
 
+@pytest.fixture
+def make_context():
+    """helper to create BlockExecutionContext from dict for testing"""
+    from lib.entities.block_execution_context import BlockExecutionContext
+
+    def _make(
+        data: dict[str, Any] | None = None,
+        trace_id: str = "test-trace",
+        job_id: int = 0,
+        pipeline_id: int = 1,
+    ):
+        return BlockExecutionContext(
+            trace_id=trace_id,
+            job_id=job_id,
+            pipeline_id=pipeline_id,
+            accumulated_state=data or {},
+        )
+
+    return _make
+
+
 def pytest_sessionfinish(session, exitstatus):
-    """cleanup http clients to prevent hanging threads"""
+    """cleanup at end of test session"""
     import gc
 
+    # cleanup litellm clients
     try:
-        import httpx
+        import litellm
 
-        # close all httpx clients to stop background threads
+        litellm.in_memory_llm_clients_cache.flush_cache()
+    except Exception:
+        pass
+
+    # close all aiosqlite connections using asyncio
+    try:
+        import aiosqlite
+
+        connections = []
         for obj in gc.get_objects():
-            if isinstance(obj, (httpx.Client, httpx.AsyncClient)):
+            if isinstance(obj, aiosqlite.Connection):
+                connections.append(obj)
+
+        if connections:
+            # close all connections using asyncio.run
+            async def close_all():
+                for conn in connections:
+                    try:
+                        await conn.close()
+                    except Exception:
+                        pass
+
+            try:
+                asyncio.run(close_all())
+            except RuntimeError:
+                # loop already running, try with get_event_loop
                 try:
-                    if isinstance(obj, httpx.Client):
-                        obj.close()
-                    else:
-                        asyncio.run(obj.aclose())
+                    loop = asyncio.get_event_loop()
+                    if not loop.is_closed():
+                        loop.run_until_complete(close_all())
                 except Exception:
-                    # ignore errors during cleanup - client may already be closed
                     pass
-    except ImportError:
-        # httpx not installed, skip cleanup
+    except Exception:
         pass

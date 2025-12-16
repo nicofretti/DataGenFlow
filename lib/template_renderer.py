@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 
@@ -19,8 +20,6 @@ class TemplateRenderer:
     def _register_custom_filters(self) -> None:
         """register custom jinja2 filters"""
         # add json filter for pretty-printing dicts/lists
-        import json
-
         self.env.filters["tojson"] = lambda obj: json.dumps(obj, indent=2)
 
         # add truncate filter

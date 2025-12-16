@@ -1,6 +1,6 @@
 import React, { useState, createContext, useContext, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
-import { Box, IconButton, ThemeProvider, useTheme, Text } from "@primer/react";
+import { Box, IconButton, ThemeProvider, Text } from "@primer/react";
 import {
   SunIcon,
   MoonIcon,

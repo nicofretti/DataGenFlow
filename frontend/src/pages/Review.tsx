@@ -436,6 +436,96 @@ export default function Review() {
         </FormControl>
       </Box>
 
+      {/* langfuse metadata display */}
+      {selectedJob &&
+        (() => {
+          const job = jobs.find((j) => j.id === selectedJob);
+          if (job && job.metadata) {
+            try {
+              const metadata =
+                typeof job.metadata === "string" ? JSON.parse(job.metadata) : job.metadata;
+              if (metadata.langfuse) {
+                if (metadata.langfuse.error) {
+                  return (
+                    <Box
+                      sx={{
+                        mb: 3,
+                        p: 3,
+                        border: "2px solid",
+                        borderColor: "danger.emphasis",
+                        borderRadius: 2,
+                        bg: "danger.subtle",
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                        <XCircleIcon size={20} fill="danger.fg" />
+                        <Text sx={{ fontSize: 2, fontWeight: "semibold", color: "danger.fg" }}>
+                          Langfuse Upload Failed
+                        </Text>
+                      </Box>
+                      <Text sx={{ fontSize: 1, color: "fg.default" }}>
+                        {metadata.langfuse.error}
+                      </Text>
+                    </Box>
+                  );
+                } else if (metadata.langfuse.message) {
+                  return (
+                    <Box
+                      sx={{
+                        mb: 3,
+                        p: 3,
+                        border: "2px solid",
+                        borderColor: "success.emphasis",
+                        borderRadius: 2,
+                        bg: "success.subtle",
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                        <CheckCircleIcon size={20} fill="success.fg" />
+                        <Text sx={{ fontSize: 2, fontWeight: "semibold", color: "success.fg" }}>
+                          Langfuse Dataset Upload Successful
+                        </Text>
+                      </Box>
+                      <Text sx={{ fontSize: 1, color: "fg.default", mb: 2 }}>
+                        {metadata.langfuse.message}
+                      </Text>
+                      {metadata.langfuse.dataset_name && (
+                        <Box
+                          sx={{
+                            mt: 2,
+                            p: 2,
+                            bg: "canvas.default",
+                            borderRadius: 1,
+                            border: "1px solid",
+                            borderColor: "border.default",
+                          }}
+                        >
+                          <Text sx={{ fontSize: 0, color: "fg.muted", mb: 1, display: "block" }}>
+                            Dataset Name:
+                          </Text>
+                          <Text
+                            sx={{
+                              fontSize: 1,
+                              fontFamily: "mono",
+                              color: "success.fg",
+                              fontWeight: "semibold",
+                            }}
+                          >
+                            {metadata.langfuse.dataset_name}
+                          </Text>
+                        </Box>
+                      )}
+                    </Box>
+                  );
+                }
+              }
+            } catch {
+              return null;
+            }
+          }
+          return null;
+        })()}
+
       <Box sx={{ mb: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <SegmentedControl
           aria-label="Filter by status"
@@ -487,10 +577,14 @@ export default function Review() {
                   })()
                 : "N/A";
 
+            const inputTokens = job.usage.input_tokens ?? 0;
+            const outputTokens = job.usage.output_tokens ?? 0;
+            const cachedTokens = job.usage.cached_tokens ?? 0;
+
             return (
               <Box sx={{ display: "flex", gap: 2 }}>
                 <Tooltip
-                  aria-label={`Tokens: ↓ Input: ${job.usage.input_tokens.toLocaleString()} ↑ Output: ${job.usage.output_tokens.toLocaleString()} ⟳ Cached: ${job.usage.cached_tokens.toLocaleString()}`}
+                  aria-label={`Tokens: ↓ Input: ${inputTokens.toLocaleString()} ↑ Output: ${outputTokens.toLocaleString()} ⟳ Cached: ${cachedTokens.toLocaleString()}`}
                   direction="w"
                 >
                   <Box
@@ -510,12 +604,7 @@ export default function Review() {
                       <SparklesFillIcon size={12} />
                     </Box>
                     <Text sx={{ fontSize: 1, fontFamily: "mono", color: "fg.default" }}>
-                      {(
-                        job.usage.input_tokens +
-                        job.usage.output_tokens +
-                        job.usage.cached_tokens
-                      ).toLocaleString()}{" "}
-                      tk
+                      {(inputTokens + outputTokens + cachedTokens).toLocaleString()} tk
                     </Text>
                   </Box>
                 </Tooltip>

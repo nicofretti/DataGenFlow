@@ -23,7 +23,7 @@ https://github.com/user-attachments/assets/7ca7a319-e2c1-4e24-a4c7-2b098d692aa1
 
 ## Why DataGenFlow 🌱
 
-DataGenFlow transforms complex data generation workflows into intuitive visual pipelines. A minimal tool to help you generate and validate data from seed templates with full visibility.
+DataGenFlow is minimal tool to help you generate and validate data from seed/documents with full visibility.
 
 ### Key Benefits
 
@@ -134,27 +134,21 @@ Fields:
 
 ### 2. Build Your Pipeline Visually
 
-Design your data generation workflow using drag-and-drop blocks. Each block processes data and passes it to the next one.
+Design your data generation workflow using drag-and-drop blocks. Each block processes data and passes it to the next one. Currenlty there are 3 types of blocks:
+- Generators: Create new content
+- Validators: Validate or parse existing content
+- Metrics: Calculate quality metrics on content
 
-#### Built-in Blocks
-
-Start with ready-to-use blocks:
-
-**Generators:**
-- Text Generator: Generate text using LLM with configurable parameters
-- Structured Generator: Generate structured JSON with schema validation
-
-**Validators:**
-- Validator: Validate text (length, forbidden words, patterns)
-- JSON Validator: Parse and validate JSON structures
-
-**Metrics:**
-- Coherence Score: Calculate text coherence metrics
-- Diversity Score: Measure lexical diversity
-- Rouge Score: Calculate ROUGE similarity scores
-
-**Seeders:**
-- Markdown Chunker: Split markdown documents into chunks for processing
+Here are some example blocks available out of the box:
+- [Generator] Text Generator: Generate text using LLM with configurable parameters
+- [Generator] Structured Generator: Generate structured JSON with schema validation
+- [Validators] Validator: Validate text (length, forbidden words, patterns)
+- [Validators] JSON Validator: Parse and validate JSON structures
+- [Metrics] Coherence Score: Calculate text coherence metrics
+- [Metrics] Diversity Score: Measure lexical diversity
+- [Metrics] Rouge Score: Calculate ROUGE similarity scores
+- [Seeders] Markdown Chunker: Split markdown documents into chunks for processing
+- ... other blocks will be added over time, you can contribute new ones too!
 
 #### Extend with Custom Blocks
 
@@ -162,16 +156,18 @@ The real power of DataGenFlow is creating your own blocks. Add domain-specific l
 
 ```python
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 from typing import Any
 
 class SentimentAnalyzerBlock(BaseBlock):
     name = "Sentiment Analyzer"
     description = "Analyzes text sentiment"
+    category = "validators"  # generators, validators, metrics, seeders, general
     inputs = ["text"]  # what this block needs from accumulated state
     outputs = ["sentiment", "confidence"]  # what it adds to accumulated state
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-        text = data["text"]  # access from accumulated state
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        text = context.get_state("text", "")  # access from accumulated state
         sentiment = analyze_sentiment(text)
 
         # return values are added to accumulated state automatically
@@ -268,20 +264,6 @@ Areas for Contribution:
 - Integration examples and use cases
 
 For detailed technical requirements and development setup, refer to the [Developer Documentation](DEVELOPERS.md).
-
-## Design Strategy
-
-DataGenFlow is built on the **KISS principle** (Keep It Simple, Stupid):
-
-- Minimal Abstraction: Direct, understandable code over clever tricks
-- Flat Architecture: Simple structure over deep nesting
-- Explicit Design: Clear intentions over implicit magic
-- Composition First: Combine simple pieces over complex inheritance
-- Developer Friendly: Easy to understand, modify, and extend
-
-Result: Simple, understandable code that's easy to maintain and extend.
-
----
 
 <div align="center">
 

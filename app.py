@@ -8,28 +8,31 @@ from fastapi import APIRouter, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
+from pydantic import ValidationError as PydanticValidationError
 
 from config import settings
 from lib.blocks.registry import registry
-from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
-from lib.job_processor import process_job_in_thread
-from lib.job_queue import JobQueue
-from lib.llm_config import LLMConfigManager, LLMConfigNotFoundError
-from lib.schema_utils import compute_accumulated_state_schema
-from lib.storage import Storage
-from lib.templates import template_registry
-from lib.workflow import Pipeline as WorkflowPipeline
-from models import (
+from lib.constants import RECORD_UPDATABLE_FIELDS
+from lib.entities import (
     ConnectionTestResult,
     EmbeddingModelConfig,
+    JobStatus,
     LLMModelConfig,
     PipelineRecord,
-    Record,
+    RecordCreate,
     RecordStatus,
     RecordUpdate,
     SeedInput,
     SeedValidationRequest,
+    ValidationConfig,
 )
+from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
+from lib.job_processor import process_job_in_thread
+from lib.job_queue import JobQueue
+from lib.llm_config import LLMConfigManager, LLMConfigNotFoundError
+from lib.storage import Storage
+from lib.templates import template_registry
+from lib.workflow import Pipeline as WorkflowPipeline
 
 storage = Storage()
 job_queue = JobQueue()
@@ -53,7 +56,17 @@ def is_multiplier_pipeline(blocks: list[dict[str, Any]]) -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    import os
+
+    import litellm
+
     await storage.init_db()
+
+    # configure langfuse integration if credentials are set
+    if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
+        litellm.success_callback = ["langfuse"]
+        logger.info("Langfuse observability enabled")
+
     yield
     # close storage connection on shutdown
     await storage.close()
@@ -68,48 +81,42 @@ async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
 
-def _validate_seed_structure(seed: dict[str, Any]) -> tuple[bool, bool, int]:
-    """check seed structure and repetitions.
+@app.get("/api/langfuse/status")
+async def langfuse_status() -> dict[str, Any]:
+    """check if langfuse integration is enabled"""
+    import os
 
-    returns (has_structure_error, has_repetition_error, zero_rep_count)
+    public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
+    secret_key = os.getenv("LANGFUSE_SECRET_KEY")
+    host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
+    enabled = bool(public_key and secret_key)
+    return {
+        "enabled": enabled,
+        "host": host if enabled else None,
+    }
+
+
+def _validate_seed_repetitions(seed: SeedInput) -> tuple[bool, int]:
+    """check seed repetitions.
+
+    returns (has_repetition_error, zero_rep_count)
     """
-    if not isinstance(seed, dict):
-        return (True, False, 0)
-
-    if "metadata" not in seed:
-        return (True, False, 0)
-
-    if not isinstance(seed["metadata"], dict):
-        return (True, False, 0)
-
-    repetitions = seed.get("repetitions", 1)
-    if repetitions == 0:
-        return (False, False, 1)
-    if not isinstance(repetitions, int) or repetitions < 0:
-        return (False, True, 0)
-
-    return (False, False, 0)
+    if seed.repetitions == 0:
+        return (False, 1)
+    if seed.repetitions < 0:
+        return (True, 0)
+    return (False, 0)
 
 
-def _validate_seed_fields(seed: dict[str, Any], required_inputs: list[str]) -> set[str]:
+def _validate_seed_fields(seed: SeedInput, required_inputs: list[str]) -> set[str]:
     """return set of missing required fields in seed metadata"""
-    if not isinstance(seed, dict) or "metadata" not in seed:
-        return set()
-
-    metadata = seed["metadata"]
-    if not isinstance(metadata, dict):
-        return set()
-
-    return {field for field in required_inputs if field not in metadata}
+    return {field for field in required_inputs if field not in seed.metadata}
 
 
-def _build_validation_errors(
-    structure_err: bool, repetition_err: bool, missing: set[str], block_name: str
-) -> list[str]:
+def _build_validation_errors(repetition_err: bool, missing: set[str], block_name: str) -> list[str]:
     """build error messages from validation flags"""
     errors = []
-    if structure_err:
-        errors.append("Some seeds are not well structured (missing 'metadata' or invalid format)")
     if repetition_err:
         errors.append("Some seeds have invalid repetitions (must be positive integer)")
     if missing:
@@ -136,20 +143,15 @@ async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=f"block type '{blocks[0]['type']}' not found")
 
     required_inputs = block_class.get_required_fields(blocks[0].get("config", {}))
-    structure_err, repetition_err, zero_count, missing_fields = False, False, 0, set()
+    repetition_err, zero_count, missing_fields = False, 0, set()
 
     for seed in request.seeds:
-        s_err, r_err, z_count = _validate_seed_structure(seed)
-        structure_err, repetition_err, zero_count = (
-            structure_err or s_err,
-            repetition_err or r_err,
-            zero_count + z_count,
-        )
+        r_err, z_count = _validate_seed_repetitions(seed)
+        repetition_err = repetition_err or r_err
+        zero_count += z_count
         missing_fields.update(_validate_seed_fields(seed, required_inputs))
 
-    errors = _build_validation_errors(
-        structure_err, repetition_err, missing_fields, block_class.name
-    )
+    errors = _build_validation_errors(repetition_err, missing_fields, block_class.name)
     warnings = (
         [f"{zero_count} seed(s) have repetitions=0 (will not generate records)"]
         if zero_count > 0
@@ -179,7 +181,8 @@ async def generate_from_file(
     content = await file.read(MAX_FILE_SIZE + 1)
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
-            status_code=413, detail=f"file too large (max {MAX_FILE_SIZE // (1024 * 1024)}MB)"
+            status_code=413,
+            detail=f"file too large (max {MAX_FILE_SIZE // (1024 * 1024)}MB)",
         )
     data = json.loads(content)
     seeds = [SeedInput(**item) for item in (data if isinstance(data, list) else [data])]
@@ -197,13 +200,13 @@ async def generate_from_file(
             total += 1
             try:
                 # execute pipeline with metadata as input
-                exec_result = await pipeline.execute(seed.metadata)
+                exec_result = await pipeline.execute(seed.metadata, pipeline_id=pipeline_id)
                 # help mypy understand this is the tuple variant
                 assert isinstance(exec_result, tuple)
                 result, trace, trace_id = exec_result
 
                 # create record from pipeline execution
-                record = Record(
+                record = RecordCreate(
                     metadata=seed.metadata,
                     trace=trace,
                 )
@@ -294,22 +297,23 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
     if active_job:
         raise HTTPException(
             status_code=409,
-            detail=f"Job {active_job['id']} is already running. "
+            detail=f"Job {active_job.id} is already running. "
             "Cancel it first or wait for completion.",
         )
 
     content = await file.read(MAX_FILE_SIZE + 1)
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
-            status_code=413, detail=f"file too large (max {MAX_FILE_SIZE // (1024 * 1024)}MB)"
+            status_code=413,
+            detail=f"file too large (max {MAX_FILE_SIZE // (1024 * 1024)}MB)",
         )
     seeds, total_samples = await (
         _parse_markdown_file(content) if is_markdown else _parse_json_file(content)
     )
     tmp_file = await _create_temp_seed_file(seeds, content, is_markdown, pipeline_id)
 
-    job_id = await storage.create_job(pipeline_id, total_samples, status="running")
-    job_queue.create_job(job_id, pipeline_id, total_samples, status="running")
+    job_id = await storage.create_job(pipeline_id, total_samples, status=JobStatus.RUNNING)
+    job_queue.create_job(job_id, pipeline_id, total_samples, status=JobStatus.RUNNING)
     process_job_in_thread(job_id, pipeline_id, str(tmp_file), job_queue, storage)
 
     return {"job_id": job_id}
@@ -321,7 +325,7 @@ async def get_active_job() -> dict[str, Any] | None:
     active_job = job_queue.get_active_job()
     if not active_job:
         raise HTTPException(status_code=404, detail="no active job")
-    return active_job
+    return active_job.model_dump()
 
 
 @api_router.get("/jobs/{job_id}")
@@ -330,7 +334,7 @@ async def get_job(job_id: int) -> dict[str, Any]:
     # try memory first
     job = job_queue.get_job(job_id)
     if job:
-        return job
+        return job.model_dump()
 
     # fallback to database
     job_obj = await storage.get_job(job_id)
@@ -347,7 +351,7 @@ async def cancel_job(job_id: int) -> dict[str, str]:
         raise HTTPException(status_code=404, detail="job not found")
 
     # update database
-    await storage.update_job(job_id, status="cancelled")
+    await storage.update_job(job_id, status=JobStatus.CANCELLED)
 
     return {"message": "Job cancelled"}
 
@@ -359,7 +363,7 @@ async def list_jobs(pipeline_id: int | None = None) -> list[dict[str, Any]]:
     if pipeline_id:
         jobs = job_queue.get_pipeline_history(pipeline_id)
         if jobs:
-            return jobs
+            return [j.model_dump() for j in jobs]
 
     # fallback to database
     jobs_list = await storage.list_jobs(pipeline_id=pipeline_id, limit=10)
@@ -397,9 +401,10 @@ async def update_record(record_id: int, update: RecordUpdate) -> dict[str, bool]
     updates = update.model_dump(exclude_unset=True)
 
     # separate standard fields from accumulated_state field updates
-    standard_fields = {"output", "status", "metadata"}
-    standard_updates = {k: v for k, v in updates.items() if k in standard_fields}
-    accumulated_state_updates = {k: v for k, v in updates.items() if k not in standard_fields}
+    standard_updates = {k: v for k, v in updates.items() if k in RECORD_UPDATABLE_FIELDS}
+    accumulated_state_updates = {
+        k: v for k, v in updates.items() if k not in RECORD_UPDATABLE_FIELDS
+    }
 
     # if there are accumulated_state field updates, handle them specially
     if accumulated_state_updates:
@@ -518,7 +523,7 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
             raise HTTPException(status_code=404, detail="pipeline not found")
 
         pipeline = WorkflowPipeline.load_from_dict(pipeline_data.definition)
-        exec_result = await pipeline.execute(data)
+        exec_result = await pipeline.execute(data, pipeline_id=pipeline_id)
         # handle both ExecutionResult and list[ExecutionResult]
         if isinstance(exec_result, list):
             # multiplier pipeline
@@ -528,7 +533,7 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
                         "result": r.result,
                         "trace": r.trace,
                         "trace_id": r.trace_id,
-                        "usage": r.usage,
+                        "usage": r.usage.model_dump(),
                     }
                     for r in exec_result
                 ]
@@ -539,7 +544,7 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
                 "result": exec_result.result,
                 "trace": exec_result.trace,
                 "trace_id": exec_result.trace_id,
-                "usage": exec_result.usage,
+                "usage": exec_result.usage.model_dump(),
             }
     except HTTPException:
         # Let HTTPException propagate to FastAPI
@@ -562,8 +567,8 @@ async def get_accumulated_state_schema(pipeline_id: int) -> dict[str, list[str]]
     if not pipeline_data:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
-    blocks = pipeline_data.definition["blocks"]
-    fields = compute_accumulated_state_schema(blocks)
+    blocks = pipeline_data.definition.get("blocks", [])
+    fields = registry.compute_accumulated_state_schema(blocks)
     return {"fields": fields}
 
 
@@ -572,25 +577,16 @@ async def update_validation_config(
     pipeline_id: int, validation_config: dict[str, Any]
 ) -> dict[str, bool]:
     """update the validation_config for a pipeline"""
-    # validate structure
-    if "field_order" not in validation_config:
-        raise HTTPException(
-            status_code=400, detail="validation_config must have field_order property"
-        )
-
-    field_order = validation_config["field_order"]
-    if not isinstance(field_order, dict):
-        raise HTTPException(status_code=400, detail="field_order must be an object")
-
-    required_keys = {"primary", "secondary", "hidden"}
-    if not all(key in field_order for key in required_keys):
-        raise HTTPException(
-            status_code=400,
-            detail=f"field_order must have {required_keys} arrays",
-        )
+    # validate structure using pydantic
+    try:
+        validated_config = ValidationConfig(**validation_config)
+    except PydanticValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     # update database
-    success = await storage.update_pipeline_validation_config(pipeline_id, validation_config)
+    success = await storage.update_pipeline_validation_config(
+        pipeline_id, validated_config.model_dump()
+    )
     if not success:
         raise HTTPException(status_code=404, detail="pipeline not found")
 
