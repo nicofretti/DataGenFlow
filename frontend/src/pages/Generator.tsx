@@ -287,20 +287,6 @@ export default function Generator() {
     }
   };
 
-  const handleVerifySeeds = async () => {
-    if (!file || !selectedPipeline) return;
-
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      const seeds = Array.isArray(data) ? data : [data];
-      await validateSeeds(seeds);
-    } catch (err) {
-      console.error("verification failed:", err);
-      toast.error("Failed to verify seeds");
-    }
-  };
-
   const handleGenerate = async () => {
     if (!file || !selectedPipeline) return;
 

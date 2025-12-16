@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ class RagasBatchMetrics(BaseBlock):
 
         return True
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         try:
             from ragas import SingleTurnSample
             from ragas.metrics import (
@@ -136,15 +137,21 @@ class RagasBatchMetrics(BaseBlock):
             logger.error(f"ragas not installed: {e}")
             return {}
 
-        # get parsed_json
+        # get parsed_json from context
+        data = context.accumulated_state
+        logger.info(f"ragas_batch_metrics: accumulated_state keys: {list(data.keys())}")
+
         parsed_json = data.get("parsed_json")
         if not parsed_json or not isinstance(parsed_json, dict):
-            logger.error("parsed_json not found or invalid")
+            logger.error(f"parsed_json not found or invalid. Type: {type(parsed_json)}")
             return {}
 
         qa_pairs = parsed_json.get("qa_pairs", [])
         if not isinstance(qa_pairs, list) or len(qa_pairs) == 0:
-            logger.error("qa_pairs not found or empty")
+            logger.error(
+                f"qa_pairs not found or empty. Type: {type(qa_pairs)}, "
+                f"Length: {len(qa_pairs) if isinstance(qa_pairs, list) else 'N/A'}"
+            )
             return {}
 
         # configure LLM and embeddings for ragas
@@ -188,7 +195,9 @@ class RagasBatchMetrics(BaseBlock):
                     base_url=base_url,
                 )
             elif llm_config.provider.value == "gemini":
-                from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                from langchain_google_genai import (
+                    GoogleGenerativeAIEmbeddings,
+                )
 
                 embeddings = GoogleGenerativeAIEmbeddings(
                     model="models/embedding-001",
@@ -237,7 +246,8 @@ class RagasBatchMetrics(BaseBlock):
         # add answer_relevancy only if embeddings are available
         if embeddings:
             metric_map["answer_relevancy"] = AnswerRelevancy(
-                llm=llm, embeddings=embeddings  # type: ignore[arg-type]
+                llm=llm,  # type: ignore[arg-type]
+                embeddings=embeddings,
             )
 
         # process each QA pair and build enhanced structure
@@ -310,8 +320,7 @@ class RagasBatchMetrics(BaseBlock):
             # flag low-scoring QA pairs if enabled
             if self.flag_low_scores:
                 low_quality = any(
-                    score < self.score_threshold
-                    for score in enhanced_qa["scores"].values()
+                    score < self.score_threshold for score in enhanced_qa["scores"].values()
                 )
                 enhanced_qa["low_quality"] = low_quality
 
@@ -334,4 +343,8 @@ class RagasBatchMetrics(BaseBlock):
                 f"QA pairs flagged as low quality (threshold: {self.score_threshold})"
             )
 
-        return {"qa_pairs_with_scores": qa_pairs_with_scores}
+        result = {"qa_pairs_with_scores": qa_pairs_with_scores}
+        logger.info(
+            f"ragas_batch_metrics: returning {len(qa_pairs_with_scores)} QA pairs with scores"
+        )
+        return result

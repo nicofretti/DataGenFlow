@@ -155,9 +155,7 @@ class Pipeline:
 
             block_name = block.__class__.__name__
             total = len(self._block_instances)
-            logger.debug(
-                f"[{context.trace_id}] Executing block {i + 1}/{total}: {block_name}"
-            )
+            logger.debug(f"[{context.trace_id}] Executing block {i + 1}/{total}: {block_name}")
 
             await self._update_job_progress(
                 job_id,
@@ -203,14 +201,10 @@ class Pipeline:
                 )
             except ValidationError:
                 # re-raise validation errors as-is
-                logger.error(
-                    f"[{context.trace_id}] {block_name} validation error at step {i + 1}"
-                )
+                logger.error(f"[{context.trace_id}] {block_name} validation error at step {i + 1}")
                 raise
             except Exception as e:
-                logger.exception(
-                    f"[{context.trace_id}] {block_name} failed at step {i + 1}"
-                )
+                logger.exception(f"[{context.trace_id}] {block_name} failed at step {i + 1}")
                 raise BlockExecutionError(
                     f"Block '{block_name}' failed at step {i + 1}: {str(e)}",
                     detail={
@@ -221,9 +215,7 @@ class Pipeline:
                     },
                 )
 
-        logger.info(
-            f"[{context.trace_id}] Pipeline '{self.name}' completed successfully"
-        )
+        logger.info(f"[{context.trace_id}] Pipeline '{self.name}' completed successfully")
         return pipeline.ExecutionResult(
             result=context.accumulated_state,
             trace=context.trace,
@@ -269,9 +261,7 @@ class Pipeline:
                 )
             )
         except Exception as e:
-            logger.exception(
-                f"[{context.trace_id}] {block_name} failed at seed {seed_idx + 1}"
-            )
+            logger.exception(f"[{context.trace_id}] {block_name} failed at seed {seed_idx + 1}")
             context.trace.append(
                 TraceEntry(
                     block_type=block_name,
@@ -419,9 +409,7 @@ class Pipeline:
                 usage=context.usage,
             )
         except Exception:
-            logger.exception(
-                f"[{context.trace_id}] Seed {seed_idx + 1}/{total_seeds} failed"
-            )
+            logger.exception(f"[{context.trace_id}] Seed {seed_idx + 1}/{total_seeds} failed")
 
             if job_id == 0 or not job_queue:
                 return None
@@ -552,9 +540,7 @@ class Pipeline:
             except (ValueError, KeyError, json.JSONDecodeError) as e:
                 logger.warning(f"Failed to check constraints for job {job_id}: {e}")
 
-        logger.info(
-            f"Multiplier pipeline '{self.name}' completed with {len(results)} results"
-        )
+        logger.info(f"Multiplier pipeline '{self.name}' completed with {len(results)} results")
         return results
 
     def to_dict(self) -> dict[str, Any]:

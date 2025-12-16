@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from lib.blocks.base import BaseBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,9 @@ class JSONFieldExtractorBlock(BaseBlock):
                     if 0 <= index < len(current):
                         current = current[index]
                     else:
-                        logger.warning(f"index {index} out of bounds for array (length: {len(current)})")
+                        logger.warning(
+                            f"index {index} out of bounds for array (length: {len(current)})"
+                        )
                         return None
                 except ValueError:
                     logger.warning(f"invalid array index: {part}")
@@ -156,9 +159,9 @@ class JSONFieldExtractorBlock(BaseBlock):
         logger.info(f"JSON Field Extractor final output: {result}")
         return result
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         if not self.mappings:
             logger.warning("no mappings configured, returning empty result")
             return {}
 
-        return self._extract_fields(data)
+        return self._extract_fields(context.accumulated_state)
