@@ -54,21 +54,19 @@ class LangfuseDatasetBlock(BaseBlock):
                     f"Skipping upload for job {context.job_id}: "
                     f"seed {job.current_seed}/{job.total_seeds} (waiting for completion)"
                 )
-                status = f"pending: waiting for job completion ({job.current_seed}/{job.total_seeds})"
+                status = (
+                    f"pending: waiting for job completion ({job.current_seed}/{job.total_seeds})"
+                )
                 return {"langfuse_upload_status": status}
 
             # check if already uploaded (idempotency)
             if job.metadata:
                 try:
                     metadata = (
-                        json.loads(job.metadata)
-                        if isinstance(job.metadata, str)
-                        else job.metadata
+                        json.loads(job.metadata) if isinstance(job.metadata, str) else job.metadata
                     )
                     if metadata.get("langfuse", {}).get("uploaded"):
-                        logger.info(
-                            f"Job {context.job_id} already uploaded to Langfuse, skipping"
-                        )
+                        logger.info(f"Job {context.job_id} already uploaded to Langfuse, skipping")
                         msg = metadata["langfuse"].get("message", "")
                         return {"langfuse_upload_status": f"already uploaded: {msg}"}
                 except (json.JSONDecodeError, TypeError):
@@ -156,9 +154,7 @@ class LangfuseDatasetBlock(BaseBlock):
                 }
             }
             try:
-                await storage.update_job(
-                    context.job_id, metadata=json.dumps(job_metadata)
-                )
+                await storage.update_job(context.job_id, metadata=json.dumps(job_metadata))
             except Exception as update_error:
                 logger.error(f"Failed to update job metadata: {update_error}")
 
