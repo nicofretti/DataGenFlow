@@ -53,15 +53,6 @@
       }
     },
     {
-      "type": "JSON Field Extractor",
-      "config": {
-        "field_mappings": {
-          "generated": "generated",
-          "qa_pairs": "generated.qa_pairs"
-        }
-      }
-    },
-    {
       "type": "Ragas Batch Metrics",
       "config": {
         "metrics": [

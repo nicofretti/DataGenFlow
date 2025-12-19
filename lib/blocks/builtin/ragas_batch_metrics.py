@@ -93,6 +93,7 @@ class RagasBatchMetrics(BaseBlock):
                 if isinstance(parsed, list):
                     return [str(item) for item in parsed]
             except json.JSONDecodeError:
+                # if json parsing fails, treat input as single context string below
                 pass
             # treat as single context
             return [contexts]
@@ -137,16 +138,20 @@ class RagasBatchMetrics(BaseBlock):
             logger.error(f"ragas not installed: {e}")
             return {}
 
-        # get parsed_json from context
+        # get QA data from context (supports both "parsed_json" and "generated" fields)
         data = context.accumulated_state
         logger.info(f"ragas_batch_metrics: accumulated_state keys: {list(data.keys())}")
 
-        parsed_json = data.get("parsed_json")
-        if not parsed_json or not isinstance(parsed_json, dict):
-            logger.error(f"parsed_json not found or invalid. Type: {type(parsed_json)}")
+        # try "parsed_json" first, then "generated" for flexibility
+        qa_data = data.get("parsed_json") or data.get("generated")
+        if not qa_data or not isinstance(qa_data, dict):
+            logger.error(
+                f"No valid QA data found. Expected 'parsed_json' or 'generated' field. "
+                f"Available fields: {list(data.keys())}"
+            )
             return {}
 
-        qa_pairs = parsed_json.get("qa_pairs", [])
+        qa_pairs = qa_data.get("qa_pairs", [])
         if not isinstance(qa_pairs, list) or len(qa_pairs) == 0:
             logger.error(
                 f"qa_pairs not found or empty. Type: {type(qa_pairs)}, "
@@ -238,15 +243,15 @@ class RagasBatchMetrics(BaseBlock):
 
         # map of available metrics
         metric_map = {
-            "context_precision": ContextPrecision(llm=llm),  # type: ignore[arg-type]
-            "context_recall": ContextRecall(llm=llm),  # type: ignore[arg-type]
-            "faithfulness": Faithfulness(llm=llm),  # type: ignore[arg-type]
+            "context_precision": ContextPrecision(llm=llm),
+            "context_recall": ContextRecall(llm=llm),
+            "faithfulness": Faithfulness(llm=llm),
         }
 
         # add answer_relevancy only if embeddings are available
         if embeddings:
             metric_map["answer_relevancy"] = AnswerRelevancy(
-                llm=llm,  # type: ignore[arg-type]
+                llm=llm,
                 embeddings=embeddings,
             )
 
@@ -262,7 +267,7 @@ class RagasBatchMetrics(BaseBlock):
                 "question": qa_pair.get("question", ""),
                 "answer": qa_pair.get("answer", ""),
                 "ground_truth": qa_pair.get("ground_truth", ""),
-                "contexts": qa_pair.get("contexts", []),
+                "contexts": self._normalize_contexts(qa_pair.get("contexts", [])),
                 "scores": {},
             }
 
@@ -279,7 +284,15 @@ class RagasBatchMetrics(BaseBlock):
                 metric = metric_map.get(metric_name)
 
                 if not metric:
-                    logger.error(f"unknown metric type: {metric_name}")
+                    # provide helpful error message based on why metric is unavailable
+                    if metric_name == "answer_relevancy":
+                        logger.error(
+                            f"metric '{metric_name}' requires embeddings which are unavailable. "
+                            f"provider {llm_config.provider.value} may not support embeddings, "
+                            "or OPENAI_API_KEY is not set for fallback embeddings"
+                        )
+                    else:
+                        logger.error(f"unknown metric type: {metric_name}")
                     enhanced_qa["scores"][f"{metric_name}_score"] = 0.0
                     continue
 
@@ -307,7 +320,7 @@ class RagasBatchMetrics(BaseBlock):
                     sample = SingleTurnSample(**sample_kwargs)
 
                     # calculate metric
-                    score = await metric.single_turn_ascore(sample)  # type: ignore[attr-defined]
+                    score = await metric.single_turn_ascore(sample)
                     enhanced_qa["scores"][f"{metric_name}_score"] = float(score)
 
                 except Exception as e:

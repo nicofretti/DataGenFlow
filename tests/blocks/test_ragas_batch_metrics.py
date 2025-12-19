@@ -127,7 +127,7 @@ class TestRagasBatchMetrics:
         """test validation for unknown metric type"""
         block = RagasBatchMetrics()
         inputs = {"question": "Q?", "answer": "A", "contexts": ["ctx"]}
-        # unknown metrics should return False since requirements.get returns []
+        # unknown metrics return True since requirements.get returns [] and no validation is performed
         assert block._validate_inputs(inputs, "unknown_metric") is True
 
     def test_validate_inputs_contexts_not_list(self):
@@ -167,6 +167,13 @@ class TestRagasBatchMetrics:
         block = RagasBatchMetrics()
         result = await block.execute(make_context({"parsed_json": {"qa_pairs": []}}))
         assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_execute_with_generated_field(self, make_context):
+        """test execute works with 'generated' field (not just 'parsed_json')"""
+        block = RagasBatchMetrics()
+        result = await block.execute(make_context({"generated": {"qa_pairs": []}}))
+        assert result == {}  # empty qa_pairs should return empty result
 
     def test_schema(self):
         """test block schema generation"""

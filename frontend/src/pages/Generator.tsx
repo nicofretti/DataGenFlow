@@ -47,7 +47,7 @@ export default function Generator() {
     warnings: string[];
   } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [validated, setValidated] = useState(false);
+  const [_, setValidated] = useState(false);
 
   const validateSeeds = useCallback(
     async (seedsData: SeedData[]) => {

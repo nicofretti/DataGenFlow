@@ -1,6 +1,6 @@
-# Example Pipelines
+# RAGAS Metric Integration Examples
 
-This directory contains sample pipeline configurations demonstrating common workflows.
+This directory contains sample pipeline configurations demonstrating RAGAS metric integration workflows for QA evaluation and dataset creation.
 
 ## QA Generation with RAGAS Evaluation
 
@@ -74,13 +74,13 @@ This directory contains sample pipeline configurations demonstrating common work
 ```bash
 curl -X POST http://localhost:8000/api/pipelines \
   -H "Content-Type: application/json" \
-  -d @examples/ragas-qa-evaluation-pipeline.json
+  -d @examples/ragas/ragas-qa-evaluation-pipeline.json
 ```
 
 ### Option 3: Direct File Copy
 ```bash
 # Copy to your pipelines directory
-cp examples/ragas-qa-evaluation-pipeline.json ~/.datagenflow/pipelines/
+cp examples/ragas/ragas-qa-evaluation-pipeline.json ~/.datagenflow/pipelines/
 ```
 
 ## Running the Sample Pipeline
@@ -120,4 +120,4 @@ After running the sample pipeline:
 4. Export high-quality pairs for production use
 5. Track metrics across multiple runs
 
-For more information, see the [RAGAS Evaluation Guide](../docs/ragas-evaluation.md).
+For more information, see the [RAGAS Evaluation Guide](../../docs/ragas-evaluation.md).
