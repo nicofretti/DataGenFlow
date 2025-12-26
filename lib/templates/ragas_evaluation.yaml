@@ -1,0 +1,56 @@
+name: QA Generation with RAGAS Evaluation
+description: Generate QA pairs from content and evaluate quality using RAGAS metrics
+blocks:
+  - type: StructuredGenerator
+    config:
+      system_prompt: |
+        You are an expert at creating high-quality question-answer pairs from given content.
+        Generate questions that can be directly answered from the provided content.
+      user_prompt: |
+        Based on the following content, generate a question-answer pair.
+        The question should be answerable from the content.
+        The answer should be accurate and complete.
+
+        Content:
+        {{ content }}
+      json_schema:
+        type: object
+        properties:
+          question:
+            type: string
+            description: A clear question based on the content
+          answer:
+            type: string
+            description: A complete answer to the question
+          ground_truth:
+            type: string
+            description: The expected reference answer
+          contexts:
+            type: array
+            items:
+              type: string
+            description: Relevant passages from the content
+        required:
+          - question
+          - answer
+      temperature: 0.7
+      max_tokens: 1024
+
+  - type: FieldMapper
+    config:
+      mappings:
+        question: "{{ generated.question }}"
+        answer: "{{ generated.answer }}"
+        ground_truth: "{{ generated.ground_truth | default('') }}"
+        contexts: "{{ generated.contexts | default([]) | tojson }}"
+
+  - type: RagasMetrics
+    config:
+      question_field: question
+      answer_field: answer
+      contexts_field: contexts
+      ground_truth_field: ground_truth
+      metrics:
+        - faithfulness
+        - answer_relevancy
+      score_threshold: 0.7

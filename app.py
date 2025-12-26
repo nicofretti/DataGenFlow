@@ -60,12 +60,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     import litellm
 
+    from lib.blocks.commons import UsageTracker
+
     await storage.init_db()
 
-    # configure langfuse integration if credentials are set
+    # configure langfuse integration and usage tracking
     if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
-        litellm.success_callback = ["langfuse"]
+        litellm.success_callback = ["langfuse", UsageTracker.callback]
         logger.info("Langfuse observability enabled")
+    else:
+        # still track usage even without langfuse
+        litellm.success_callback = [UsageTracker.callback]
 
     yield
     # close storage connection on shutdown

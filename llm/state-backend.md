@@ -13,7 +13,9 @@ lib/
   blocks/
     builtin/              # 9 blocks: text_generator, structured_generator, validator,
                           # json_validator, diversity_score, coherence_score,
-                          # rouge_score, markdown_multiplier, langfuse
+                          # rouge_score, markdown_multiplier, langfuse,
+                          # field_mapper, ragas_metrics
+    commons/              # shared utilities (usage_tracker)
     custom/               # user experimental blocks
     base.py               # BaseBlock interface
     config.py             # schema extraction from __init__
@@ -430,6 +432,10 @@ class BaseBlock:
   - outputs: rouge_score
 - **LangfuseBlock**: observability logging (public_key, secret_key, host, session_id)
   - outputs: langfuse_trace_url
+- **FieldMapper**: create fields from Jinja2 expressions (mappings)
+  - outputs: dynamic (keys from mappings config)
+- **RagasMetrics**: evaluate QA using RAGAS metrics (question_field, answer_field, etc.)
+  - outputs: ragas_scores
 
 ### block discovery
 - registry scans: lib/blocks/builtin/, lib/blocks/custom/, user_blocks/
@@ -494,12 +500,16 @@ pipelines support optional execution limits:
 ## lifespan (app.py)
 
 ```python
+from lib.blocks.commons import UsageTracker
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await storage.init_db()
-    # configure langfuse if credentials set
+    # configure langfuse + usage tracking
     if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
-        litellm.success_callback = ["langfuse"]
+        litellm.success_callback = ["langfuse", UsageTracker.callback]
+    else:
+        litellm.success_callback = [UsageTracker.callback]
     yield
     await storage.close()
 ```
