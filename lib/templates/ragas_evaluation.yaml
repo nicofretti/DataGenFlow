@@ -3,13 +3,15 @@ description: Generate QA pairs from content and evaluate quality using RAGAS met
 blocks:
   - type: StructuredGenerator
     config:
-      system_prompt: |
+      # model: Select your LLM model here
+      user_prompt: |
         You are an expert at creating high-quality question-answer pairs from given content.
         Generate questions that can be directly answered from the provided content.
-      user_prompt: |
+
         Based on the following content, generate a question-answer pair.
         The question should be answerable from the content.
         The answer should be accurate and complete.
+        You MUST also provide the ground_truth (expected answer) and contexts (relevant passages).
 
         Content:
         {{ content }}
@@ -33,6 +35,8 @@ blocks:
         required:
           - question
           - answer
+          - ground_truth
+          - contexts
       temperature: 0.7
       max_tokens: 1024
 
@@ -46,6 +50,8 @@ blocks:
 
   - type: RagasMetrics
     config:
+      # model: Select your LLM model for evaluation
+      # embedding_model: Select your embedding model for answer_relevancy
       question_field: question
       answer_field: answer
       contexts_field: contexts
@@ -53,4 +59,6 @@ blocks:
       metrics:
         - faithfulness
         - answer_relevancy
+        - context_precision
+        - context_recall
       score_threshold: 0.7

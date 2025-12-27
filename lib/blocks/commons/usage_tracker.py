@@ -4,11 +4,17 @@ usage tracker for accumulating LLM token usage across multiple calls
 useful for blocks that call external libraries (like ragas) which make
 LLM calls internally without exposing usage information.
 """
+import contextvars
 import threading
 from collections import defaultdict
 from typing import Any
 
 from lib.entities.pipeline import Usage
+
+# context variable to store current trace_id for calls that don't pass metadata
+_current_trace_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "current_trace_id", default=None
+)
 
 
 class UsageTracker:
@@ -17,6 +23,9 @@ class UsageTracker:
     usage:
         # register callback in app.py
         litellm.success_callback = ["langfuse", UsageTracker.callback]
+
+        # set current trace_id for external library calls (like ragas)
+        UsageTracker.set_current_trace_id(context.trace_id)
 
         # in block execute method, after LLM calls complete
         usage = UsageTracker.get_and_clear(context.trace_id)
@@ -33,6 +42,16 @@ class UsageTracker:
     _lock = threading.Lock()
 
     @classmethod
+    def set_current_trace_id(cls, trace_id: str | None) -> None:
+        """set current trace_id for calls that don't pass metadata"""
+        _current_trace_id.set(trace_id)
+
+    @classmethod
+    def get_current_trace_id(cls) -> str | None:
+        """get current trace_id from context"""
+        return _current_trace_id.get()
+
+    @classmethod
     def callback(
         cls,
         kwargs: dict[str, Any],
@@ -41,7 +60,10 @@ class UsageTracker:
         end_time: float,
     ) -> None:
         """LiteLLM success callback to accumulate usage"""
+        # try metadata first, fallback to context variable
         trace_id = kwargs.get("metadata", {}).get("trace_id")
+        if not trace_id:
+            trace_id = cls.get_current_trace_id()
         if not trace_id:
             return
 

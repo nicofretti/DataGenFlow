@@ -1,6 +1,10 @@
 import json
 import logging
+import os
 from typing import Any
+
+# disable ragas analytics to prevent SSL errors on shutdown
+os.environ["RAGAS_DO_NOT_TRACK"] = "true"
 
 from lib.blocks.base import BaseBlock
 from lib.entities.block_execution_context import BlockExecutionContext
@@ -90,28 +94,35 @@ class RagasMetrics(BaseBlock):
             logger.warning("missing question or answer")
             return {"ragas_scores": self._empty_scores()}
 
-        # 3. setup ragas LLM
+        # 3. set current trace_id for usage tracking (ragas calls don't pass metadata)
+        UsageTracker.set_current_trace_id(context.trace_id)
+
         try:
-            llm = await self._create_ragas_llm(context)
-        except Exception as e:
-            logger.error(f"failed to create LLM: {e}")
-            return {"ragas_scores": self._empty_scores()}
-
-        # 4. setup embeddings if needed
-        embeddings = None
-        if "answer_relevancy" in self.metrics:
+            # 4. setup ragas LLM
             try:
-                embeddings = await self._create_ragas_embeddings()
+                llm = await self._create_ragas_llm(context)
             except Exception as e:
-                logger.warning(f"failed to create embeddings, skipping answer_relevancy: {e}")
+                logger.error(f"failed to create LLM: {e}")
+                return {"ragas_scores": self._empty_scores()}
 
-        # 5. build metrics
-        metrics = self._build_metrics(llm, embeddings)
+            # 5. setup embeddings if needed
+            embeddings = None
+            if "answer_relevancy" in self.metrics:
+                try:
+                    embeddings = await self._create_ragas_embeddings()
+                except Exception as e:
+                    logger.warning(f"failed to create embeddings, skipping answer_relevancy: {e}")
 
-        # 6. evaluate (with per-metric validation)
-        scores = await self._evaluate(inputs, metrics)
+            # 6. build metrics
+            metrics = self._build_metrics(llm, embeddings)
 
-        # 7. get accumulated usage from ragas LLM calls
+            # 7. evaluate (with per-metric validation)
+            scores = await self._evaluate(inputs, metrics)
+        finally:
+            # clear trace_id context after ragas calls complete
+            UsageTracker.set_current_trace_id(None)
+
+        # 8. get accumulated usage from ragas LLM calls
         usage = UsageTracker.to_pipeline_usage(context.trace_id)
 
         # 8. check threshold (only on non-zero scores)
@@ -129,23 +140,41 @@ class RagasMetrics(BaseBlock):
         }
 
     async def _create_ragas_llm(self, context: BlockExecutionContext) -> Any:
-        """create ragas LLM using litellm adapter"""
-        from openai import AsyncOpenAI
+        """create ragas LLM using instructor + litellm adapter"""
+        import os
+
+        import instructor
+        import litellm
 
         from app import llm_config_manager
         from ragas.llms import llm_factory
 
         config = await llm_config_manager.get_llm_model(self.model_name)
         params = llm_config_manager.prepare_llm_call(config, temperature=0.0)
+        model = params["model"]
 
-        # use OpenAI's AsyncOpenAI client which works with litellm via api_base
-        client = AsyncOpenAI(
-            api_key=params.get("api_key", "not-needed"),
-            base_url=params.get("api_base"),
-        )
+        # detect provider from model prefix
+        provider = "openai"
+        if model.startswith("gemini/"):
+            provider = "google"
+        elif model.startswith("anthropic/"):
+            provider = "anthropic"
+        elif model.startswith("ollama/"):
+            provider = "ollama"
+
+        # set api key environment variable for litellm
+        if params.get("api_key"):
+            env_key = f"{provider.upper()}_API_KEY"
+            if provider == "google":
+                env_key = "GEMINI_API_KEY"
+            os.environ[env_key] = params["api_key"]
+
+        # create instructor client from litellm.acompletion for async support
+        client = instructor.from_litellm(litellm.acompletion)
 
         return llm_factory(
-            model=params["model"],
+            model=model,
+            provider=provider,
             client=client,
             adapter="litellm",
             temperature=0.0,
@@ -159,10 +188,15 @@ class RagasMetrics(BaseBlock):
         config = await llm_config_manager.get_embedding_model(self.embedding_model_name)
         params = llm_config_manager._prepare_embedding_call(config, input_text="")
 
+        # fix api_base - remove /embeddings suffix if present (litellm adds it)
+        api_base = params.get("api_base")
+        if api_base and api_base.endswith("/embeddings"):
+            api_base = api_base[: -len("/embeddings")]
+
         return LiteLLMEmbeddings(
             model=params["model"],
             api_key=params.get("api_key"),
-            api_base=params.get("api_base"),
+            api_base=api_base,
         )
 
     def _validate_metric_inputs(
@@ -228,14 +262,24 @@ class RagasMetrics(BaseBlock):
 
         return {k: v for k, v in available.items() if k in self.metrics}
 
+    def _get_metric_params(self, metric_name: str, inputs: dict[str, Any]) -> dict[str, Any]:
+        """get the correct params for each metric type (RAGAS 0.4.x API)"""
+        base = {"user_input": inputs["question"]}
+
+        if metric_name == "faithfulness":
+            return {**base, "response": inputs["answer"], "retrieved_contexts": inputs["contexts"]}
+        elif metric_name == "answer_relevancy":
+            return {**base, "response": inputs["answer"]}
+        elif metric_name in ("context_precision", "context_recall"):
+            return {**base, "retrieved_contexts": inputs["contexts"], "reference": inputs["ground_truth"]}
+        return base
+
     async def _evaluate(
         self,
         inputs: dict[str, Any],
         metrics: dict[str, Any],
     ) -> dict[str, float]:
         """evaluate with all selected metrics, validating inputs first"""
-        from ragas import SingleTurnSample
-
         scores: dict[str, float] = {}
         for name, metric in metrics.items():
             # validate inputs for this specific metric
@@ -246,14 +290,10 @@ class RagasMetrics(BaseBlock):
                 continue
 
             try:
-                sample = SingleTurnSample(
-                    user_input=inputs["question"],
-                    response=inputs["answer"],
-                    retrieved_contexts=inputs.get("contexts") or None,
-                    reference=inputs.get("ground_truth") or None,
-                )
-                score = await metric.single_turn_ascore(sample)
-                scores[name] = float(score)
+                # RAGAS 0.4.x uses ascore() with kwargs, returns result object
+                params = self._get_metric_params(name, inputs)
+                result = await metric.ascore(**params)
+                scores[name] = float(result.value)
             except Exception as e:
                 logger.warning(f"metric {name} failed: {e}")
                 scores[name] = 0.0

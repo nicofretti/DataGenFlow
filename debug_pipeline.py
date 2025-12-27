@@ -1,9 +1,28 @@
 import asyncio
+import logging
+import os
 
+import litellm
+
+# disable ragas analytics (must be before any ragas imports)
+os.environ["RAGAS_DO_NOT_TRACK"] = "true"
+
+# suppress asyncio SSL errors at shutdown (harmless cleanup noise from pending HTTP connections)
+logging.getLogger("asyncio").setLevel(logging.CRITICAL)
+
+from lib.blocks.commons import UsageTracker
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
 
-PIPELINE_ID = 76
+# setup logging
+logging.basicConfig(level=logging.DEBUG)
+
+# register usage tracker callback
+litellm.success_callback = [UsageTracker.callback]
+# also try callbacks list
+litellm.callbacks = [UsageTracker.callback]
+
+PIPELINE_ID = 84
 SEED_DATA = {
     "repetitions": 1,
     "metadata": {
@@ -25,9 +44,18 @@ async def main() -> None:
         name=pipeline_data.name, blocks=pipeline_data.definition["blocks"]
     )
 
-    result, _, trace_id = await workflow.execute(SEED_DATA["metadata"])  # type: ignore[arg-type]
-    print(f"trace_id: {trace_id}")
-    print(f"result: {result}")
+    execution_result = await workflow.execute(SEED_DATA["metadata"])
+    print(f"trace_id: {execution_result.trace_id}")
+    print(f"result: {execution_result.result}")
+    print(f"usage: {execution_result.usage}")
+
+    # shutdown ragas analytics batcher before event loop closes
+    try:
+        from ragas._analytics import _analytics_batcher
+
+        _analytics_batcher.shutdown()
+    except ImportError:
+        pass
 
 
 if __name__ == "__main__":

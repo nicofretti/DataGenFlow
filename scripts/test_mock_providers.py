@@ -244,9 +244,13 @@ async def test_ragas_metrics_with_provider(provider: str):
     config = create_mock_llm_config(provider)
     UsageTracker.clear_all()
 
-    # create mock LLM and embeddings
-    mock_llm = MagicMock()
-    mock_llm.single_turn_ascore = AsyncMock(return_value=0.85)
+    # create mock metric result
+    mock_result = MagicMock()
+    mock_result.value = 0.85
+
+    # create mock metric with ascore method (ragas 0.4.x API)
+    mock_metric = MagicMock()
+    mock_metric.ascore = AsyncMock(return_value=mock_result)
 
     mock_embeddings = MagicMock()
 
@@ -258,11 +262,11 @@ async def test_ragas_metrics_with_provider(provider: str):
         "lib.blocks.builtin.ragas_metrics.RagasMetrics._build_metrics"
     ) as mock_build_metrics:
 
-        mock_create_llm.return_value = mock_llm
+        mock_create_llm.return_value = MagicMock()
         mock_create_embeddings.return_value = mock_embeddings
         mock_build_metrics.return_value = {
-            "faithfulness": mock_llm,
-            "answer_relevancy": mock_llm,
+            "faithfulness": mock_metric,
+            "answer_relevancy": mock_metric,
         }
 
         # simulate usage tracking
