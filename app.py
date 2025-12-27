@@ -55,21 +55,16 @@ def is_multiplier_pipeline(blocks: list[dict[str, Any]]) -> bool:
 
 
 def _patch_langfuse_usage_bug() -> None:
-    """patch litellm langfuse integration bug where .get() is called on pydantic model"""
+    """patch litellm langfuse bug where .get() is called on pydantic model instead of dict"""
     try:
-        from litellm.integrations.langfuse import langfuse
+        from litellm.types.utils import CompletionUsage
 
-        original_log = langfuse.LangFuseLogger._log_langfuse_v2
+        if not hasattr(CompletionUsage, "get"):
+            # add get method so pydantic model works like dict
+            def pydantic_get(self, key, default=None):
+                return getattr(self, key, default)
 
-        def patched_log(self, *args, **kwargs):
-            # patch CompletionUsage objects to support .get() like a dict
-            for arg in args:
-                if hasattr(arg, "usage") and hasattr(arg.usage, "model_dump"):
-                    # replace usage with dict version that supports .get()
-                    arg.usage = arg.usage.model_dump()
-            return original_log(self, *args, **kwargs)
-
-        langfuse.LangFuseLogger._log_langfuse_v2 = patched_log
+            CompletionUsage.get = pydantic_get
     except (ImportError, AttributeError):
         pass
 

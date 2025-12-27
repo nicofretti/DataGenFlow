@@ -10,6 +10,24 @@ os.environ["RAGAS_DO_NOT_TRACK"] = "true"
 # suppress asyncio SSL errors at shutdown (harmless cleanup noise from pending HTTP connections)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
+
+def _patch_langfuse_usage_bug() -> None:
+    """patch litellm langfuse bug where .get() is called on pydantic model"""
+    try:
+        from litellm.types.utils import CompletionUsage
+
+        if not hasattr(CompletionUsage, "get"):
+            def pydantic_get(self, key, default=None):
+                return getattr(self, key, default)
+
+            CompletionUsage.get = pydantic_get
+    except (ImportError, AttributeError):
+        pass
+
+
+# apply patch before any litellm callbacks
+_patch_langfuse_usage_bug()
+
 from lib.blocks.commons import UsageTracker
 from lib.storage import Storage
 from lib.workflow import Pipeline as WorkflowPipeline
@@ -22,7 +40,7 @@ litellm.success_callback = [UsageTracker.callback]
 # also try callbacks list
 litellm.callbacks = [UsageTracker.callback]
 
-PIPELINE_ID = 84
+PIPELINE_ID = 87
 SEED_DATA = {
     "repetitions": 1,
     "metadata": {
