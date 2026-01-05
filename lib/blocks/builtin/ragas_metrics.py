@@ -151,7 +151,7 @@ class RagasMetrics(BaseBlock):
 
         config = await llm_config_manager.get_llm_model(self.model_name)
         params = llm_config_manager.prepare_llm_call(config, temperature=0.0)
-        model = params["model"]
+        model = params.pop("model")
 
         # detect provider from model prefix
         provider = "openai"
@@ -167,17 +167,18 @@ class RagasMetrics(BaseBlock):
             env_key = f"{provider.upper()}_API_KEY"
             if provider == "google":
                 env_key = "GEMINI_API_KEY"
-            os.environ[env_key] = params["api_key"]
+            os.environ[env_key] = params.pop("api_key")
 
         # create instructor client from litellm.acompletion for async support
         client = instructor.from_litellm(litellm.acompletion)
 
+        # pass remaining params (api_base, etc.) to llm_factory as kwargs
         return llm_factory(
             model=model,
             provider=provider,
             client=client,
             adapter="litellm",
-            temperature=0.0,
+            **params,
         )
 
     async def _create_ragas_embeddings(self) -> Any:
