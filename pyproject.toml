@@ -25,6 +25,7 @@ dependencies = [
   "ragas>=0.2.0",
   "pytest-timeout>=2.4.0",
   "langfuse==2.59.7",
+  "instructor",
 ]
 description = "Q&A dataset generation and validation tool"
 name = "datagenflow"
@@ -76,18 +77,6 @@ module = "app"
 [[tool.mypy.overrides]]
 disable_error_code = ["no-any-return"]
 module = "lib.storage"
-
-[[tool.mypy.overrides]]
-disable_error_code = ["import-untyped"]
-module = "lib.blocks.builtin.langfuse"
-
-[[tool.mypy.overrides]]
-disable_error_code = ["import-untyped", "import-not-found"]
-module = "lib.blocks.builtin.ragas_metrics"
-
-[[tool.mypy.overrides]]
-disable_error_code = ["import-untyped"]
-module = "debug_pipeline"
 
 [[tool.mypy.overrides]]
 disable_error_code = ["import-untyped"]
