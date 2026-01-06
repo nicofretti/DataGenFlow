@@ -81,6 +81,18 @@ module = "lib.storage"
 disable_error_code = ["import-untyped"]
 module = "lib.blocks.builtin.langfuse"
 
+[[tool.mypy.overrides]]
+disable_error_code = ["import-untyped", "import-not-found"]
+module = "lib.blocks.builtin.ragas_metrics"
+
+[[tool.mypy.overrides]]
+disable_error_code = ["import-untyped"]
+module = "debug_pipeline"
+
+[[tool.mypy.overrides]]
+disable_error_code = ["import-untyped"]
+module = "lib.blocks.builtin.langfuse"
+
 [tool.pytest.ini_options]
 addopts = "-m 'not integration' --tb=short --ignore=scripts/"
 asyncio_mode = "strict"
