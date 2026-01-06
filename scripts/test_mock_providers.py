@@ -15,17 +15,15 @@ the script tests:
 """
 
 import asyncio
-import json
 import sys
 from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.blocks.builtin.field_mapper import FieldMapper
-from lib.blocks.builtin.ragas_metrics import RagasMetrics, METRIC_REQUIREMENTS
+from lib.blocks.builtin.ragas_metrics import RagasMetrics
 from lib.blocks.commons.usage_tracker import UsageTracker
 from lib.entities.block_execution_context import BlockExecutionContext
 
@@ -33,6 +31,7 @@ from lib.entities.block_execution_context import BlockExecutionContext
 def make_context(state: dict, trace_id: str = "test-trace") -> BlockExecutionContext:
     """helper to create test context"""
     return BlockExecutionContext(
+        job_id=0,
         trace_id=trace_id,
         pipeline_id=1,
         accumulated_state=state,
@@ -125,7 +124,9 @@ async def test_field_mapper():
     # test 3: nested object access
     print("\n3. Nested object access:")
     block = FieldMapper(mappings={"value": "{{ deep.nested.field }}"})
-    result = await block.execute(make_context({"deep": {"nested": {"field": "found it!"}}}))
+    result = await block.execute(
+        make_context({"deep": {"nested": {"field": "found it!"}}})
+    )
     print(f"   Input: deep.nested.field='found it!'")
     print(f"   Output: {result}")
     assert result["value"] == "found it!"
@@ -173,7 +174,9 @@ async def test_usage_tracker():
     expected_input = 100 + 110 + 120  # 330
     expected_output = 50 + 55 + 60  # 165
 
-    print(f"\n   Accumulated: input={usage['input_tokens']}, output={usage['output_tokens']}")
+    print(
+        f"\n   Accumulated: input={usage['input_tokens']}, output={usage['output_tokens']}"
+    )
     print(f"   Expected: input={expected_input}, output={expected_output}")
 
     assert usage["input_tokens"] == expected_input
@@ -183,7 +186,9 @@ async def test_usage_tracker():
     # test 2: verify clearing
     print("\n2. Verify usage was cleared:")
     usage2 = UsageTracker.get_and_clear(trace_id)
-    print(f"   After clear: input={usage2['input_tokens']}, output={usage2['output_tokens']}")
+    print(
+        f"   After clear: input={usage2['input_tokens']}, output={usage2['output_tokens']}"
+    )
     assert usage2["input_tokens"] == 0
     assert usage2["output_tokens"] == 0
     print("   ✓ PASSED")
@@ -254,11 +259,15 @@ async def test_ragas_metrics_with_provider(provider: str):
     mock_embeddings = MagicMock()
 
     with (
-        patch("lib.blocks.builtin.ragas_metrics.RagasMetrics._create_ragas_llm") as mock_create_llm,
+        patch(
+            "lib.blocks.builtin.ragas_metrics.RagasMetrics._create_ragas_llm"
+        ) as mock_create_llm,
         patch(
             "lib.blocks.builtin.ragas_metrics.RagasMetrics._create_ragas_embeddings"
         ) as mock_create_embeddings,
-        patch("lib.blocks.builtin.ragas_metrics.RagasMetrics._build_metrics") as mock_build_metrics,
+        patch(
+            "lib.blocks.builtin.ragas_metrics.RagasMetrics._build_metrics"
+        ) as mock_build_metrics,
     ):
         mock_create_llm.return_value = MagicMock()
         mock_create_embeddings.return_value = mock_embeddings

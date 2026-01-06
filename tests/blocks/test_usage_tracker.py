@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import MagicMock
 
 from lib.blocks.commons.usage_tracker import UsageTracker

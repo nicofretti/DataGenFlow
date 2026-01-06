@@ -11,7 +11,7 @@ fastapi + aiosqlite + pydantic + jinja2 + pyyaml + litellm + rouge-score
 ```
 lib/
   blocks/
-    builtin/              # 9 blocks: text_generator, structured_generator, validator,
+    builtin/              # 11 blocks: text_generator, structured_generator, validator,
                           # json_validator, diversity_score, coherence_score,
                           # rouge_score, markdown_multiplier, langfuse,
                           # field_mapper, ragas_metrics
@@ -505,11 +505,11 @@ from lib.blocks.commons import UsageTracker
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await storage.init_db()
-    # configure langfuse + usage tracking
+    # note: litellm.callbacks is for custom callbacks, success_callback is for built-in integrations
     if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
-        litellm.success_callback = ["langfuse", UsageTracker.callback]
-    else:
-        litellm.success_callback = [UsageTracker.callback]
+        litellm.success_callback = ["langfuse"]
+    # custom usage tracking callback (separate from success_callback)
+    litellm.callbacks = [UsageTracker.callback]
     yield
     await storage.close()
 ```

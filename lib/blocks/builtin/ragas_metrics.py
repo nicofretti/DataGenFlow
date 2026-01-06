@@ -229,6 +229,7 @@ class RagasMetrics(BaseBlock):
                 if isinstance(parsed, list):
                     return [str(c) for c in parsed]
             except json.JSONDecodeError:
+                # if the string is not valid JSON, fall back to treating it as a raw context below
                 pass
             return [contexts] if contexts else []
         if isinstance(contexts, list):

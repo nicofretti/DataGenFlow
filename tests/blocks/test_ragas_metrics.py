@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from lib.blocks.builtin.ragas_metrics import RagasMetrics, METRIC_REQUIREMENTS
 from lib.entities.block_execution_context import BlockExecutionContext
@@ -8,6 +7,7 @@ from lib.entities.block_execution_context import BlockExecutionContext
 def make_context(state: dict, trace_id: str = "test-trace") -> BlockExecutionContext:
     """helper to create test context"""
     return BlockExecutionContext(
+        job_id=1,
         trace_id=trace_id,
         pipeline_id=1,
         accumulated_state=state,
@@ -153,7 +153,9 @@ class TestExecute:
             answer_field="a",
         )
         # missing question because we're looking at wrong field
-        result = await block.execute(make_context({"question": "test", "answer": "test"}))
+        result = await block.execute(
+            make_context({"question": "test", "answer": "test"})
+        )
         assert result["ragas_scores"]["passed"] is False
 
 

@@ -1,5 +1,5 @@
 name: QA Generation with RAGAS Evaluation
-description: Generate QA pairs from content and evaluate quality using RAGAS metrics, BE CAREFUL to use models that are compatible with RAGAS.
+description: Generate QA pairs from content and evaluate quality using RAGAS metrics. Use chat-completion LLMs and embedding models supported by RAGAS (for example, OpenAI GPT-4/GPT-4o for generation and evaluation, and text-embedding models such as text-embedding-3-large for answer relevancy). For full compatibility details, see the RAGAS documentation at https://docs.ragas.io.
 blocks:
   - type: StructuredGenerator
     config:

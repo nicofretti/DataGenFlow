@@ -66,7 +66,12 @@ def _patch_langfuse_usage_bug() -> None:
 
             CompletionUsage.get = pydantic_get
     except (ImportError, AttributeError):
-        pass
+        # best-effort patch: if litellm or CompletionUsage is unavailable or changed,
+        # simply skip applying the compatibility shim and continue without failing.
+        logger.warning(
+            "Skipping Langfuse usage patch: litellm or CompletionUsage is unavailable "
+            "or has an unexpected structure."
+        )
 
 
 @asynccontextmanager
@@ -138,7 +143,9 @@ def _validate_seed_fields(seed: SeedInput, required_inputs: list[str]) -> set[st
     return {field for field in required_inputs if field not in seed.metadata}
 
 
-def _build_validation_errors(repetition_err: bool, missing: set[str], block_name: str) -> list[str]:
+def _build_validation_errors(
+    repetition_err: bool, missing: set[str], block_name: str
+) -> list[str]:
     """build error messages from validation flags"""
     errors = []
     if repetition_err:
@@ -164,7 +171,9 @@ async def validate_seeds(request: SeedValidationRequest) -> dict[str, Any]:
 
     block_class = registry.get_block_class(blocks[0]["type"])
     if not block_class:
-        raise HTTPException(status_code=400, detail=f"block type '{blocks[0]['type']}' not found")
+        raise HTTPException(
+            status_code=400, detail=f"block type '{blocks[0]['type']}' not found"
+        )
 
     required_inputs = block_class.get_required_fields(blocks[0].get("config", {}))
     repetition_err, zero_count, missing_fields = False, 0, set()
@@ -224,7 +233,9 @@ async def generate_from_file(
             total += 1
             try:
                 # execute pipeline with metadata as input
-                exec_result = await pipeline.execute(seed.metadata, pipeline_id=pipeline_id)
+                exec_result = await pipeline.execute(
+                    seed.metadata, pipeline_id=pipeline_id
+                )
                 # help mypy understand this is the tuple variant
                 assert isinstance(exec_result, tuple)
                 result, trace, trace_id = exec_result
@@ -308,14 +319,18 @@ async def _create_temp_seed_file(
 
 
 @api_router.post("/generate")
-async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -> dict[str, Any]:
+async def generate(
+    file: UploadFile = File(...), pipeline_id: int = Form(...)
+) -> dict[str, Any]:
     """start a new background job for pipeline execution from seed file"""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
     is_markdown = file.filename.endswith(".md")
     if not is_markdown and not file.filename.endswith(".json"):
-        raise HTTPException(status_code=400, detail="Only .json or .md files are accepted")
+        raise HTTPException(
+            status_code=400, detail="Only .json or .md files are accepted"
+        )
 
     active_job = job_queue.get_active_job()
     if active_job:
@@ -336,7 +351,9 @@ async def generate(file: UploadFile = File(...), pipeline_id: int = Form(...)) -
     )
     tmp_file = await _create_temp_seed_file(seeds, content, is_markdown, pipeline_id)
 
-    job_id = await storage.create_job(pipeline_id, total_samples, status=JobStatus.RUNNING)
+    job_id = await storage.create_job(
+        pipeline_id, total_samples, status=JobStatus.RUNNING
+    )
     job_queue.create_job(job_id, pipeline_id, total_samples, status=JobStatus.RUNNING)
     process_job_in_thread(job_id, pipeline_id, str(tmp_file), job_queue, storage)
 
@@ -425,7 +442,9 @@ async def update_record(record_id: int, update: RecordUpdate) -> dict[str, bool]
     updates = update.model_dump(exclude_unset=True)
 
     # separate standard fields from accumulated_state field updates
-    standard_updates = {k: v for k, v in updates.items() if k in RECORD_UPDATABLE_FIELDS}
+    standard_updates = {
+        k: v for k, v in updates.items() if k in RECORD_UPDATABLE_FIELDS
+    }
     accumulated_state_updates = {
         k: v for k, v in updates.items() if k not in RECORD_UPDATABLE_FIELDS
     }
@@ -534,7 +553,9 @@ async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
 
 
 @api_router.put("/pipelines/{pipeline_id}")
-async def update_pipeline(pipeline_id: int, pipeline_data: dict[str, Any]) -> dict[str, Any]:
+async def update_pipeline(
+    pipeline_id: int, pipeline_data: dict[str, Any]
+) -> dict[str, Any]:
     name = pipeline_data.get("name")
     blocks = pipeline_data.get("blocks")
 
@@ -549,7 +570,9 @@ async def update_pipeline(pipeline_id: int, pipeline_data: dict[str, Any]) -> di
 
 
 @api_router.post("/pipelines/{pipeline_id}/execute", response_model=None)
-async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, Any] | JSONResponse:
+async def execute_pipeline(
+    pipeline_id: int, data: dict[str, Any]
+) -> dict[str, Any] | JSONResponse:
     try:
         pipeline_data = await storage.get_pipeline(pipeline_id)
         if not pipeline_data:
@@ -584,13 +607,19 @@ async def execute_pipeline(pipeline_id: int, data: dict[str, Any]) -> dict[str, 
         raise
     except BlockNotFoundError as e:
         logger.exception(f"BlockNotFoundError in pipeline {pipeline_id}")
-        return JSONResponse(status_code=400, content={"error": e.message, "detail": e.detail})
+        return JSONResponse(
+            status_code=400, content={"error": e.message, "detail": e.detail}
+        )
     except (BlockExecutionError, ValidationError) as e:
         logger.exception(f"{e.__class__.__name__} in pipeline {pipeline_id}")
-        return JSONResponse(status_code=400, content={"error": e.message, "detail": e.detail})
+        return JSONResponse(
+            status_code=400, content={"error": e.message, "detail": e.detail}
+        )
     except Exception as e:
         logger.exception(f"Unexpected error executing pipeline {pipeline_id}")
-        return JSONResponse(status_code=500, content={"error": f"Unexpected error: {str(e)}"})
+        return JSONResponse(
+            status_code=500, content={"error": f"Unexpected error: {str(e)}"}
+        )
 
 
 @api_router.get("/pipelines/{pipeline_id}/accumulated_state_schema")
@@ -673,7 +702,9 @@ async def create_llm_model(config: LLMModelConfig) -> dict[str, str]:
 async def update_llm_model(name: str, config: LLMModelConfig) -> dict[str, str]:
     """update llm model config"""
     if name != config.name:
-        raise HTTPException(status_code=400, detail="name in path must match name in body")
+        raise HTTPException(
+            status_code=400, detail="name in path must match name in body"
+        )
     try:
         await llm_config_manager.save_llm_model(config)
         return {"message": "llm model updated successfully"}
@@ -725,10 +756,14 @@ async def create_embedding_model(config: EmbeddingModelConfig) -> dict[str, str]
 
 
 @api_router.put("/embedding-models/{name}")
-async def update_embedding_model(name: str, config: EmbeddingModelConfig) -> dict[str, str]:
+async def update_embedding_model(
+    name: str, config: EmbeddingModelConfig
+) -> dict[str, str]:
     """update embedding model config"""
     if name != config.name:
-        raise HTTPException(status_code=400, detail="name in path must match name in body")
+        raise HTTPException(
+            status_code=400, detail="name in path must match name in body"
+        )
     try:
         await llm_config_manager.save_embedding_model(config)
         return {"message": "embedding model updated successfully"}
