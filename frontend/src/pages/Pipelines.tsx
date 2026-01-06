@@ -23,6 +23,7 @@ export default function Pipelines() {
     null
   );
   const [expandedDebug, setExpandedDebug] = useState<number | null>(null);
+  const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(new Set());
   const [deletingPipeline, setDeletingPipeline] = useState<number | null>(null);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const { setHideNavigation } = useNavigation();
@@ -183,6 +184,18 @@ export default function Pipelines() {
     toast.success("Copied to clipboard");
   };
 
+  const toggleTemplateDescription = (templateId: string) => {
+    setExpandedTemplates((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(templateId)) {
+        newSet.delete(templateId);
+      } else {
+        newSet.add(templateId);
+      }
+      return newSet;
+    });
+  };
+
   // show editor if editing
   if (editing) {
     return (
@@ -258,11 +271,40 @@ export default function Pipelines() {
                     {template.name}
                   </Heading>
                 </Box>
-                <Text sx={{ fontSize: 1, color: "fg.muted", lineHeight: 1.5, mb: 3, flexGrow: 1 }}>
-                  {template.description}
-                </Text>
 
-                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                <Box sx={{ mb: 3 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                      cursor: "pointer",
+                      py: 1,
+                    }}
+                    onClick={() => toggleTemplateDescription(template.id)}
+                  >
+                    <Box sx={{ color: "fg.muted" }}>
+                      {expandedTemplates.has(template.id) ? (
+                        <ChevronDownIcon size={16} />
+                      ) : (
+                        <ChevronRightIcon size={16} />
+                      )}
+                    </Box>
+                    <Text sx={{ fontSize: 1, fontWeight: "semibold", color: "fg.default" }}>
+                      Description
+                    </Text>
+                  </Box>
+
+                  {expandedTemplates.has(template.id) && (
+                    <Box sx={{ pl: 4, pt: 2 }}>
+                      <Text sx={{ fontSize: 1, color: "fg.muted", lineHeight: 1.5 }}>
+                        {template.description}
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
+
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: "auto" }}>
                   <Button
                     variant="default"
                     size="small"
