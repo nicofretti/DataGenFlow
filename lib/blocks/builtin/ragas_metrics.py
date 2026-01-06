@@ -125,7 +125,7 @@ class RagasMetrics(BaseBlock):
         # 8. get accumulated usage from ragas LLM calls
         usage = UsageTracker.to_pipeline_usage(context.trace_id)
 
-        # 8. check threshold (only on non-zero scores)
+        # 9. check threshold (only on non-zero scores)
         valid_scores = [s for s in scores.values() if s > 0]
         passed = len(valid_scores) > 0 and all(
             s >= self.score_threshold for s in valid_scores

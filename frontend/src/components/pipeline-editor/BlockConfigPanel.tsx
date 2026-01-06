@@ -177,7 +177,7 @@ export default function BlockConfigPanel({
                 onChange={() => handleToggle(option)}
               />
               <Text sx={{
-                color: 'white'
+                color: 'fg.default'
               }}>{option}</Text>
             </Box>
           ))}
