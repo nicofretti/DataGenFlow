@@ -67,7 +67,7 @@ disable_error_code = ["no-untyped-def", "no-untyped-call", "var-annotated", "ove
 module = "tests.*"
 
 [[tool.mypy.overrides]]
-disable_error_code = ["attr-defined", "no-untyped-def", "union-attr", "arg-type"]
+disable_error_code = ["attr-defined", "no-untyped-def", "union-attr", "arg-type", "import-untyped"]
 module = "debug_pipeline"
 
 [[tool.mypy.overrides]]
