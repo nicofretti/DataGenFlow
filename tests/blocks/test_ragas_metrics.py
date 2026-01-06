@@ -1,6 +1,6 @@
 import pytest
 
-from lib.blocks.builtin.ragas_metrics import RagasMetrics, METRIC_REQUIREMENTS
+from lib.blocks.builtin.ragas_metrics import METRIC_REQUIREMENTS, RagasMetrics
 from lib.entities.block_execution_context import BlockExecutionContext
 
 
@@ -153,9 +153,7 @@ class TestExecute:
             answer_field="a",
         )
         # missing question because we're looking at wrong field
-        result = await block.execute(
-            make_context({"question": "test", "answer": "test"})
-        )
+        result = await block.execute(make_context({"question": "test", "answer": "test"}))
         assert result["ragas_scores"]["passed"] is False
 
 

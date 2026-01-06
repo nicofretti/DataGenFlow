@@ -29,9 +29,9 @@ def _patch_langfuse_usage_bug() -> None:
 # apply patch before any litellm callbacks
 _patch_langfuse_usage_bug()
 
-from lib.blocks.commons import UsageTracker
-from lib.storage import Storage
-from lib.workflow import Pipeline as WorkflowPipeline
+from lib.blocks.commons import UsageTracker  # noqa: E402
+from lib.storage import Storage  # noqa: E402
+from lib.workflow import Pipeline as WorkflowPipeline  # noqa: E402
 
 # setup logging
 logging.basicConfig(level=logging.DEBUG)
@@ -45,7 +45,12 @@ PIPELINE_ID = 92
 SEED_DATA = {
     "repetitions": 1,
     "metadata": {
-        "content": "Python is a high-level, interpreted programming language known for its clear syntax and readability. It was created by Guido van Rossum and first released in 1991. Python supports multiple programming paradigms including procedural, object-oriented, and functional programming."
+        "content": (
+            "Python is a high-level, interpreted programming language known for "
+            "its clear syntax and readability. It was created by Guido van Rossum "
+            "and first released in 1991. Python supports multiple programming "
+            "paradigms including procedural, object-oriented, and functional."
+        )
     },
 }
 

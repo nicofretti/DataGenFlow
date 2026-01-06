@@ -105,7 +105,7 @@ async def test_field_mapper():
     result = await block.execute(
         make_context({"qa": {"q": "What is Python?", "a": "A programming language"}})
     )
-    print(f"   Input: qa.q='What is Python?', qa.a='A programming language'")
+    print("   Input: qa.q='What is Python?', qa.a='A programming language'")
     print(f"   Output: {result}")
     assert result["question"] == "What is Python?"
     assert result["answer"] == "A programming language"
@@ -115,7 +115,7 @@ async def test_field_mapper():
     print("\n2. JSON list mapping with tojson filter:")
     block = FieldMapper(mappings={"contexts": "{{ sources | tojson }}"})
     result = await block.execute(make_context({"sources": ["doc1", "doc2", "doc3"]}))
-    print(f"   Input: sources=['doc1', 'doc2', 'doc3']")
+    print("   Input: sources=['doc1', 'doc2', 'doc3']")
     print(f"   Output: {result}")
     assert isinstance(result["contexts"], list)
     assert len(result["contexts"]) == 3
@@ -124,10 +124,8 @@ async def test_field_mapper():
     # test 3: nested object access
     print("\n3. Nested object access:")
     block = FieldMapper(mappings={"value": "{{ deep.nested.field }}"})
-    result = await block.execute(
-        make_context({"deep": {"nested": {"field": "found it!"}}})
-    )
-    print(f"   Input: deep.nested.field='found it!'")
+    result = await block.execute(make_context({"deep": {"nested": {"field": "found it!"}}}))
+    print("   Input: deep.nested.field='found it!'")
     print(f"   Output: {result}")
     assert result["value"] == "found it!"
     print("   ✓ PASSED")
@@ -136,7 +134,7 @@ async def test_field_mapper():
     print("\n4. Missing field handling (should return empty string):")
     block = FieldMapper(mappings={"missing": "{{ undefined_variable }}"})
     result = await block.execute(make_context({}))
-    print(f"   Input: (empty)")
+    print("   Input: (empty)")
     print(f"   Output: {result}")
     assert result["missing"] == ""
     print("   ✓ PASSED")
@@ -174,9 +172,7 @@ async def test_usage_tracker():
     expected_input = 100 + 110 + 120  # 330
     expected_output = 50 + 55 + 60  # 165
 
-    print(
-        f"\n   Accumulated: input={usage['input_tokens']}, output={usage['output_tokens']}"
-    )
+    print(f"\n   Accumulated: input={usage['input_tokens']}, output={usage['output_tokens']}")
     print(f"   Expected: input={expected_input}, output={expected_output}")
 
     assert usage["input_tokens"] == expected_input
@@ -186,9 +182,7 @@ async def test_usage_tracker():
     # test 2: verify clearing
     print("\n2. Verify usage was cleared:")
     usage2 = UsageTracker.get_and_clear(trace_id)
-    print(
-        f"   After clear: input={usage2['input_tokens']}, output={usage2['output_tokens']}"
-    )
+    print(f"   After clear: input={usage2['input_tokens']}, output={usage2['output_tokens']}")
     assert usage2["input_tokens"] == 0
     assert usage2["output_tokens"] == 0
     print("   ✓ PASSED")
@@ -207,7 +201,7 @@ async def test_ragas_metrics_validation():
     # test 1: missing question
     print("\n1. Missing question returns empty scores:")
     result = await block.execute(make_context({"answer": "test"}))
-    print(f"   Input: answer='test' (no question)")
+    print("   Input: answer='test' (no question)")
     print(f"   Output: {result['ragas_scores']}")
     assert result["ragas_scores"]["passed"] is False
     assert result["ragas_scores"]["faithfulness"] == 0.0
@@ -216,7 +210,7 @@ async def test_ragas_metrics_validation():
     # test 2: missing answer
     print("\n2. Missing answer returns empty scores:")
     result = await block.execute(make_context({"question": "test"}))
-    print(f"   Input: question='test' (no answer)")
+    print("   Input: question='test' (no answer)")
     print(f"   Output: {result['ragas_scores']}")
     assert result["ragas_scores"]["passed"] is False
     print("   ✓ PASSED")
@@ -259,15 +253,11 @@ async def test_ragas_metrics_with_provider(provider: str):
     mock_embeddings = MagicMock()
 
     with (
-        patch(
-            "lib.blocks.builtin.ragas_metrics.RagasMetrics._create_ragas_llm"
-        ) as mock_create_llm,
+        patch("lib.blocks.builtin.ragas_metrics.RagasMetrics._create_ragas_llm") as mock_create_llm,
         patch(
             "lib.blocks.builtin.ragas_metrics.RagasMetrics._create_ragas_embeddings"
         ) as mock_create_embeddings,
-        patch(
-            "lib.blocks.builtin.ragas_metrics.RagasMetrics._build_metrics"
-        ) as mock_build_metrics,
+        patch("lib.blocks.builtin.ragas_metrics.RagasMetrics._build_metrics") as mock_build_metrics,
     ):
         mock_create_llm.return_value = MagicMock()
         mock_create_embeddings.return_value = mock_embeddings
@@ -289,7 +279,7 @@ async def test_ragas_metrics_with_provider(provider: str):
         context = make_context(
             {
                 "question": "What is machine learning?",
-                "answer": "Machine learning is a subset of AI that enables systems to learn from data.",
+                "answer": "Machine learning is a subset of AI that learns from data.",
                 "contexts": ["ML is part of artificial intelligence"],
                 "ground_truth": "Machine learning allows systems to learn from experience.",
             },

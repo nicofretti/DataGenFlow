@@ -141,9 +141,9 @@ class RagasMetrics(BaseBlock):
 
         import instructor
         import litellm
+        from ragas.llms import llm_factory
 
         from app import llm_config_manager
-        from ragas.llms import llm_factory
 
         config = await llm_config_manager.get_llm_model(self.model_name)
         params = llm_config_manager.prepare_llm_call(config, temperature=0.0)
@@ -179,8 +179,9 @@ class RagasMetrics(BaseBlock):
 
     async def _create_ragas_embeddings(self) -> Any:
         """create ragas embeddings using LiteLLMEmbeddings"""
-        from app import llm_config_manager
         from ragas.embeddings import LiteLLMEmbeddings
+
+        from app import llm_config_manager
 
         config = await llm_config_manager.get_embedding_model(self.embedding_model_name)
         params = llm_config_manager._prepare_embedding_call(config, input_text="")
