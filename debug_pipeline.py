@@ -17,6 +17,7 @@ def _patch_langfuse_usage_bug() -> None:
         from litellm.types.utils import CompletionUsage
 
         if not hasattr(CompletionUsage, "get"):
+
             def pydantic_get(self, key, default=None):
                 return getattr(self, key, default)
 
@@ -58,9 +59,7 @@ async def main() -> None:
         print(f"Pipeline {PIPELINE_ID} not found")
         return
 
-    workflow = WorkflowPipeline(
-        name=pipeline_data.name, blocks=pipeline_data.definition["blocks"]
-    )
+    workflow = WorkflowPipeline(name=pipeline_data.name, blocks=pipeline_data.definition["blocks"])
 
     execution_result = await workflow.execute(SEED_DATA["metadata"])
     print(f"trace_id: {execution_result.trace_id}")

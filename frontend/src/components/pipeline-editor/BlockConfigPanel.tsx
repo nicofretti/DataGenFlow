@@ -176,9 +176,13 @@ export default function BlockConfigPanel({
                 checked={selectedValues.includes(option)}
                 onChange={() => handleToggle(option)}
               />
-              <Text sx={{
-                color: 'fg.default'
-              }}>{option}</Text>
+              <Text
+                sx={{
+                  color: "fg.default",
+                }}
+              >
+                {option}
+              </Text>
             </Box>
           ))}
         </Box>

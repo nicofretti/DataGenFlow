@@ -37,9 +37,7 @@ class TestFieldMapperExecute:
     @pytest.mark.asyncio
     async def test_nested_mapping(self):
         block = FieldMapper(mappings={"flat": "{{ nested.deep.value }}"})
-        result = await block.execute(
-            make_context({"nested": {"deep": {"value": "found"}}})
-        )
+        result = await block.execute(make_context({"nested": {"deep": {"value": "found"}}}))
         assert result["flat"] == "found"
 
     @pytest.mark.asyncio
@@ -74,9 +72,7 @@ class TestFieldMapperExecute:
                 "answer": "{{ qa.a }}",
             }
         )
-        result = await block.execute(
-            make_context({"qa": {"q": "What?", "a": "Something"}})
-        )
+        result = await block.execute(make_context({"qa": {"q": "What?", "a": "Something"}}))
         assert result["question"] == "What?"
         assert result["answer"] == "Something"
 
@@ -89,9 +85,7 @@ class TestFieldMapperExecute:
     @pytest.mark.asyncio
     async def test_filter_usage(self):
         block = FieldMapper(mappings={"truncated": "{{ text | truncate(10) }}"})
-        result = await block.execute(
-            make_context({"text": "This is a very long string"})
-        )
+        result = await block.execute(make_context({"text": "This is a very long string"}))
         assert result["truncated"] == "This is a ..."
 
 

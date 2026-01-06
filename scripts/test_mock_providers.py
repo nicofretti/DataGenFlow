@@ -13,6 +13,7 @@ the script tests:
 2. RagasMetrics with mocked LLM/embedding responses
 3. UsageTracker callback accumulation
 """
+
 import asyncio
 import json
 import sys
@@ -124,9 +125,7 @@ async def test_field_mapper():
     # test 3: nested object access
     print("\n3. Nested object access:")
     block = FieldMapper(mappings={"value": "{{ deep.nested.field }}"})
-    result = await block.execute(
-        make_context({"deep": {"nested": {"field": "found it!"}}})
-    )
+    result = await block.execute(make_context({"deep": {"nested": {"field": "found it!"}}}))
     print(f"   Input: deep.nested.field='found it!'")
     print(f"   Output: {result}")
     assert result["value"] == "found it!"
@@ -168,7 +167,7 @@ async def test_usage_tracker():
             start_time=0.0,
             end_time=1.0,
         )
-        print(f"   Call {i+1}: prompt={100 + i*10}, completion={50 + i*5}")
+        print(f"   Call {i + 1}: prompt={100 + i * 10}, completion={50 + i * 5}")
 
     usage = UsageTracker.get_and_clear(trace_id)
     expected_input = 100 + 110 + 120  # 330
@@ -237,7 +236,7 @@ async def test_ragas_metrics_validation():
 
 async def test_ragas_metrics_with_provider(provider: str):
     """test RagasMetrics with mocked provider"""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Testing RagasMetrics with {provider.upper()} provider")
     print("=" * 60)
 
@@ -254,14 +253,13 @@ async def test_ragas_metrics_with_provider(provider: str):
 
     mock_embeddings = MagicMock()
 
-    with patch(
-        "lib.blocks.builtin.ragas_metrics.RagasMetrics._create_ragas_llm"
-    ) as mock_create_llm, patch(
-        "lib.blocks.builtin.ragas_metrics.RagasMetrics._create_ragas_embeddings"
-    ) as mock_create_embeddings, patch(
-        "lib.blocks.builtin.ragas_metrics.RagasMetrics._build_metrics"
-    ) as mock_build_metrics:
-
+    with (
+        patch("lib.blocks.builtin.ragas_metrics.RagasMetrics._create_ragas_llm") as mock_create_llm,
+        patch(
+            "lib.blocks.builtin.ragas_metrics.RagasMetrics._create_ragas_embeddings"
+        ) as mock_create_embeddings,
+        patch("lib.blocks.builtin.ragas_metrics.RagasMetrics._build_metrics") as mock_build_metrics,
+    ):
         mock_create_llm.return_value = MagicMock()
         mock_create_embeddings.return_value = mock_embeddings
         mock_build_metrics.return_value = {
@@ -272,9 +270,7 @@ async def test_ragas_metrics_with_provider(provider: str):
         # simulate usage tracking
         response = MockLLMResponse(prompt_tokens=200, completion_tokens=100)
         trace_id = f"test-{provider}"
-        UsageTracker.callback(
-            {"metadata": {"trace_id": trace_id}}, response, 0.0, 1.0
-        )
+        UsageTracker.callback({"metadata": {"trace_id": trace_id}}, response, 0.0, 1.0)
 
         block = RagasMetrics(
             metrics=["faithfulness", "answer_relevancy"],

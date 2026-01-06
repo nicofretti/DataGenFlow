@@ -428,15 +428,15 @@ export default function Generator() {
                             ? getElapsedTime(currentJob.started_at)
                             : currentJob.usage.end_time && currentJob.usage.start_time
                               ? (() => {
-                                const elapsed =
-                                  currentJob.usage.end_time - currentJob.usage.start_time;
-                                const minutes = Math.floor(elapsed / 60);
-                                const seconds = Math.floor(elapsed % 60);
-                                if (minutes > 0) {
-                                  return `${minutes}m ${seconds}s`;
-                                }
-                                return `${seconds}s`;
-                              })()
+                                  const elapsed =
+                                    currentJob.usage.end_time - currentJob.usage.start_time;
+                                  const minutes = Math.floor(elapsed / 60);
+                                  const seconds = Math.floor(elapsed % 60);
+                                  if (minutes > 0) {
+                                    return `${minutes}m ${seconds}s`;
+                                  }
+                                  return `${seconds}s`;
+                                })()
                               : "N/A"}
                         </Text>
                       </Box>

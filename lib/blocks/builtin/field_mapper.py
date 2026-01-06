@@ -20,7 +20,7 @@ class FieldMapper(BaseBlock):
 
     _config_descriptions = {
         "mappings": (
-            'Dict mapping new field names to Jinja2 expressions. '
+            "Dict mapping new field names to Jinja2 expressions. "
             'Example: {"question": "{{ parsed_json.qa.q }}"}'
         )
     }

@@ -4,6 +4,7 @@ usage tracker for accumulating LLM token usage across multiple calls
 useful for blocks that call external libraries (like ragas) which make
 LLM calls internally without exposing usage information.
 """
+
 import contextvars
 import threading
 from collections import defaultdict
@@ -73,9 +74,7 @@ class UsageTracker:
 
         with cls._lock:
             cls._usage[trace_id]["input_tokens"] += getattr(usage, "prompt_tokens", 0) or 0
-            cls._usage[trace_id]["output_tokens"] += (
-                getattr(usage, "completion_tokens", 0) or 0
-            )
+            cls._usage[trace_id]["output_tokens"] += getattr(usage, "completion_tokens", 0) or 0
             cls._usage[trace_id]["cached_tokens"] += (
                 getattr(usage, "cache_read_input_tokens", 0) or 0
             )

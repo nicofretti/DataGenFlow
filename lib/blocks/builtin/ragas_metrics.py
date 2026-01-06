@@ -83,9 +83,7 @@ class RagasMetrics(BaseBlock):
         inputs = {
             "question": context.get_state(self.question_field, ""),
             "answer": context.get_state(self.answer_field, ""),
-            "contexts": self._normalize_contexts(
-                context.get_state(self.contexts_field, [])
-            ),
+            "contexts": self._normalize_contexts(context.get_state(self.contexts_field, [])),
             "ground_truth": context.get_state(self.ground_truth_field, ""),
         }
 
@@ -127,9 +125,7 @@ class RagasMetrics(BaseBlock):
 
         # 9. check threshold (only on non-zero scores)
         valid_scores = [s for s in scores.values() if s > 0]
-        passed = len(valid_scores) > 0 and all(
-            s >= self.score_threshold for s in valid_scores
-        )
+        passed = len(valid_scores) > 0 and all(s >= self.score_threshold for s in valid_scores)
 
         return {
             "ragas_scores": {
@@ -272,7 +268,11 @@ class RagasMetrics(BaseBlock):
         elif metric_name == "answer_relevancy":
             return {**base, "response": inputs["answer"]}
         elif metric_name in ("context_precision", "context_recall"):
-            return {**base, "retrieved_contexts": inputs["contexts"], "reference": inputs["ground_truth"]}
+            return {
+                **base,
+                "retrieved_contexts": inputs["contexts"],
+                "reference": inputs["ground_truth"],
+            }
         return base
 
     async def _evaluate(
