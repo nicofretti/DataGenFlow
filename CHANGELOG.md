@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-01-06 🚀
+
+### Added
+- Pipeline execution constraints for better control over pipeline runs
+- Integration with Langfuse for observability and monitoring
+- RAGAS metrics integration for RAG evaluation
+- Modal components for improved UI interactions
+- Block configuration view for enhanced block setup
+- Generator view for better visualization
+
+### Changed
+- Refactored codebase with Pydantic for improved data validation and type safety
+- Enhanced custom components theming
+
+### Fixed
+- Job cancellation bug that prevented proper pipeline stopping
+- Langfuse dataset naming issues
+
 ## [1.2.0] - 2025-11-17 🚀
 
 ### Added
@@ -49,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - REST API for pipeline execution
 - Template system for common use cases
 
+[1.3.0]: https://github.com/nicofretti/DataGenFlow/compare/release-v1.2.0...release-v1.3.0
 [1.2.0]: https://github.com/nicofretti/DataGenFlow/compare/release-v1.1.0...release-v1.2.0
 [1.1.0]: https://github.com/nicofretti/DataGenFlow/compare/release...release-v1.1.0
 [1.0.0]: https://github.com/nicofretti/DataGenFlow/releases/tag/release

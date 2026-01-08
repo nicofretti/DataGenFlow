@@ -15,6 +15,7 @@ def test_template_registry_lists_all_templates():
     assert "json_generation" in template_ids
     assert "text_classification" in template_ids
     assert "qa_generation" in template_ids
+    assert "ragas_evaluation" in template_ids
 
 
 def test_templates_have_required_fields():
@@ -111,6 +112,40 @@ def test_qa_generation_template_structure():
     assert "properties" in schema
     assert "qa_pairs" in schema["properties"]
     assert schema["properties"]["qa_pairs"]["type"] == "array"
+
+
+def test_ragas_evaluation_template_structure():
+    """test ragas_evaluation template has correct blocks"""
+    template = template_registry.get_template("ragas_evaluation")
+
+    assert template is not None
+    assert template["name"] == "QA Generation with RAGAS Evaluation"
+    assert len(template["blocks"]) == 3
+
+    # first block should be StructuredGenerator
+    assert template["blocks"][0]["type"] == "StructuredGenerator"
+    # verify schema has required fields
+    schema = template["blocks"][0]["config"]["json_schema"]
+    assert "question" in schema["properties"]
+    assert "answer" in schema["properties"]
+    assert "contexts" in schema["properties"]
+    assert "ground_truth" in schema["properties"]
+
+    # second block should be FieldMapper
+    assert template["blocks"][1]["type"] == "FieldMapper"
+    mappings = template["blocks"][1]["config"]["mappings"]
+    assert "question" in mappings
+    assert "answer" in mappings
+    assert "contexts" in mappings
+    assert "ground_truth" in mappings
+
+    # third block should be RagasMetrics
+    assert template["blocks"][2]["type"] == "RagasMetrics"
+    ragas_config = template["blocks"][2]["config"]
+    assert ragas_config["question_field"] == "question"
+    assert ragas_config["answer_field"] == "answer"
+    assert "faithfulness" in ragas_config["metrics"]
+    assert "answer_relevancy" in ragas_config["metrics"]
 
 
 @pytest.mark.asyncio

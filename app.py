@@ -54,18 +54,47 @@ def is_multiplier_pipeline(blocks: list[dict[str, Any]]) -> bool:
     return getattr(block_class, "is_multiplier", False)
 
 
+def _patch_langfuse_usage_bug() -> None:
+    """patch litellm langfuse bug where .get() is called on pydantic model instead of dict"""
+    try:
+        from litellm.types.utils import CompletionUsage
+
+        if not hasattr(CompletionUsage, "get"):
+            # add get method so pydantic model works like dict
+            def pydantic_get(self, key, default=None):
+                return getattr(self, key, default)
+
+            CompletionUsage.get = pydantic_get
+    except (ImportError, AttributeError):
+        # best-effort patch: if litellm or CompletionUsage is unavailable or changed,
+        # simply skip applying the compatibility shim and continue without failing.
+        logger.warning(
+            "Skipping Langfuse usage patch: litellm or CompletionUsage is unavailable "
+            "or has an unexpected structure."
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     import os
 
     import litellm
 
+    from lib.blocks.commons import UsageTracker
+
     await storage.init_db()
 
-    # configure langfuse integration if credentials are set
+    # patch langfuse bug before enabling it
+    _patch_langfuse_usage_bug()
+
+    # configure langfuse integration and usage tracking
+    # note: litellm.callbacks is for custom callbacks, success_callback is for built-in integrations
     if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
         litellm.success_callback = ["langfuse"]
         logger.info("Langfuse observability enabled")
+
+    # always register usage tracker via callbacks (works for all LLM calls including RAGAS)
+    litellm.callbacks = [UsageTracker.callback]
 
     yield
     # close storage connection on shutdown
@@ -455,17 +484,26 @@ async def list_blocks() -> list[dict[str, Any]]:
     """list all registered blocks with dynamically injected model options"""
     blocks = registry.list_blocks()
 
-    # get available llm models
+    # get available llm and embedding models
     llm_models = await llm_config_manager.list_llm_models()
+    embedding_models = await llm_config_manager.list_embedding_models()
     model_names = [model.name for model in llm_models]
+    embedding_names = [model.name for model in embedding_models]
 
-    # inject model options into TextGenerator and StructuredGenerator schemas
+    # inject model options into block schemas
     for block in blocks:
-        if block.get("type") in ["TextGenerator", "StructuredGenerator"]:
-            if "config_schema" in block and "properties" in block["config_schema"]:
-                if "model" in block["config_schema"]["properties"]:
-                    # add enum with available model names
-                    block["config_schema"]["properties"]["model"]["enum"] = model_names
+        block_type = block.get("type")
+        props = block.get("config_schema", {}).get("properties", {})
+
+        # inject LLM model options
+        if block_type in ["TextGenerator", "StructuredGenerator", "RagasMetrics"]:
+            if "model" in props:
+                props["model"]["enum"] = model_names
+
+        # inject embedding model options for RagasMetrics
+        if block_type == "RagasMetrics":
+            if "embedding_model" in props:
+                props["embedding_model"]["enum"] = embedding_names
 
     return blocks
 

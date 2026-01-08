@@ -65,6 +65,11 @@ class Pipeline:
     def _validate_output(self, block: Any, result: dict[str, Any]) -> None:
         declared = set(block.outputs)
         actual = set(result.keys())
+
+        # skip validation if block declares "*" (any outputs allowed)
+        if "*" in declared:
+            return
+
         if not actual.issubset(declared):
             extra = actual - declared
             raise ValidationError(

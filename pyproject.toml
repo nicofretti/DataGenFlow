@@ -1,44 +1,46 @@
 [build-system]
-requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+requires = ["setuptools>=61.0"]
 
 [project]
-name = "datagenflow"
-version = "0.1.0"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn>=0.32.0",
+  "pydantic>=2.9.0",
+  "aiosqlite>=0.20.0",
+  "httpx>=0.27.0",
+  "python-dotenv>=1.0.0",
+  "python-multipart>=0.0.20",
+  "loguru>=0.7.0",
+  "tqdm>=4.66.0",
+  "pytest>=8.4.2",
+  "pytest-asyncio>=0.24.0",
+  "jinja2>=3.1.6",
+  "pyyaml>=6.0.3",
+  "litellm>=1.78.5",
+  "rouge-score>=0.1.2",
+  "llama-index-core>=0.14.7",
+  "anthropic>=0.73.0",
+  "google-generativeai>=0.8.5",
+  "ragas>=0.2.0",
+  "pytest-timeout>=2.4.0",
+  "langfuse==2.59.7",
+  "instructor",
+]
 description = "Q&A dataset generation and validation tool"
+name = "datagenflow"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [
-    "fastapi>=0.115.0",
-    "uvicorn>=0.32.0",
-    "pydantic>=2.9.0",
-    "aiosqlite>=0.20.0",
-    "httpx>=0.27.0",
-    "python-dotenv>=1.0.0",
-    "python-multipart>=0.0.20",
-    "loguru>=0.7.0",
-    "tqdm>=4.66.0",
-    "pytest>=8.4.2",
-    "pytest-asyncio>=0.24.0",
-    "jinja2>=3.1.6",
-    "pyyaml>=6.0.3",
-    "litellm>=1.78.5",
-    "rouge-score>=0.1.2",
-    "llama-index-core>=0.14.7",
-    "anthropic>=0.73.0",
-    "google-generativeai>=0.8.5",
-    "pytest-timeout>=2.4.0",
-    "langfuse==2.59.7",
-]
+version = "0.1.0"
 
 [tool.setuptools.packages.find]
-include = ["lib*"]
 exclude = ["ui*", "data*"]
+include = ["lib*"]
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.7.0",
-    "mypy>=1.13.0",
+  "ruff>=0.7.0",
+  "mypy>=1.13.0",
 ]
 
 [tool.ruff]
@@ -46,34 +48,47 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W"]
 ignore = []
+select = ["E", "F", "I", "N", "W"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["E501"]
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
-plugins = ["pydantic.mypy"]
+exclude = ["scripts/"]
 
 [[tool.mypy.overrides]]
+disable_error_code = ["no-untyped-def", "no-untyped-call", "var-annotated", "override", "union-attr", "arg-type", "index", "type-arg", "unused-ignore"]
 module = "tests.*"
-disable_error_code = ["no-untyped-def", "no-untyped-call", "var-annotated", "override", "union-attr", "arg-type", "index"]
 
 [[tool.mypy.overrides]]
-module = "lib.storage"
+disable_error_code = ["attr-defined", "no-untyped-def", "union-attr", "arg-type", "import-untyped"]
+module = "debug_pipeline"
+
+[[tool.mypy.overrides]]
+disable_error_code = ["attr-defined", "no-untyped-def"]
+module = "app"
+
+[[tool.mypy.overrides]]
 disable_error_code = ["no-any-return"]
+module = "lib.storage"
 
 [[tool.mypy.overrides]]
-module = "lib.blocks.builtin.langfuse"
 disable_error_code = ["import-untyped"]
+module = "lib.blocks.builtin.langfuse"
+
+[[tool.mypy.overrides]]
+disable_error_code = ["import-untyped"]
+module = "lib.blocks.builtin.ragas_metrics"
 
 [tool.pytest.ini_options]
-markers = [
-    "integration: integration tests requiring external services (ollama, etc) - only run when explicitly called",
-]
-addopts = "-m 'not integration' --tb=short"
+addopts = "-m 'not integration' --tb=short --ignore=scripts/"
 asyncio_mode = "strict"
+markers = [
+  "integration: integration tests requiring external services (ollama, etc) - only run when explicitly called",
+]

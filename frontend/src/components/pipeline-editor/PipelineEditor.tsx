@@ -436,6 +436,13 @@ export default function PipelineEditor({
               availableFields.add(output);
             }
           });
+
+          // for FieldMapper, extract keys from mappings config
+          if (node.data.block.type === "FieldMapper" && node.data.config?.mappings) {
+            Object.keys(node.data.config.mappings).forEach((key) => {
+              availableFields.add(key);
+            });
+          }
         }
       });
 

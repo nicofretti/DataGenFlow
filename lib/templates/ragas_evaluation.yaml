@@ -1,0 +1,64 @@
+name: QA Generation with RAGAS Evaluation
+description: Generate QA pairs from content and evaluate quality using RAGAS metrics. Use chat-completion LLMs and embedding models supported by RAGAS (for example, OpenAI GPT-4/GPT-4o for generation and evaluation, and text-embedding models such as text-embedding-3-large for answer relevancy). For full compatibility details, see the RAGAS documentation at https://docs.ragas.io.
+blocks:
+  - type: StructuredGenerator
+    config:
+      # model: Select your LLM model here
+      user_prompt: |
+        You are an expert at creating high-quality question-answer pairs from given content.
+        Generate questions that can be directly answered from the provided content.
+
+        Based on the following content, generate a question-answer pair.
+        The question should be answerable from the content.
+        The answer should be accurate and complete.
+        You MUST also provide the ground_truth (expected answer) and contexts (relevant passages).
+
+        Content:
+        {{ content }}
+      json_schema:
+        type: object
+        properties:
+          question:
+            type: string
+            description: A clear question based on the content
+          answer:
+            type: string
+            description: A complete answer to the question
+          ground_truth:
+            type: string
+            description: The expected reference answer
+          contexts:
+            type: array
+            items:
+              type: string
+            description: Relevant passages from the content
+        required:
+          - question
+          - answer
+          - ground_truth
+          - contexts
+      temperature: 0.7
+      max_tokens: 1024
+
+  - type: FieldMapper
+    config:
+      mappings:
+        question: "{{ generated.question }}"
+        answer: "{{ generated.answer }}"
+        ground_truth: "{{ generated.ground_truth | default('') }}"
+        contexts: "{{ generated.contexts | default([]) | tojson }}"
+
+  - type: RagasMetrics
+    config:
+      # model: Select your LLM model for evaluation
+      # embedding_model: Select your embedding model for answer_relevancy
+      question_field: question
+      answer_field: answer
+      contexts_field: contexts
+      ground_truth_field: ground_truth
+      metrics:
+        - faithfulness
+        - answer_relevancy
+        - context_precision
+        - context_recall
+      score_threshold: 0.7

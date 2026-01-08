@@ -20,7 +20,13 @@ class BlockConfigSchema:
             property_def["default"] = param.default
 
         if param_name in enum_values:
-            property_def["enum"] = enum_values[param_name]
+            # for array types, apply enum to items
+            if property_def.get("type") == "array":
+                if "items" not in property_def:
+                    property_def["items"] = {}
+                property_def["items"]["enum"] = enum_values[param_name]
+            else:
+                property_def["enum"] = enum_values[param_name]
         if param_name in field_refs:
             property_def["isFieldReference"] = True
         if param_name in field_descriptions:

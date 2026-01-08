@@ -147,6 +147,48 @@ export default function BlockConfigPanel({
       return <Checkbox checked={value} onChange={(e) => handleChange(key, e.target.checked)} />;
     }
 
+    // multi-select enum (array with enum items)
+    if (schema.type === "array" && schema.items?.enum && Array.isArray(schema.items.enum)) {
+      const selectedValues = Array.isArray(value) ? value : [];
+      const options = schema.items.enum;
+
+      const handleToggle = (option: string) => {
+        const newValues = selectedValues.includes(option)
+          ? selectedValues.filter((v) => v !== option)
+          : [...selectedValues, option];
+        handleChange(key, newValues);
+      };
+
+      return (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            p: 2,
+            borderRadius: 2,
+            bg: "canvas.subtle",
+          }}
+        >
+          {options.map((option: string) => (
+            <Box key={option} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Checkbox
+                checked={selectedValues.includes(option)}
+                onChange={() => handleToggle(option)}
+              />
+              <Text
+                sx={{
+                  color: "fg.default",
+                }}
+              >
+                {option}
+              </Text>
+            </Box>
+          ))}
+        </Box>
+      );
+    }
+
     // enum dropdown (predefined options)
     if (schema.enum && Array.isArray(schema.enum)) {
       return (

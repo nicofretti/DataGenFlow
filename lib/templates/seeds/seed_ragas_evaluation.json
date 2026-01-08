@@ -1,0 +1,14 @@
+[
+  {
+    "repetitions": 1,
+    "metadata": {
+      "content": "Python is a high-level, interpreted programming language known for its clear syntax and readability. It was created by Guido van Rossum and first released in 1991. Python supports multiple programming paradigms including procedural, object-oriented, and functional programming."
+    }
+  },
+  {
+    "repetitions": 1,
+    "metadata": {
+      "content": "Machine learning is a subset of artificial intelligence that enables systems to learn and improve from experience without being explicitly programmed. It focuses on developing algorithms that can access data and use it to learn for themselves."
+    }
+  }
+]
