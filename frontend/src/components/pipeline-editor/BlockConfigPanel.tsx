@@ -35,6 +35,8 @@ export default function BlockConfigPanel({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [panelWidth, setPanelWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
+  const [llmModels, setLlmModels] = useState<string[]>([]);
+  const [embeddingModels, setEmbeddingModels] = useState<string[]>([]);
 
   // sync formData with parent config changes
   // this ensures that saved config persists when panel is reopened
@@ -73,6 +75,32 @@ export default function BlockConfigPanel({
       prevNodeIdRef.current = null;
       prevConfigRef.current = null;
     };
+  }, []);
+
+  // fetch available LLM and embedding models
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        const [llmResponse, embeddingResponse] = await Promise.all([
+          fetch("/api/llm-models"),
+          fetch("/api/embedding-models"),
+        ]);
+
+        if (llmResponse.ok) {
+          const llmData = await llmResponse.json();
+          setLlmModels(llmData.map((m: any) => m.name));
+        }
+
+        if (embeddingResponse.ok) {
+          const embeddingData = await embeddingResponse.json();
+          setEmbeddingModels(embeddingData.map((m: any) => m.name));
+        }
+      } catch (error) {
+        console.error("Failed to fetch models:", error);
+      }
+    };
+
+    fetchModels();
   }, []);
 
   // handle resize
@@ -200,6 +228,42 @@ export default function BlockConfigPanel({
           {schema.enum.map((option: string) => (
             <Select.Option key={option} value={option}>
               {option}
+            </Select.Option>
+          ))}
+        </Select>
+      );
+    }
+
+    // llm model dropdown
+    if (key === "model" && llmModels.length > 0) {
+      return (
+        <Select
+          value={value || ""}
+          onChange={(e) => handleChange(key, e.target.value || null)}
+          sx={{ width: "100%" }}
+        >
+          <Select.Option value="">-- Use default model --</Select.Option>
+          {llmModels.map((modelName: string) => (
+            <Select.Option key={modelName} value={modelName}>
+              {modelName}
+            </Select.Option>
+          ))}
+        </Select>
+      );
+    }
+
+    // embedding model dropdown
+    if (key === "embedding_model" && embeddingModels.length > 0) {
+      return (
+        <Select
+          value={value || ""}
+          onChange={(e) => handleChange(key, e.target.value || null)}
+          sx={{ width: "100%" }}
+        >
+          <Select.Option value="">-- Use default model --</Select.Option>
+          {embeddingModels.map((modelName: string) => (
+            <Select.Option key={modelName} value={modelName}>
+              {modelName}
             </Select.Option>
           ))}
         </Select>
