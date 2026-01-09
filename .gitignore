@@ -19,7 +19,8 @@ data/*.db-journal
 # ide
 .vscode/
 .idea/
-.claude/
+.claude/*
+!.claude/skills/
 .worktrees/
 
 # cache
