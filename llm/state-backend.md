@@ -11,10 +11,11 @@ fastapi + aiosqlite + pydantic + jinja2 + pyyaml + litellm + rouge-score
 ```
 lib/
   blocks/
-    builtin/              # 11 blocks: text_generator, structured_generator, validator,
-                          # json_validator, diversity_score, coherence_score,
-                          # rouge_score, markdown_multiplier, langfuse,
-                          # field_mapper, ragas_metrics
+    builtin/              # 14 blocks: text_generator, structured_generator,
+                          # semantic_infiller, validator, json_validator,
+                          # duplicate_remover, diversity_score, coherence_score,
+                          # rouge_score, markdown_multiplier, structure_sampler,
+                          # langfuse, field_mapper, ragas_metrics
     commons/              # shared utilities (usage_tracker)
     custom/               # user experimental blocks
     base.py               # BaseBlock interface
@@ -414,28 +415,48 @@ class BaseBlock:
 - `_config_descriptions` → description fields in schema
 
 ### builtin blocks
+- **StructureSampler**: statistical sampler (target_count, categorical_fields, numeric_fields, dependencies, seed)
+  - outputs: * (dynamic skeletons + hints)
+  - category: seeders
 - **TextGenerator**: text via litellm (system_prompt, user_prompt, model, temperature, max_tokens)
   - outputs: assistant, system, user
+  - category: generators
 - **StructuredGenerator**: json via litellm (json_schema, user_prompt, model, temperature, max_tokens)
   - outputs: generated
+  - category: generators
+- **SemanticInfiller**: complete skeletons with llm (fields_to_generate, model, temperature, max_tokens)
+  - outputs: * (merged skeleton + generated fields)
+  - category: generators
 - **MarkdownMultiplierBlock**: split markdown into chunks (is_multiplier: true, must be first)
   - outputs: content (per chunk)
+  - category: multipliers
 - **ValidatorBlock**: validate text (min_length, max_length, forbidden_words)
   - outputs: text, valid, assistant
+  - category: validators
 - **JSONValidatorBlock**: parse json from field (field_name, required_fields, strict)
   - outputs: valid, parsed_json
+  - category: validators
+- **DuplicateRemover**: embedding-based similarity check (similarity_threshold, comparison_fields, embedding_model)
+  - outputs: *, is_duplicate, similarity_score
+  - category: validators
 - **DiversityScore**: lexical diversity (field_name)
   - outputs: diversity_score
+  - category: metrics
 - **CoherenceScore**: text coherence (field_name)
   - outputs: coherence_score
+  - category: metrics
 - **RougeScore**: rouge comparison (generated_field, reference_field, rouge_type)
   - outputs: rouge_score
+  - category: metrics
 - **LangfuseBlock**: observability logging (public_key, secret_key, host, session_id)
   - outputs: langfuse_trace_url
+  - category: observability
 - **FieldMapper**: create fields from Jinja2 expressions (mappings)
   - outputs: dynamic (keys from mappings config)
+  - category: utilities
 - **RagasMetrics**: evaluate QA using RAGAS metrics (question_field, answer_field, etc.)
   - outputs: ragas_scores
+  - category: metrics
 
 ### block discovery
 - registry scans: lib/blocks/builtin/, lib/blocks/custom/, user_blocks/

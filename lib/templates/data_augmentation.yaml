@@ -11,7 +11,7 @@ blocks:
 
   - type: SemanticInfiller
     config:
-      fields_to_generate: "{{ fields_to_generate }}"
+      fields_to_generate: "{{ fields_to_generate | tojson }}"
       temperature: 0.8
       max_tokens: 200
       model: null

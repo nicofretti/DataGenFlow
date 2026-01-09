@@ -28,7 +28,7 @@ tools: uv (python), yarn (js)
 ```
 lib/
   blocks/
-    builtin/          # 9 blocks (text/structured gen, multiplier, validators, metrics, langfuse)
+    builtin/          # 12 blocks (generators, multiplier, validators, metrics, seeders, observability)
     custom/           # experimental
     base.py           # BaseBlock interface
     config.py         # schema extraction
@@ -46,6 +46,10 @@ lib/
 frontend/src/
   pages/              # Pipelines, Generator, Review, Settings
   components/         # GlobalJobIndicator, pipeline-editor/, settings/, ui/
+
+.claude/
+  skills/
+    implementing-datagenflow-blocks/  # guide for creating new blocks
 
 tests/
   conftest.py         # test db setup
@@ -94,11 +98,15 @@ class BaseBlock:
         pass
 ```
 
-### builtin blocks (9 total)
+### builtin blocks (12 total)
+
+**seeders:**
+- StructureSampler: statistical sampler (target_count, categorical_fields, numeric_fields, dependencies, seed) → * (skeletons + hints)
 
 **generators:**
 - TextGenerator: litellm text (system_prompt, user_prompt, model, temp, max_tokens) → assistant, system, user
 - StructuredGenerator: litellm json (json_schema, user_prompt, model, temp, max_tokens) → generated
+- SemanticInfiller: complete skeletons (fields_to_generate, model, temperature, max_tokens) → * (merged skeleton + generated)
 
 **multipliers:**
 - MarkdownMultiplierBlock: split markdown (file_content required, is_multiplier: true) → content (per chunk)
@@ -106,6 +114,7 @@ class BaseBlock:
 **validators:**
 - ValidatorBlock: text rules (min_length, max_length, forbidden_words) → text, valid, assistant
 - JSONValidatorBlock: parse json (field_name, required_fields, strict) → valid, parsed_json
+- DuplicateRemover: embedding similarity (similarity_threshold, comparison_fields, embedding_model) → *, is_duplicate, similarity_score
 
 **metrics:**
 - DiversityScore: lexical diversity (field_name) → diversity_score
@@ -207,10 +216,11 @@ blocks:
       temperature: 0.7
 ```
 
-### built-in (3 templates)
+### built-in (4 templates)
 - **json_generation**: extract title/description (StructuredGenerator + JSONValidator)
 - **text_classification**: classify with confidence (StructuredGenerator + JSONValidator)
 - **qa_generation**: generate Q&A pairs (TextGenerator + StructuredGenerator + JSONValidator)
+- **data_augmentation**: synthetic records from samples (StructureSampler + SemanticInfiller + DuplicateRemover)
 
 ## storage
 
@@ -360,10 +370,10 @@ blocks/, integration/, test_api.py, test_workflow.py, test_storage.py, test_cons
 production-ready full-stack data generation platform
 
 ### features
-- 9 blocks (generators, multiplier, validators, metrics, observability)
+- 12 blocks (seeders, generators, multiplier, validators, metrics, observability)
 - auto-discovery from builtin/custom/user_blocks
 - reactflow visual editor with drag-drop
-- jinja2 templates + 3 yaml templates
+- jinja2 templates + 4 yaml templates
 - background jobs with real-time progress
 - incremental record visibility
 - job-scoped delete/export/filter

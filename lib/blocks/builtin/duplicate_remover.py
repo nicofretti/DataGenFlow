@@ -33,9 +33,8 @@ class DuplicateRemover(BaseBlock):
         self.comparison_fields = comparison_fields
         self.embedding_model_name = embedding_model
 
-        # cache reference embeddings (shared across records in same job)
-        self._reference_embeddings: list[list[float]] = []
-        self._embeddings_initialized = False
+        # cache reference embeddings per trace_id (one cache per pipeline execution)
+        self._embeddings_cache: dict[str, list[list[float]]] = {}
 
     def _extract_text(self, record: dict[str, Any], fields: list[str] | None) -> str:
         """
@@ -93,8 +92,11 @@ class DuplicateRemover(BaseBlock):
                 self.embedding_model_name
             )
 
-            # build reference embeddings (lazy, once per pipeline run)
-            if not self._embeddings_initialized:
+            # get trace_id for cache key
+            trace_id = context.trace_id
+
+            # build reference embeddings (lazy, once per pipeline execution)
+            if trace_id not in self._embeddings_cache:
                 logger.info(f"Building reference embeddings for {len(samples)} samples")
 
                 sample_texts = [
@@ -118,10 +120,14 @@ class DuplicateRemover(BaseBlock):
                 )
                 response = await litellm.aembedding(**embedding_params)
 
-                self._reference_embeddings = [item["embedding"] for item in response.data]
-                self._embeddings_initialized = True
+                self._embeddings_cache[trace_id] = [
+                    item["embedding"] for item in response.data
+                ]
 
-                logger.info(f"Initialized {len(self._reference_embeddings)} reference embeddings")
+                logger.info(
+                    f"Initialized {len(self._embeddings_cache[trace_id])} reference embeddings "
+                    f"for trace_id={trace_id}"
+                )
 
             # embed current text
             embedding_params = llm_config_manager._prepare_embedding_call(
@@ -130,10 +136,9 @@ class DuplicateRemover(BaseBlock):
             response = await litellm.aembedding(**embedding_params)
             current_embedding = response.data[0]["embedding"]
 
-            # compute cosine similarities
-            similarities = cosine_similarity(
-                [current_embedding], self._reference_embeddings
-            )[0]
+            # compute cosine similarities against cached embeddings
+            reference_embeddings = self._embeddings_cache[trace_id]
+            similarities = cosine_similarity([current_embedding], reference_embeddings)[0]
 
             max_similarity = float(max(similarities)) if len(similarities) > 0 else 0.0
             is_duplicate = max_similarity >= self.similarity_threshold

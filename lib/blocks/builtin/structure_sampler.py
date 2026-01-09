@@ -17,6 +17,10 @@ class StructureSampler(BaseMultiplierBlock):
     inputs = []  # reads from initial state
     outputs = ["*"]  # dynamic based on categorical fields
 
+    # constants for sampling configuration
+    MAX_EXEMPLARS = 5
+    MAX_MATCHING_EXEMPLARS = 3
+
     _config_descriptions = {
         "target_count": "Number of skeleton records to generate",
         "categorical_fields": "List of categorical field names to sample (e.g., ['plan', 'role'])",
@@ -59,35 +63,23 @@ class StructureSampler(BaseMultiplierBlock):
                 f"Recommend at least 20 samples for better distribution modeling."
             )
 
-    def _analyze_samples(self, samples: list[dict[str, Any]]) -> dict[str, Any]:
-        """
-        extract statistical patterns from samples
-
-        returns:
-        {
-            "categorical_probs": {"field": {"value": prob, ...}},
-            "conditional_probs": {"field|parent=val": {"value": prob, ...}},
-            "numeric_stats": {"field": {"min": x, "max": y, "mean": z}},
-            "exemplars": [sample1, sample2, ...]
-        }
-        """
-        profile: dict[str, Any] = {
-            "categorical_probs": {},
-            "conditional_probs": {},
-            "numeric_stats": {},
-            "exemplars": [],
-        }
-
-        # categorical field distributions
+    def _compute_categorical_distributions(
+        self, samples: list[dict[str, Any]]
+    ) -> dict[str, dict[str, float]]:
+        """compute probability distributions for categorical fields"""
+        distributions = {}
         for field in self.categorical_fields:
             values = [sample.get(field) for sample in samples]
             counts = Counter(values)
             total = sum(counts.values())
-            profile["categorical_probs"][field] = {
-                value: count / total for value, count in counts.items()
-            }
+            distributions[field] = {value: count / total for value, count in counts.items()}
+        return distributions
 
-        # conditional probabilities for dependencies
+    def _compute_conditional_probabilities(
+        self, samples: list[dict[str, Any]]
+    ) -> dict[str, dict[str, float]]:
+        """compute conditional probabilities for dependent fields"""
+        conditional_probs = {}
         for child_field, parent_fields in self.dependencies.items():
             if child_field not in self.categorical_fields:
                 continue
@@ -108,9 +100,15 @@ class StructureSampler(BaseMultiplierBlock):
                 # build key: "child|parent1=val1,parent2=val2"
                 parent_str = ",".join(f"{p}={v}" for p, v in zip(parent_fields, parent_key))
                 key = f"{child_field}|{parent_str}"
-                profile["conditional_probs"][key] = probs
+                conditional_probs[key] = probs
 
-        # numeric field statistics
+        return conditional_probs
+
+    def _compute_numeric_statistics(
+        self, samples: list[dict[str, Any]]
+    ) -> dict[str, dict[str, float]]:
+        """compute min/max/mean statistics for numeric fields"""
+        numeric_stats = {}
         for field in self.numeric_fields:
             values = [sample.get(field) for sample in samples if sample.get(field) is not None]
             if values:
@@ -125,17 +123,40 @@ class StructureSampler(BaseMultiplierBlock):
                         )
 
                 if numeric_values:
-                    profile["numeric_stats"][field] = {
+                    numeric_stats[field] = {
                         "min": min(numeric_values),
                         "max": max(numeric_values),
                         "mean": sum(numeric_values) / len(numeric_values),
                     }
+        return numeric_stats
 
-        # select random exemplars
-        num_exemplars = min(5, len(samples))
-        profile["exemplars"] = random.sample(samples, num_exemplars)
+    def _select_exemplars(
+        self, samples: list[dict[str, Any]], max_count: int | None = None
+    ) -> list[dict]:
+        """randomly select exemplar samples for reference"""
+        if max_count is None:
+            max_count = self.MAX_EXEMPLARS
+        num_exemplars = min(max_count, len(samples))
+        return random.sample(samples, num_exemplars)
 
-        return profile
+    def _analyze_samples(self, samples: list[dict[str, Any]]) -> dict[str, Any]:
+        """
+        extract statistical patterns from samples
+
+        returns:
+        {
+            "categorical_probs": {"field": {"value": prob, ...}},
+            "conditional_probs": {"field|parent=val": {"value": prob, ...}},
+            "numeric_stats": {"field": {"min": x, "max": y, "mean": z}},
+            "exemplars": [sample1, sample2, ...]
+        }
+        """
+        return {
+            "categorical_probs": self._compute_categorical_distributions(samples),
+            "conditional_probs": self._compute_conditional_probabilities(samples),
+            "numeric_stats": self._compute_numeric_statistics(samples),
+            "exemplars": self._select_exemplars(samples),
+        }
 
     def _topological_sort(self, fields: list[str]) -> list[str]:
         """
@@ -183,6 +204,57 @@ class StructureSampler(BaseMultiplierBlock):
         weights = list(probs.values())
         return random.choices(values, weights=weights, k=1)[0]
 
+    def _sample_categorical_field(
+        self, field: str, skeleton: dict[str, Any], profile: dict[str, Any]
+    ) -> Any:
+        """sample value for a single categorical field, respecting dependencies"""
+        if field in self.dependencies:
+            # conditional sampling based on parent values
+            parent_fields = self.dependencies[field]
+            parent_values = tuple(skeleton.get(p) for p in parent_fields)
+            parent_str = ",".join(f"{p}={v}" for p, v in zip(parent_fields, parent_values))
+            key = f"{field}|{parent_str}"
+
+            if key in profile["conditional_probs"]:
+                probs = profile["conditional_probs"][key]
+            else:
+                # fallback to marginal distribution
+                logger.warning(
+                    f"Unseen combination {key}, using marginal distribution for {field}"
+                )
+                probs = profile["categorical_probs"].get(field, {})
+        else:
+            # independent sampling
+            probs = profile["categorical_probs"].get(field, {})
+
+        return self._sample_from_distribution(probs)
+
+    def _generate_hints(
+        self, skeleton: dict[str, Any], profile: dict[str, Any]
+    ) -> dict[str, Any]:
+        """generate hints for numeric fields and matching exemplars"""
+        hints: dict[str, Any] = {}
+
+        # add numeric field ranges
+        for field in self.numeric_fields:
+            if field in profile["numeric_stats"]:
+                stats = profile["numeric_stats"][field]
+                hints[f"{field}_range"] = [stats["min"], stats["max"]]
+
+        # add exemplars that match current categorical values
+        matching_exemplars = [
+            ex
+            for ex in profile["exemplars"]
+            if all(ex.get(f) == skeleton.get(f) for f in self.categorical_fields)
+        ]
+
+        if not matching_exemplars:
+            # use any exemplars from the full set
+            matching_exemplars = profile["exemplars"][: self.MAX_MATCHING_EXEMPLARS]
+
+        hints["exemplars"] = matching_exemplars
+        return hints
+
     def _generate_skeletons(
         self, profile: dict[str, Any], count: int
     ) -> list[dict[str, Any]]:
@@ -201,50 +273,10 @@ class StructureSampler(BaseMultiplierBlock):
 
             # sample categorical values in dependency order
             for field in field_order:
-                if field in self.dependencies:
-                    # conditional sampling
-                    parent_fields = self.dependencies[field]
-                    parent_values = tuple(skeleton.get(p) for p in parent_fields)
-                    parent_str = ",".join(f"{p}={v}" for p, v in zip(parent_fields, parent_values))
-                    key = f"{field}|{parent_str}"
+                skeleton[field] = self._sample_categorical_field(field, skeleton, profile)
 
-                    if key in profile["conditional_probs"]:
-                        probs = profile["conditional_probs"][key]
-                    else:
-                        # fallback to marginal distribution
-                        logger.warning(
-                            f"Unseen combination {key}, using marginal distribution for {field}"
-                        )
-                        probs = profile["categorical_probs"].get(field, {})
-
-                else:
-                    # independent sampling
-                    probs = profile["categorical_probs"].get(field, {})
-
-                skeleton[field] = self._sample_from_distribution(probs)
-
-            # generate hints for numeric fields
-            hints: dict[str, Any] = {}
-
-            for field in self.numeric_fields:
-                if field in profile["numeric_stats"]:
-                    stats = profile["numeric_stats"][field]
-                    hints[f"{field}_range"] = [stats["min"], stats["max"]]
-
-            # add exemplars that match current categorical values
-            matching_exemplars = [
-                ex
-                for ex in profile["exemplars"]
-                if all(ex.get(f) == skeleton.get(f) for f in self.categorical_fields)
-            ]
-
-            if not matching_exemplars:
-                # use any exemplars
-                matching_exemplars = profile["exemplars"][:3]
-
-            hints["exemplars"] = matching_exemplars
-
-            skeleton["_hints"] = hints
+            # add hints for LLM generation
+            skeleton["_hints"] = self._generate_hints(skeleton, profile)
             results.append(skeleton)
 
         return results

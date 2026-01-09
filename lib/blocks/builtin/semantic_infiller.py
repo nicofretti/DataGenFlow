@@ -20,8 +20,13 @@ class SemanticInfiller(BaseBlock):
     inputs = ["*"]  # accepts any skeleton fields
     outputs = ["*"]  # returns merged skeleton + generated fields
 
+    # constants for prompt generation
+    MAX_EXEMPLARS_IN_PROMPT = 2
+
     _config_descriptions = {
-        "fields_to_generate": "List of field names for LLM to generate (e.g., ['bio', 'description'])",
+        "fields_to_generate": (
+            'JSON array or Jinja template. Examples: ["bio", "storage"] or {{ fields_to_generate | tojson }}'
+        ),
         "model": "Select LLM model to use (leave empty for default)",
         "temperature": "Sampling temperature (0.0 = deterministic, 1.0 = creative)",
         "max_tokens": "Maximum tokens for generated response",
@@ -30,13 +35,13 @@ class SemanticInfiller(BaseBlock):
 
     def __init__(
         self,
-        fields_to_generate: list[str],
+        fields_to_generate: str,
         model: str | None = None,
         temperature: float = 0.8,
         max_tokens: int = 500,
         system_prompt: str = "",
     ):
-        self.fields_to_generate = fields_to_generate
+        self.fields_to_generate_template = fields_to_generate
         self.model_name = model
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -70,7 +75,7 @@ class SemanticInfiller(BaseBlock):
                 hint_lines.append(f"  - {field_name} should be between {value[0]}-{value[1]}")
             elif key == "exemplars" and isinstance(value, list):
                 hint_lines.append("  - Example records for reference:")
-                for ex in value[:2]:  # show max 2 exemplars
+                for ex in value[: self.MAX_EXEMPLARS_IN_PROMPT]:
                     # only show generated fields from exemplar
                     ex_fields = {
                         f: ex.get(f, "")
@@ -131,12 +136,39 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
         )
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        from lib.template_renderer import render_template
+
         from app import llm_config_manager
 
         # extract skeleton from context
         skeleton = context.accumulated_state.copy()
         hints = skeleton.pop("_hints", {})
         skeleton.pop("_usage", None)  # remove internal fields
+
+        # render fields_to_generate template and parse as JSON
+        fields_template_rendered = render_template(
+            self.fields_to_generate_template, context.accumulated_state
+        )
+        try:
+            fields_to_generate = json.loads(fields_template_rendered)
+            if not isinstance(fields_to_generate, list):
+                raise BlockExecutionError(
+                    "fields_to_generate must be a JSON array",
+                    detail={"rendered_value": fields_template_rendered},
+                )
+            if not all(isinstance(f, str) for f in fields_to_generate):
+                raise BlockExecutionError(
+                    "All items in fields_to_generate must be strings",
+                    detail={"fields_to_generate": fields_to_generate},
+                )
+        except json.JSONDecodeError as e:
+            raise BlockExecutionError(
+                f"fields_to_generate must be valid JSON: {str(e)}",
+                detail={"template": self.fields_to_generate_template, "rendered": fields_template_rendered},
+            )
+
+        # temporarily set for prompt building
+        self.fields_to_generate = fields_to_generate
 
         # build generation prompt
         prompt = self._build_generation_prompt(skeleton, hints)

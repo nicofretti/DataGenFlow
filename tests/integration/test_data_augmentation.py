@@ -1,14 +1,43 @@
 """integration test for data augmentation pipeline"""
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
+from lib.entities import LLMModelConfig, LLMProvider
 from lib.storage import Storage
 from lib.workflow import Pipeline
 
 
 @pytest.mark.asyncio
-async def test_data_augmentation_pipeline(tmp_path):
+@patch("litellm.acompletion")
+@patch("app.llm_config_manager")
+async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, tmp_path):
     """test complete data augmentation pipeline with all 3 blocks"""
+
+    # setup mocks for LLM calls
+    mock_config_manager.get_llm_model = AsyncMock(
+        return_value=LLMModelConfig(
+            name="test",
+            provider=LLMProvider.OPENAI,
+            endpoint="http://test",
+            model_name="gpt-4",
+        )
+    )
+    mock_config_manager.prepare_llm_call = MagicMock(
+        return_value={"model": "gpt-4", "messages": []}
+    )
+    # mock LLM response with realistic generated fields
+    mock_completion.return_value = MagicMock(
+        choices=[
+            MagicMock(
+                message=MagicMock(
+                    content='{"bio": "Generated bio text", "storage": 10}'
+                )
+            )
+        ],
+        usage=MagicMock(prompt_tokens=100, completion_tokens=50, cache_read_input_tokens=0),
+    )
 
     # setup test database
     db_path = tmp_path / "test.db"
@@ -32,7 +61,7 @@ async def test_data_augmentation_pipeline(tmp_path):
                 {
                     "type": "SemanticInfiller",
                     "config": {
-                        "fields_to_generate": ["bio", "storage"],
+                        "fields_to_generate": '["bio", "storage"]',
                         "temperature": 0.8,
                         "max_tokens": 200,
                         "model": None,
@@ -119,12 +148,11 @@ async def test_data_augmentation_pipeline(tmp_path):
             if result["plan"] == "Free":
                 assert result["role"] == "Viewer", "Free plan should have Viewer role"
 
-            # check trace has 3 steps
-            assert len(trace) == 3, f"Expected 3 trace steps, got {len(trace)}"
+            # check trace has 2 steps (StructureSampler is multiplier, doesn't appear in per-item trace)
+            assert len(trace) == 2, f"Expected 2 trace steps, got {len(trace)}"
 
-            step_types = [step["block_type"] for step in trace]
+            step_types = [step.block_type for step in trace]
             assert step_types == [
-                "StructureSampler",
                 "SemanticInfiller",
                 "DuplicateRemover",
             ], f"Unexpected trace steps: {step_types}"
