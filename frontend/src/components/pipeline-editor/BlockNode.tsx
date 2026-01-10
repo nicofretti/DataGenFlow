@@ -61,8 +61,6 @@ function getPreviewFields(blockType: string, config: Record<string, any>): Array
   // priority fields based on block type
   let priorityKeys: string[] = [];
 
-  console.log(type);
-
   // data augmentation blocks
   if (type.includes("sampler")) {
     priorityKeys = ["target_count", "categorical_fields"];

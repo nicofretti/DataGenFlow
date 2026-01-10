@@ -9,6 +9,7 @@ from lib.blocks.base import BaseBlock
 from lib.entities import pipeline
 from lib.entities.block_execution_context import BlockExecutionContext
 from lib.errors import BlockExecutionError
+from lib.template_renderer import render_template
 
 logger = logging.getLogger(__name__)
 
@@ -136,8 +137,6 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
         )
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
-        from lib.template_renderer import render_template
-
         from app import llm_config_manager
 
         # extract skeleton from context
