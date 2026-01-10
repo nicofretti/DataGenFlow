@@ -91,5 +91,5 @@ tone_instructions: |
   Be direct, technical, and concise:
   1. Blocking issues (anti-patterns, security, broken tests) - must fix
   2. Code quality violations - should fix
-  3. Documentation updates needed - identify which llm/*.md files
+  3. Documentation updates needed
   4. Improvements - nice to have
