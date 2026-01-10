@@ -20,7 +20,9 @@ class DuplicateRemover(BaseBlock):
     _config_descriptions = {
         "similarity_threshold": "Similarity threshold (0.0-1.0). Above = duplicate.",
         "comparison_fields": "Fields to compare (leave empty to compare all text fields)",
-        "embedding_model": "Embedding model to use (leave empty for default). Skips check if no model configured.",
+        "embedding_model": (
+            "Embedding model to use (leave empty for default). Skips check if no model configured."
+        ),
     }
 
     def __init__(
@@ -99,9 +101,7 @@ class DuplicateRemover(BaseBlock):
             if trace_id not in self._embeddings_cache:
                 logger.info(f"Building reference embeddings for {len(samples)} samples")
 
-                sample_texts = [
-                    self._extract_text(s, self.comparison_fields) for s in samples
-                ]
+                sample_texts = [self._extract_text(s, self.comparison_fields) for s in samples]
 
                 # filter empty texts
                 sample_texts = [t for t in sample_texts if t]
@@ -120,9 +120,7 @@ class DuplicateRemover(BaseBlock):
                 )
                 response = await litellm.aembedding(**embedding_params)
 
-                self._embeddings_cache[trace_id] = [
-                    item["embedding"] for item in response.data
-                ]
+                self._embeddings_cache[trace_id] = [item["embedding"] for item in response.data]
 
                 logger.info(
                     f"Initialized {len(self._embeddings_cache[trace_id])} reference embeddings "
@@ -145,14 +143,14 @@ class DuplicateRemover(BaseBlock):
 
             if is_duplicate:
                 logger.warning(
-                    f"Duplicate detected: similarity={max_similarity:.4f} >= {self.similarity_threshold}"
+                    f"Duplicate detected: similarity={max_similarity:.4f} >= "
+                    f"{self.similarity_threshold}"
                 )
 
         except Exception as e:
             # no embedding model configured or error - skip check
             logger.warning(
-                f"Embedding check failed or no model configured: {e}. "
-                f"Skipping similarity check."
+                f"Embedding check failed or no model configured: {e}. Skipping similarity check."
             )
             is_duplicate = False
             max_similarity = 0.0

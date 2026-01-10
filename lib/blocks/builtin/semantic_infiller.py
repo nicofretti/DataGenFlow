@@ -49,7 +49,10 @@ class SemanticInfiller(BaseBlock):
         self.system_prompt = system_prompt
 
     def _build_generation_prompt(
-        self, skeleton: dict[str, Any], hints: dict[str, Any]
+        self,
+        fields_to_generate: list[str],
+        skeleton: dict[str, Any],
+        hints: dict[str, Any],
     ) -> str:
         """
         construct LLM prompt with constraints and hints
@@ -59,7 +62,7 @@ class SemanticInfiller(BaseBlock):
         - lock categorical constraints from skeleton
         - provide numeric hints and exemplars
         """
-        fields_str = ", ".join(f'"{field}"' for field in self.fields_to_generate)
+        fields_str = ", ".join(f'"{field}"' for field in fields_to_generate)
 
         # extract constraints (non-hint fields)
         constraints = []
@@ -78,11 +81,7 @@ class SemanticInfiller(BaseBlock):
                 hint_lines.append("  - Example records for reference:")
                 for ex in value[: self.MAX_EXEMPLARS_IN_PROMPT]:
                     # only show generated fields from exemplar
-                    ex_fields = {
-                        f: ex.get(f, "")
-                        for f in self.fields_to_generate
-                        if f in ex
-                    }
+                    ex_fields = {f: ex.get(f, "") for f in fields_to_generate if f in ex}
                     hint_lines.append(f"    {json.dumps(ex_fields)}")
 
         hints_str = "\n".join(hint_lines) if hint_lines else "  (none)"
@@ -163,14 +162,14 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
         except json.JSONDecodeError as e:
             raise BlockExecutionError(
                 f"fields_to_generate must be valid JSON: {str(e)}",
-                detail={"template": self.fields_to_generate_template, "rendered": fields_template_rendered},
+                detail={
+                    "template": self.fields_to_generate_template,
+                    "rendered": fields_template_rendered,
+                },
             )
 
-        # temporarily set for prompt building
-        self.fields_to_generate = fields_to_generate
-
         # build generation prompt
-        prompt = self._build_generation_prompt(skeleton, hints)
+        prompt = self._build_generation_prompt(fields_to_generate, skeleton, hints)
 
         # prepare system prompt
         system_content = (
@@ -199,9 +198,7 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
             "tags": ["datagenflow", "semantic-infiller"],
         }
 
-        logger.info(
-            f"Generating fields {self.fields_to_generate} with model={llm_params.get('model')}"
-        )
+        logger.info(f"Generating fields {fields_to_generate} with model={llm_params.get('model')}")
 
         try:
             response = await litellm.acompletion(**llm_params)

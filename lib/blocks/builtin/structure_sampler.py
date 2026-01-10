@@ -33,18 +33,16 @@ class StructureSampler(BaseMultiplierBlock):
         self,
         target_count: int,
         categorical_fields: list[str],
-        numeric_fields: list[str] = [],
-        dependencies: dict[str, list[str]] = {},
+        numeric_fields: list[str] | None = None,
+        dependencies: dict[str, list[str]] | None = None,
         seed: int | None = None,
     ):
         self.target_count = target_count
         self.categorical_fields = categorical_fields
-        self.numeric_fields = numeric_fields
-        self.dependencies = dependencies
+        self.numeric_fields = numeric_fields or []
+        self.dependencies = dependencies or {}
         self.seed = seed
-
-        if seed is not None:
-            random.seed(seed)
+        self._rng = random.Random(seed)
 
     def _validate_samples(self, samples: list[dict[str, Any]]) -> None:
         """validate samples meet minimum requirements"""
@@ -118,9 +116,7 @@ class StructureSampler(BaseMultiplierBlock):
                     try:
                         numeric_values.append(float(v))
                     except (ValueError, TypeError):
-                        logger.warning(
-                            f"Non-numeric value {v} in numeric field {field}, skipping"
-                        )
+                        logger.warning(f"Non-numeric value {v} in numeric field {field}, skipping")
 
                 if numeric_values:
                     numeric_stats[field] = {
@@ -137,7 +133,7 @@ class StructureSampler(BaseMultiplierBlock):
         if max_count is None:
             max_count = self.MAX_EXEMPLARS
         num_exemplars = min(max_count, len(samples))
-        return random.sample(samples, num_exemplars)
+        return self._rng.sample(samples, num_exemplars)
 
     def _analyze_samples(self, samples: list[dict[str, Any]]) -> dict[str, Any]:
         """
@@ -202,7 +198,7 @@ class StructureSampler(BaseMultiplierBlock):
 
         values = list(probs.keys())
         weights = list(probs.values())
-        return random.choices(values, weights=weights, k=1)[0]
+        return self._rng.choices(values, weights=weights, k=1)[0]
 
     def _sample_categorical_field(
         self, field: str, skeleton: dict[str, Any], profile: dict[str, Any]
@@ -219,9 +215,7 @@ class StructureSampler(BaseMultiplierBlock):
                 probs = profile["conditional_probs"][key]
             else:
                 # fallback to marginal distribution
-                logger.warning(
-                    f"Unseen combination {key}, using marginal distribution for {field}"
-                )
+                logger.warning(f"Unseen combination {key}, using marginal distribution for {field}")
                 probs = profile["categorical_probs"].get(field, {})
         else:
             # independent sampling
@@ -229,9 +223,7 @@ class StructureSampler(BaseMultiplierBlock):
 
         return self._sample_from_distribution(probs)
 
-    def _generate_hints(
-        self, skeleton: dict[str, Any], profile: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _generate_hints(self, skeleton: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
         """generate hints for numeric fields and matching exemplars"""
         hints: dict[str, Any] = {}
 
@@ -255,9 +247,7 @@ class StructureSampler(BaseMultiplierBlock):
         hints["exemplars"] = matching_exemplars
         return hints
 
-    def _generate_skeletons(
-        self, profile: dict[str, Any], count: int
-    ) -> list[dict[str, Any]]:
+    def _generate_skeletons(self, profile: dict[str, Any], count: int) -> list[dict[str, Any]]:
         """
         generate N skeleton records by sampling from learned distributions
 

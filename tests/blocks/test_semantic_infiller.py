@@ -91,7 +91,7 @@ class TestSemanticInfillerPromptBuilding:
 
 class TestSemanticInfillerJSONParsing:
     def test_parse_valid_json(self):
-        block = SemanticInfiller(fields_to_generate=["bio"])
+        block = SemanticInfiller(fields_to_generate='["bio"]')
 
         content = '{"bio": "Test bio"}'
         result = block._parse_json_safely(content)
@@ -99,7 +99,7 @@ class TestSemanticInfillerJSONParsing:
         assert result == {"bio": "Test bio"}
 
     def test_parse_json_with_markdown(self):
-        block = SemanticInfiller(fields_to_generate=["bio"])
+        block = SemanticInfiller(fields_to_generate='["bio"]')
 
         content = '```json\n{"bio": "Test bio"}\n```'
         result = block._parse_json_safely(content)
@@ -107,7 +107,7 @@ class TestSemanticInfillerJSONParsing:
         assert result == {"bio": "Test bio"}
 
     def test_parse_json_embedded_in_text(self):
-        block = SemanticInfiller(fields_to_generate=["bio"])
+        block = SemanticInfiller(fields_to_generate='["bio"]')
 
         content = 'Here is the result: {"bio": "Test bio"} done'
         result = block._parse_json_safely(content)
@@ -115,7 +115,7 @@ class TestSemanticInfillerJSONParsing:
         assert result == {"bio": "Test bio"}
 
     def test_parse_invalid_json_raises_error(self):
-        block = SemanticInfiller(fields_to_generate=["bio"])
+        block = SemanticInfiller(fields_to_generate='["bio"]')
 
         content = "not json at all"
 
@@ -141,9 +141,7 @@ class TestSemanticInfillerExecution:
             return_value={"model": "gpt-4", "messages": []}
         )
         mock_completion.return_value = MagicMock(
-            choices=[
-                MagicMock(message=MagicMock(content='{"bio": "Generated bio"}'))
-            ],
+            choices=[MagicMock(message=MagicMock(content='{"bio": "Generated bio"}'))],
             usage=MagicMock(prompt_tokens=100, completion_tokens=50, cache_read_input_tokens=0),
         )
 
@@ -181,10 +179,7 @@ class TestSemanticInfillerExecution:
         )
 
         block = SemanticInfiller(fields_to_generate='["bio", "storage"]')
-        context = make_context({
-            "plan": "Pro",
-            "_hints": {"storage_range": [10, 100]}
-        })
+        context = make_context({"plan": "Pro", "_hints": {"storage_range": [10, 100]}})
 
         result = await block.execute(context)
 
@@ -211,11 +206,7 @@ class TestSemanticInfillerExecution:
         )
         mock_completion.return_value = MagicMock(
             choices=[
-                MagicMock(
-                    message=MagicMock(
-                        content='{"plan": "Modified", "bio": "Generated bio"}'
-                    )
-                )
+                MagicMock(message=MagicMock(content='{"plan": "Modified", "bio": "Generated bio"}'))
             ],
             usage=MagicMock(prompt_tokens=100, completion_tokens=50, cache_read_input_tokens=0),
         )
@@ -269,19 +260,14 @@ class TestSemanticInfillerExecution:
             return_value={"model": "gpt-4", "messages": []}
         )
         mock_completion.return_value = MagicMock(
-            choices=[
-                MagicMock(message=MagicMock(content='{"bio": "Generated bio"}'))
-            ],
+            choices=[MagicMock(message=MagicMock(content='{"bio": "Generated bio"}'))],
             usage=MagicMock(prompt_tokens=100, completion_tokens=50, cache_read_input_tokens=0),
         )
 
         # Use tojson filter to properly serialize the list as JSON
         block = SemanticInfiller(fields_to_generate="{{ fields_to_generate | tojson }}")
         # Provide fields_to_generate in the accumulated state (from metadata)
-        context = make_context({
-            "plan": "Free",
-            "fields_to_generate": ["bio"]
-        })
+        context = make_context({"plan": "Free", "fields_to_generate": ["bio"]})
 
         result = await block.execute(context)
 

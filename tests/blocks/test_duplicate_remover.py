@@ -118,9 +118,7 @@ class TestDuplicateRemoverWithEmbeddings:
     @pytest.mark.asyncio
     @patch("litellm.aembedding")
     @patch("app.llm_config_manager")
-    async def test_duplicate_detection_below_threshold(
-        self, mock_config_manager, mock_embedding
-    ):
+    async def test_duplicate_detection_below_threshold(self, mock_config_manager, mock_embedding):
         # setup mocks
         mock_config_manager.get_embedding_model = AsyncMock(
             return_value={"model": "text-embedding-ada-002"}
@@ -155,9 +153,7 @@ class TestDuplicateRemoverWithEmbeddings:
     @pytest.mark.asyncio
     @patch("litellm.aembedding")
     @patch("app.llm_config_manager")
-    async def test_duplicate_detection_above_threshold(
-        self, mock_config_manager, mock_embedding
-    ):
+    async def test_duplicate_detection_above_threshold(self, mock_config_manager, mock_embedding):
         # setup mocks
         mock_config_manager.get_embedding_model = AsyncMock(
             return_value={"model": "text-embedding-ada-002"}
@@ -192,9 +188,7 @@ class TestDuplicateRemoverWithEmbeddings:
     @pytest.mark.asyncio
     @patch("litellm.aembedding")
     @patch("app.llm_config_manager")
-    async def test_embedding_cache_by_trace_id(
-        self, mock_config_manager, mock_embedding
-    ):
+    async def test_embedding_cache_by_trace_id(self, mock_config_manager, mock_embedding):
         """test that embeddings are cached per trace_id"""
         mock_config_manager.get_embedding_model = AsyncMock(
             return_value={"model": "text-embedding-ada-002"}
