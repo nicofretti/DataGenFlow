@@ -4,6 +4,7 @@ from typing import Any
 
 from lib.blocks.base import BaseBlock
 from lib.entities.block_execution_context import BlockExecutionContext
+from lib.errors import BlockExecutionError
 from lib.template_renderer import render_template
 
 logger = logging.getLogger(__name__)
@@ -20,25 +21,56 @@ class FieldMapper(BaseBlock):
 
     _config_descriptions = {
         "mappings": (
-            "Dict mapping new field names to Jinja2 expressions. "
-            'Example: {"question": "{{ parsed_json.qa.q }}"}'
+            'JSON object or Jinja template mapping field names to Jinja2 expressions. '
+            'Example: {"question": "{{ parsed_json.qa.q }}"} or {{ mappings | tojson }}'
         )
     }
 
-    def __init__(self, mappings: dict[str, str] | None = None):
+    _config_formats = {
+        "mappings": "json-or-template",
+    }
+
+    def __init__(self, mappings: str = "{}"):
         """
         Args:
-            mappings: {"field_name": "{{ jinja2.expression }}"}
+            mappings: JSON object or template of {"field_name": "{{ jinja2.expression }}"}
         """
-        self.mappings = mappings or {}
+        self.mappings_template = mappings
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
-        if not self.mappings:
+        # parse mappings from template
+        if not self.mappings_template or self.mappings_template == "{}":
             logger.warning("no mappings configured, returning empty result")
             return {}
 
+        mappings_rendered = render_template(
+            self.mappings_template, context.accumulated_state
+        )
+        try:
+            mappings = json.loads(mappings_rendered)
+            if not isinstance(mappings, dict):
+                raise BlockExecutionError(
+                    "mappings must be a JSON object",
+                    detail={"rendered_value": mappings_rendered},
+                )
+            # validate all values are strings (Jinja2 templates)
+            for key, value in mappings.items():
+                if not isinstance(key, str) or not isinstance(value, str):
+                    raise BlockExecutionError(
+                        "All mappings keys and values must be strings",
+                        detail={"mappings": mappings},
+                    )
+        except json.JSONDecodeError as e:
+            raise BlockExecutionError(
+                f"mappings must be valid JSON: {str(e)}",
+                detail={
+                    "template": self.mappings_template,
+                    "rendered": mappings_rendered,
+                },
+            )
+
         result = {}
-        for field_name, template in self.mappings.items():
+        for field_name, template in mappings.items():
             try:
                 rendered = render_template(template, context.accumulated_state)
                 result[field_name] = self._maybe_parse_json(rendered)

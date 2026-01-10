@@ -413,16 +413,17 @@ Blocks that generate multiple items from one input:
 
 ```python
 from lib.blocks.base import BaseMultiplierBlock
+from lib.entities.block_execution_context import BlockExecutionContext
 
 class StructureSampler(BaseMultiplierBlock):
     name = "Structure Sampler"
-    category = "generators"
+    category = "seeders"
 
     async def execute(
         self,
-        initial_data: dict[str, Any]
+        context: BlockExecutionContext
     ) -> list[dict[str, Any]]:
-        # return list of records
+        # read from context and return list of records
         return [record1, record2, record3]
 ```
 

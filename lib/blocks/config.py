@@ -11,6 +11,7 @@ class BlockConfigSchema:
         enum_values: dict[str, Any],
         field_refs: list[str],
         field_descriptions: dict[str, str],
+        field_formats: dict[str, str],
     ) -> tuple[dict[str, Any], bool]:
         """build property definition for a single parameter"""
         property_def = BlockConfigSchema._get_property_def(param_type)
@@ -31,6 +32,8 @@ class BlockConfigSchema:
             property_def["isFieldReference"] = True
         if param_name in field_descriptions:
             property_def["description"] = field_descriptions[param_name]
+        if param_name in field_formats:
+            property_def["format"] = field_formats[param_name]
 
         return property_def, is_required
 
@@ -43,6 +46,7 @@ class BlockConfigSchema:
         enum_values = getattr(block_class, "_config_enums", {})
         field_refs = getattr(block_class, "_field_references", [])
         field_descriptions = getattr(block_class, "_config_descriptions", {})
+        field_formats = getattr(block_class, "_config_formats", {})
 
         properties = {}
         required = []
@@ -53,7 +57,7 @@ class BlockConfigSchema:
 
             param_type = type_hints.get(param_name, str)
             property_def, is_required = BlockConfigSchema._build_property(
-                param_name, param, param_type, enum_values, field_refs, field_descriptions
+                param_name, param, param_type, enum_values, field_refs, field_descriptions, field_formats
             )
 
             properties[param_name] = property_def

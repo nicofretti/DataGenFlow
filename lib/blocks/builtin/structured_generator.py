@@ -9,6 +9,7 @@ from jinja2 import Environment, meta
 from lib.blocks.base import BaseBlock
 from lib.entities import pipeline
 from lib.entities.block_execution_context import BlockExecutionContext
+from lib.errors import BlockExecutionError
 from lib.template_renderer import render_template
 
 logger = logging.getLogger(__name__)
@@ -27,18 +28,25 @@ class StructuredGenerator(BaseBlock):
             "Jinja2 template. Reference fields with {{ field_name }} or "
             "{{ metadata.field_name }}. Example: Generate data for {{ metadata.topic }}"
         ),
-        "json_schema": "JSON Schema defining the structure of generated data",
+        "json_schema": (
+            'JSON object or Jinja template. Example: {"type": "object", "properties": {...}} or '
+            '{{ json_schema | tojson }}'
+        ),
+    }
+
+    _config_formats = {
+        "json_schema": "json-or-template",
     }
 
     def __init__(
         self,
-        json_schema: dict[str, Any],
+        json_schema: str,
         model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2048,
         user_prompt: str = "",
     ):
-        self.json_schema = json_schema
+        self.json_schema_template = json_schema
         self.model_name = model  # model name or None for default
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -51,14 +59,14 @@ class StructuredGenerator(BaseBlock):
         )
         return render_template(prompt_template, data)
 
-    def _prepare_response_format(self) -> dict[str, Any]:
+    def _prepare_response_format(self, json_schema: dict[str, Any]) -> dict[str, Any]:
         """prepare response format with schema enforcement"""
-        if self.json_schema:
+        if json_schema:
             return {
                 "type": "json_schema",
                 "json_schema": {
                     "name": "response",
-                    "schema": self.json_schema,
+                    "schema": json_schema,
                     "strict": True,
                 },
             }
@@ -89,9 +97,27 @@ class StructuredGenerator(BaseBlock):
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         from app import llm_config_manager
 
+        # parse json_schema from template
+        schema_rendered = render_template(self.json_schema_template, context.accumulated_state)
+        try:
+            json_schema = json.loads(schema_rendered)
+            if not isinstance(json_schema, dict):
+                raise BlockExecutionError(
+                    "json_schema must be a JSON object",
+                    detail={"rendered_value": schema_rendered},
+                )
+        except json.JSONDecodeError as e:
+            raise BlockExecutionError(
+                f"json_schema must be valid JSON: {str(e)}",
+                detail={
+                    "template": self.json_schema_template,
+                    "rendered": schema_rendered,
+                },
+            )
+
         user_prompt = self._prepare_prompt(context.accumulated_state)
         messages = [{"role": "user", "content": user_prompt}]
-        response_format = self._prepare_response_format()
+        response_format = self._prepare_response_format(json_schema)
 
         llm_config = await llm_config_manager.get_llm_model(self.model_name)
         llm_params = llm_config_manager.prepare_llm_call(

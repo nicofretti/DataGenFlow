@@ -4,6 +4,8 @@ from typing import Any
 
 from lib.blocks.base import BaseBlock
 from lib.entities.block_execution_context import BlockExecutionContext
+from lib.errors import BlockExecutionError
+from lib.template_renderer import render_template
 
 
 class JSONValidatorBlock(BaseBlock):
@@ -15,10 +17,21 @@ class JSONValidatorBlock(BaseBlock):
 
     _field_references = ["field_name"]
 
+    _config_descriptions = {
+        "required_fields": (
+            'JSON array or Jinja template. Examples: ["name", "email"] or '
+            '{{ required_fields | tojson }} (leave empty for none)'
+        )
+    }
+
+    _config_formats = {
+        "required_fields": "json-or-template",
+    }
+
     def __init__(
         self,
         field_name: str = "assistant",
-        required_fields: list[str] | None = None,
+        required_fields: str = "",
         strict: bool = False,
     ) -> None:
         """
@@ -26,14 +39,42 @@ class JSONValidatorBlock(BaseBlock):
 
         args:
             field_name: name of field in accumulated state to validate
-            required_fields: list of field names that must be present in the JSON
+            required_fields: JSON array or Jinja template of field names that must be present
             strict: if true, fail on parse errors; if false, mark as invalid but continue
         """
         self.field_name = field_name
-        self.required_fields = required_fields or []
+        self.required_fields_template = required_fields
         self.strict = strict
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        # parse required_fields from template (optional)
+        required_fields: list[str] = []
+        if self.required_fields_template:
+            fields_rendered = render_template(
+                self.required_fields_template, context.accumulated_state
+            )
+            try:
+                fields_list = json.loads(fields_rendered)
+                if not isinstance(fields_list, list):
+                    raise BlockExecutionError(
+                        "required_fields must be a JSON array",
+                        detail={"rendered_value": fields_rendered},
+                    )
+                if not all(isinstance(f, str) for f in fields_list):
+                    raise BlockExecutionError(
+                        "All items in required_fields must be strings",
+                        detail={"required_fields": fields_list},
+                    )
+                required_fields = fields_list
+            except json.JSONDecodeError as e:
+                raise BlockExecutionError(
+                    f"required_fields must be valid JSON: {str(e)}",
+                    detail={
+                        "template": self.required_fields_template,
+                        "rendered": fields_rendered,
+                    },
+                )
+
         field_output = context.get_state(self.field_name, "")
 
         # if already parsed (e.g., from StructuredGenerator), use it directly
@@ -60,8 +101,8 @@ class JSONValidatorBlock(BaseBlock):
 
         # validate parsed JSON
         # check if required fields are present
-        if self.required_fields:
-            missing_fields = [field for field in self.required_fields if field not in parsed]
+        if required_fields:
+            missing_fields = [field for field in required_fields if field not in parsed]
             if missing_fields:
                 return {
                     "valid": False,
