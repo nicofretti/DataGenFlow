@@ -7,7 +7,16 @@ from lib.entities.block_execution_context import BlockExecutionContext
 
 
 def make_context(state: dict, initial_state: dict | None = None) -> BlockExecutionContext:
-    """helper to create test context"""
+    """
+    Create a BlockExecutionContext for tests, merging an optional initial state into the accumulated state.
+    
+    Parameters:
+        state (dict): Base accumulated state for the context. If `initial_state` is provided, `state` is shallow-copied to avoid mutation.
+        initial_state (dict | None): Optional mapping whose items are merged into the context's accumulated_state.
+    
+    Returns:
+        BlockExecutionContext: A test context with trace_id "test-trace" and pipeline_id 1, whose accumulated_state contains `state` combined with `initial_state` (if given).
+    """
     if initial_state:
         state = {**state}  # don't mutate
     context = BlockExecutionContext(

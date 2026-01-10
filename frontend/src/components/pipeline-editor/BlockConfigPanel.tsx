@@ -22,6 +22,19 @@ interface BlockConfigPanelProps {
   availableFields?: string[];
 }
 
+/**
+ * Panel UI for viewing and editing a block's configuration and applying changes.
+ *
+ * Synchronizes its internal form with the provided node's config, fetches available LLM and embedding
+ * models for model-specific fields, validates JSON for object/array fields before saving, and invokes
+ * update and close callbacks when changes are applied.
+ *
+ * @param node - The React Flow `Node` whose `data.block` and `data.config` are displayed and edited.
+ * @param onUpdate - Called with `(nodeId, config)` when the user applies a valid configuration.
+ * @param onClose - Called to request closing the panel without applying changes.
+ * @param availableFields - Optional list of field names used to populate field-reference dropdowns.
+ * @returns The rendered configuration panel JSX element.
+ */
 export default function BlockConfigPanel({
   node,
   onUpdate,

@@ -29,6 +29,17 @@ class DuplicateRemover(BaseBlock):
         comparison_fields: list[str] | None = None,
         embedding_model: str | None = None,
     ):
+        """
+        Create a DuplicateRemover configured with a similarity threshold, optional comparison fields, and an optional embedding model.
+        
+        Parameters:
+            similarity_threshold (float): Similarity cutoff in the range 0.0–1.0; a record with a score greater than or equal to this value is considered a duplicate.
+            comparison_fields (list[str] | None): Fields to extract text from for similarity comparisons; if `None`, all string-valued fields are auto-detected.
+            embedding_model (str | None): Name of the embedding model to use; if `None`, embedding-based checking will be skipped when no default model is configured.
+        
+        Initial state:
+            _embeddings_cache (dict[str, list[list[float]]]): Empty cache prepared to store reference embeddings keyed by pipeline trace_id.
+        """
         self.similarity_threshold = similarity_threshold
         self.comparison_fields = comparison_fields
         self.embedding_model_name = embedding_model
@@ -38,8 +49,18 @@ class DuplicateRemover(BaseBlock):
 
     def _extract_text(self, record: dict[str, Any], fields: list[str] | None) -> str:
         """
-        extract text from specified fields or all string fields
-        joins with spaces for embedding
+        Builds a single concatenated text from specified record fields or from all string-valued fields.
+        
+        If `fields` is provided, collects each field's value from `record` and converts non-None values to strings.
+        If `fields` is None, auto-detects and collects non-empty string-valued fields from `record`.
+        Joins collected pieces with single spaces.
+        
+        Parameters:
+            record (dict[str, Any]): The record to extract text from.
+            fields (list[str] | None): List of field names to extract; when None, all non-empty string fields are used.
+        
+        Returns:
+            str: Concatenated text (empty string if no text was found).
         """
         if fields:
             texts = []
@@ -57,6 +78,19 @@ class DuplicateRemover(BaseBlock):
         return " ".join(texts)
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        """
+        Flag the current record as a duplicate if its embedding is sufficiently similar to reference samples.
+        
+        Parameters:
+            context (BlockExecutionContext): Execution context containing the current accumulated_state (the record),
+                `trace_id` used for per-run caching, and initial-state `samples` used as reference examples.
+        
+        Returns:
+            dict[str, Any]: The input record merged with two additional keys:
+                - `is_duplicate` (bool): `true` if the highest cosine similarity against reference samples
+                  is greater than or equal to the configured threshold, `false` otherwise.
+                - `similarity_score` (float): The highest similarity found, rounded to four decimal places.
+        """
         from app import llm_config_manager
 
         # get current record from context

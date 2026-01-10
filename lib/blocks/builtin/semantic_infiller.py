@@ -42,6 +42,16 @@ class SemanticInfiller(BaseBlock):
         max_tokens: int = 500,
         system_prompt: str = "",
     ):
+        """
+        Initialize a SemanticInfiller with templates and LLM configuration.
+        
+        Parameters:
+            fields_to_generate (str): A template (or JSON array template) specifying which field names the LLM should generate.
+            model (str | None): Optional LLM model identifier to use; if None, a default model will be selected.
+            temperature (float): Sampling temperature to control generation randomness; higher values make output more diverse.
+            max_tokens (int): Maximum tokens the LLM is allowed to generate for the response.
+            system_prompt (str): Optional system-level prompt prepended to the LLM conversation to guide behavior.
+        """
         self.fields_to_generate_template = fields_to_generate
         self.model_name = model
         self.temperature = temperature
@@ -52,12 +62,14 @@ class SemanticInfiller(BaseBlock):
         self, skeleton: dict[str, Any], hints: dict[str, Any]
     ) -> str:
         """
-        construct LLM prompt with constraints and hints
-
-        format:
-        - specify fields to generate
-        - lock categorical constraints from skeleton
-        - provide numeric hints and exemplars
+        Builds the LLM instruction prompt that requests generation of the specified free-text fields and includes locked constraints and optional hints.
+        
+        Parameters:
+            skeleton (dict[str, Any]): Fixed field values from the input record; each key/value is presented as a constraint the model must not change.
+            hints (dict[str, Any]): Optional guidance for generation. Keys ending with `_range` and a two-element list are interpreted as numeric range hints for the corresponding field (e.g., `"age_range": [18, 65]`). A key `"exemplars"` with a list of records is treated as example outputs; up to `MAX_EXEMPLARS_IN_PROMPT` exemplars are included and only the fields to generate are shown for each exemplar.
+        
+        Returns:
+            str: A single prompt string instructing the model which fields to generate and providing CONSTRAINTS and HINTS sections; the prompt requests pure JSON output with only the requested fields.
         """
         fields_str = ", ".join(f'"{field}"' for field in self.fields_to_generate)
 
@@ -103,8 +115,18 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
 
     def _parse_json_safely(self, content: str) -> dict[str, Any]:
         """
-        parse JSON from LLM response
-        handles markdown code blocks and other common patterns
+        Extracts and parses JSON from an LLM response string.
+        
+        Attempts to parse `content` as JSON directly; if that fails, tries to extract JSON from a markdown code block (```json ... ```), then tries to extract any JSON-like `{...}` substring and parse it. Raises a BlockExecutionError if no valid JSON can be parsed.
+        
+        Parameters:
+            content (str): Text returned by the LLM, which may contain raw JSON, a JSON code block, or surrounding explanatory text.
+        
+        Returns:
+            dict[str, Any]: The parsed JSON object.
+        
+        Raises:
+            BlockExecutionError: If no valid JSON can be extracted and parsed from `content`. The error includes a content snippet and a hint.
         """
         # first try direct parsing
         try:
@@ -137,6 +159,17 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
         )
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        """
+        Generate the requested free-text fields for a skeleton record using an LLM and return the merged record.
+        
+        Builds a prompt from the provided skeleton and hints, renders and validates the configured fields_to_generate template, calls the LLM to produce a JSON object containing the requested fields, enforces immutability of existing skeleton fields (restoring any locked fields that the LLM changed), merges generated fields into the skeleton, attaches model usage metadata under the `_usage` key, and returns the resulting record.
+        
+        Returns:
+            dict[str, Any]: The merged record containing the original skeleton fields, the generated fields, and an `_usage` entry with token usage metadata.
+        
+        Raises:
+            BlockExecutionError: If `fields_to_generate` cannot be rendered as a valid JSON array of strings, if the LLM call fails, or if the LLM response cannot be parsed as JSON.
+        """
         from app import llm_config_manager
 
         # extract skeleton from context

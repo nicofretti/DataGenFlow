@@ -6,7 +6,15 @@ from lib.errors import ValidationError
 
 
 def make_context(state: dict) -> BlockExecutionContext:
-    """helper to create test context"""
+    """
+    Create a BlockExecutionContext for tests with a fixed trace_id of "test-trace" and pipeline_id of 1, embedding the provided state as the accumulated_state.
+    
+    Parameters:
+        state (dict): Accumulated state to attach to the context for test scenarios.
+    
+    Returns:
+        BlockExecutionContext: A context instance preconfigured for testing.
+    """
     return BlockExecutionContext(
         trace_id="test-trace",
         pipeline_id=1,

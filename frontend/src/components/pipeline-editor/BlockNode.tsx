@@ -54,7 +54,17 @@ function getBlockIcon(category: BlockCategory): string {
   }
 }
 
-// determine which 1-2 config values to show as preview
+/**
+ * Selects up to two representative configuration key/value pairs for a block to display as a preview.
+ *
+ * The function examines the block type to determine a prioritized list of keys, then returns the first
+ * one or two keys that exist in `config` with formatted string values. Arrays are rendered as `"[N items]"`,
+ * objects as `"{N keys}"`, and long values are truncated to 25 characters with an ellipsis.
+ *
+ * @param blockType - The block's type identifier (used to choose priority keys)
+ * @param config - The block's configuration object to read previewable values from
+ * @returns An array of up to two `[key, value]` tuples where `key` is the config field name and `value` is a formatted string suitable for display
+ */
 function getPreviewFields(blockType: string, config: Record<string, any>): Array<[string, string]> {
   const type = blockType.toLowerCase();
 

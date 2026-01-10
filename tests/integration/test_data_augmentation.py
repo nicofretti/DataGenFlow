@@ -13,7 +13,11 @@ from lib.workflow import Pipeline
 @patch("litellm.acompletion")
 @patch("app.llm_config_manager")
 async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, tmp_path):
-    """test complete data augmentation pipeline with all 3 blocks"""
+    """
+    Integration test validating the end-to-end data augmentation pipeline composed of StructureSampler, SemanticInfiller, and DuplicateRemover.
+    
+    Saves a pipeline definition to storage, executes the pipeline with seeded input samples, and asserts that execution produces the expected number of generated records whose results include required fields (`plan`, `role`, `storage`, `bio`, `is_duplicate`, `similarity_score`), correct types for duplicate-related fields, valid `plan`/`role` values and dependencies (e.g., `Free` implies `Viewer`), a per-item trace containing the SemanticInfiller and DuplicateRemover steps, and a non-empty trace identifier. This test also exercises integration with mocked LLM responses and pipeline persistence.
+    """
 
     # setup mocks for LLM calls
     mock_config_manager.get_llm_model = AsyncMock(
@@ -235,7 +239,13 @@ async def test_structure_sampler_alone(tmp_path):
 
 @pytest.mark.asyncio
 async def test_data_augmentation_with_no_embedding_model(tmp_path):
-    """test that DuplicateRemover gracefully handles missing embedding model"""
+    """
+    Verify DuplicateRemover skips similarity checks when the specified embedding model is unavailable.
+    
+    Saves and runs a pipeline containing StructureSampler and DuplicateRemover (with a non-existent
+    embedding_model) and asserts that each generated item has `is_duplicate` set to `False` and
+    `similarity_score` equal to `0.0`.
+    """
 
     db_path = tmp_path / "test.db"
     storage = Storage(str(db_path))

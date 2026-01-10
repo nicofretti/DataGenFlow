@@ -37,6 +37,16 @@ class StructureSampler(BaseMultiplierBlock):
         dependencies: dict[str, list[str]] = {},
         seed: int | None = None,
     ):
+        """
+        Initialize a StructureSampler with sampling configuration and (optionally) a deterministic RNG seed.
+        
+        Parameters:
+            target_count (int): Number of skeleton records to generate when executed.
+            categorical_fields (list[str]): List of categorical field names to learn distributions for and sample.
+            numeric_fields (list[str], optional): List of numeric field names to collect simple statistics for. Defaults to [].
+            dependencies (dict[str, list[str]], optional): Mapping from child categorical field to a list of its parent field names, used to build conditional distributions. Defaults to {}.
+            seed (int | None, optional): If provided, seeds Python's global random generator to make sampling deterministic. Defaults to None.
+        """
         self.target_count = target_count
         self.categorical_fields = categorical_fields
         self.numeric_fields = numeric_fields
@@ -47,7 +57,18 @@ class StructureSampler(BaseMultiplierBlock):
             random.seed(seed)
 
     def _validate_samples(self, samples: list[dict[str, Any]]) -> None:
-        """validate samples meet minimum requirements"""
+        """
+        Validate that the provided samples are suitable for analysis.
+        
+        Parameters:
+            samples (list[dict[str, Any]]): Sample records used to learn distributions.
+        
+        Raises:
+            ValidationError: If `samples` is empty — indicates missing seed metadata and includes a hint to add a `samples` array.
+        
+        Notes:
+            Logs a warning when fewer than 10 samples are provided because small sample sizes reduce statistical accuracy.
+        """
         if not samples:
             raise ValidationError(
                 "No samples provided in metadata",
@@ -66,7 +87,15 @@ class StructureSampler(BaseMultiplierBlock):
     def _compute_categorical_distributions(
         self, samples: list[dict[str, Any]]
     ) -> dict[str, dict[str, float]]:
-        """compute probability distributions for categorical fields"""
+        """
+        Learn marginal probability distributions for the instance's categorical fields from the provided sample records.
+        
+        Parameters:
+            samples (list[dict[str, Any]]): Sequence of sample records. Each record is a mapping of field names to values; missing keys are treated as `None` and counted as a distinct category.
+        
+        Returns:
+            dict[str, dict[str, float]]: Mapping from each categorical field to a dictionary that maps an observed value (including `None`) to its probability for that field. Probabilities for a given field sum to 1.
+        """
         distributions = {}
         for field in self.categorical_fields:
             values = [sample.get(field) for sample in samples]
@@ -78,7 +107,15 @@ class StructureSampler(BaseMultiplierBlock):
     def _compute_conditional_probabilities(
         self, samples: list[dict[str, Any]]
     ) -> dict[str, dict[str, float]]:
-        """compute conditional probabilities for dependent fields"""
+        """
+        Learn conditional probability distributions for categorical child fields conditioned on specified parent field values.
+        
+        Parameters:
+            samples (list[dict[str, Any]]): Collection of sample records used to estimate conditional distributions.
+        
+        Returns:
+            dict[str, dict[str, float]]: A mapping where each key is formatted as "child_field|parent1=val1,parent2=val2" and each value is a dictionary that maps child field values to their conditional probability (probabilities for each key sum to 1).
+        """
         conditional_probs = {}
         for child_field, parent_fields in self.dependencies.items():
             if child_field not in self.categorical_fields:
@@ -107,7 +144,17 @@ class StructureSampler(BaseMultiplierBlock):
     def _compute_numeric_statistics(
         self, samples: list[dict[str, Any]]
     ) -> dict[str, dict[str, float]]:
-        """compute min/max/mean statistics for numeric fields"""
+        """
+        Compute min, max, and mean for the block's configured numeric fields from the provided samples.
+        
+        Parameters:
+            samples (list[dict[str, Any]]): List of sample records to analyze.
+        
+        Returns:
+            dict[str, dict[str, float]]: Mapping from numeric field name to a dictionary with keys
+            `"min"`, `"max"`, and `"mean"` containing the computed statistics. Fields with no
+            valid numeric values are omitted.
+        """
         numeric_stats = {}
         for field in self.numeric_fields:
             values = [sample.get(field) for sample in samples if sample.get(field) is not None]
@@ -133,7 +180,16 @@ class StructureSampler(BaseMultiplierBlock):
     def _select_exemplars(
         self, samples: list[dict[str, Any]], max_count: int | None = None
     ) -> list[dict]:
-        """randomly select exemplar samples for reference"""
+        """
+        Select exemplar samples from the provided list for reference.
+        
+        Parameters:
+            samples (list[dict[str, Any]]): Candidate sample records to choose from.
+            max_count (int | None): Maximum number of exemplars to return; when None, defaults to self.MAX_EXEMPLARS.
+        
+        Returns:
+            list[dict]: A list of up to `max_count` exemplar samples chosen without replacement (empty if `samples` is empty).
+        """
         if max_count is None:
             max_count = self.MAX_EXEMPLARS
         num_exemplars = min(max_count, len(samples))
@@ -141,15 +197,17 @@ class StructureSampler(BaseMultiplierBlock):
 
     def _analyze_samples(self, samples: list[dict[str, Any]]) -> dict[str, Any]:
         """
-        extract statistical patterns from samples
-
-        returns:
-        {
-            "categorical_probs": {"field": {"value": prob, ...}},
-            "conditional_probs": {"field|parent=val": {"value": prob, ...}},
-            "numeric_stats": {"field": {"min": x, "max": y, "mean": z}},
-            "exemplars": [sample1, sample2, ...]
-        }
+        Learn probability distributions, conditional probabilities, numeric statistics, and exemplar records from input samples for skeleton generation.
+        
+        Parameters:
+            samples (list[dict[str, Any]]): Example records used to estimate distributions and statistics.
+        
+        Returns:
+            dict[str, Any]: Profile containing:
+                - "categorical_probs": mapping of categorical field -> {value -> probability}
+                - "conditional_probs": mapping of "child_field|parent1=val1,..." -> {value -> probability}
+                - "numeric_stats": mapping of numeric field -> {"min": number, "max": number, "mean": number}
+                - "exemplars": list of exemplar sample records selected from the input
         """
         return {
             "categorical_probs": self._compute_categorical_distributions(samples),
@@ -160,8 +218,16 @@ class StructureSampler(BaseMultiplierBlock):
 
     def _topological_sort(self, fields: list[str]) -> list[str]:
         """
-        sort fields by dependency order (parents before children)
-        uses simple algorithm for flat dependencies
+        Produce an ordering of the given fields such that any parent fields (as defined in self.dependencies) appear before their dependent child fields.
+        
+        Parameters:
+            fields (list[str]): The set of field names to order.
+        
+        Returns:
+            list[str]: A list of the input field names sorted so that parents precede their children. The ordering is deterministic for fields without remaining dependencies.
+        
+        Raises:
+            ValidationError: If the dependencies contain a cycle that prevents a valid ordering.
         """
         # build in-degree map
         in_degree = {field: 0 for field in fields}
@@ -196,7 +262,15 @@ class StructureSampler(BaseMultiplierBlock):
         return result
 
     def _sample_from_distribution(self, probs: dict[str, float]) -> Any:
-        """weighted random choice from probability distribution"""
+        """
+        Sample a single value according to a discrete probability distribution.
+        
+        Parameters:
+            probs (dict[str, float]): Mapping from candidate values to their non-negative weights or probabilities. Values need not sum to 1.
+        
+        Returns:
+            Any: One sampled value according to the provided weights, or `None` if `probs` is empty.
+        """
         if not probs:
             return None
 
@@ -207,7 +281,18 @@ class StructureSampler(BaseMultiplierBlock):
     def _sample_categorical_field(
         self, field: str, skeleton: dict[str, Any], profile: dict[str, Any]
     ) -> Any:
-        """sample value for a single categorical field, respecting dependencies"""
+        """
+        Sample a value for a categorical field, using conditional probabilities if parent values are present.
+        
+        Parameters:
+            field (str): The categorical field to sample.
+            skeleton (dict[str, Any]): Partially-built record containing already-sampled parent field values.
+            profile (dict[str, Any]): Learned profile containing "categorical_probs" and "conditional_probs".
+        
+        Returns:
+            Any: A sampled category value according to the conditional distribution for the field given the skeleton's parent values,
+            or the marginal distribution for the field if no matching conditional distribution exists. Returns `None` if no probabilities are available.
+        """
         if field in self.dependencies:
             # conditional sampling based on parent values
             parent_fields = self.dependencies[field]
@@ -232,7 +317,20 @@ class StructureSampler(BaseMultiplierBlock):
     def _generate_hints(
         self, skeleton: dict[str, Any], profile: dict[str, Any]
     ) -> dict[str, Any]:
-        """generate hints for numeric fields and matching exemplars"""
+        """
+        Create hint metadata for a skeleton, including numeric field ranges and exemplar records that match the skeleton's categorical values.
+        
+        Parameters:
+            skeleton (dict[str, Any]): Partial record containing sampled categorical field values used to match exemplars.
+            profile (dict[str, Any]): Analysis profile produced by _analyze_samples containing:
+                - "numeric_stats": mapping of numeric field -> {"min": number, "max": number, "mean": number}
+                - "exemplars": list of exemplar records (dicts)
+        
+        Returns:
+            dict[str, Any]: A hints mapping that includes:
+                - "{field}_range": [min, max] entries for each numeric field present in profile["numeric_stats"]
+                - "exemplars": a list of exemplar records that match the skeleton's categorical fields (or a small fallback set)
+        """
         hints: dict[str, Any] = {}
 
         # add numeric field ranges
@@ -259,11 +357,14 @@ class StructureSampler(BaseMultiplierBlock):
         self, profile: dict[str, Any], count: int
     ) -> list[dict[str, Any]]:
         """
-        generate N skeleton records by sampling from learned distributions
-
-        each skeleton contains:
-        - all categorical fields (sampled values)
-        - _hints field (numeric ranges, exemplars for LLM)
+        Generate skeleton records sampled from the learned profile.
+        
+        Parameters:
+            profile (dict[str, Any]): Learned distributions and statistics produced by _analyze_samples.
+            count (int): Number of skeleton records to generate.
+        
+        Returns:
+            list[dict[str, Any]]: A list of skeleton dictionaries. Each skeleton contains the configured categorical fields with sampled values and an "_hints" entry (numeric ranges and exemplar references).
         """
         results = []
         field_order = self._topological_sort(self.categorical_fields)
@@ -283,6 +384,17 @@ class StructureSampler(BaseMultiplierBlock):
 
     async def execute(self, context: BlockExecutionContext) -> list[dict[str, Any]]:  # type: ignore[override]
         # read samples from initial state
+        """
+        Generate skeleton records by learning distributions and statistics from samples stored in the execution context state.
+        
+        Reads samples from context state key "samples", validates and analyzes them to build a sampling profile, then produces `target_count` skeleton dictionaries. Each skeleton contains sampled categorical fields (respecting declared dependencies) and a `_hints` entry with numeric ranges and exemplar references.
+        
+        Returns:
+            list[dict[str, Any]]: Generated skeleton records, each containing sampled fields and a `_hints` dictionary.
+        
+        Raises:
+            ValidationError: If the samples are missing or fail validation.
+        """
         samples = context.get_state("samples", [])
 
         # validate samples

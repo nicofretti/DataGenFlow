@@ -9,7 +9,15 @@ from lib.errors import BlockExecutionError
 
 
 def make_context(state: dict) -> BlockExecutionContext:
-    """helper to create test context"""
+    """
+    Create a BlockExecutionContext for tests with fixed trace and pipeline identifiers.
+    
+    Parameters:
+        state (dict): Accumulated state to embed in the returned context.
+    
+    Returns:
+        BlockExecutionContext: Context with trace_id "test-trace", pipeline_id 1, and accumulated_state set to `state`.
+    """
     return BlockExecutionContext(
         trace_id="test-trace",
         pipeline_id=1,
