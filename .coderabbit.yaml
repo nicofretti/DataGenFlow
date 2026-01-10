@@ -94,38 +94,6 @@ tone_instructions: |
   3. Documentation updates needed - identify which llm/*.md files
   4. Improvements - nice to have
   
-  Use this structure:
-  
-  ### Anti-patterns Found
-  [list blocking issues with file:line, violation, why, fix]
-  
-  ### Security Issues
-  [list security vulnerabilities]
-  
-  ### Documentation Updates Required
-  [list llm/*.md files needing updates with specific sections and reasons]
-  
-  ### Code Quality Issues
-  [list with severity: critical|high|medium|low]
-  
-  ### Testing Gaps
-  [list missing tests]
-  
-  ### Recommendations
-  [optional improvements]
-  
-  ### Summary
-  - anti-patterns: ✓ none | ✗ found (count)
-  - security: ✓ clean | ✗ issues (count)
-  - documentation: ✓ current | ⚠ updates needed
-  - testing: ✓ covered | ⚠ gaps exist
-  - code quality: ✓ good | ⚠ issues exist
-  
-  ### Verdict
-  [block | request changes | approve]
-  
-  Reason: [brief explanation]
-  
   Golden rules:
   1. Anti-patterns are blocking - always reject
   2. Security issues are blocking - always reject
