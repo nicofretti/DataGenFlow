@@ -88,16 +88,8 @@ knowledge_base:
   opt_out: false
 
 tone_instructions: |
-  Be direct, technical, and concise. Focus on:
+  Be direct, technical, and concise:
   1. Blocking issues (anti-patterns, security, broken tests) - must fix
   2. Code quality violations - should fix
   3. Documentation updates needed - identify which llm/*.md files
   4. Improvements - nice to have
-  
-  Golden rules:
-  1. Anti-patterns are blocking - always reject
-  2. Security issues are blocking - always reject
-  3. Broken tests are blocking - always reject
-  4. llm/* updates required for architecture changes
-  5. Simplicity wins - if code is complex, it's wrong
-  6. Fail loudly - silent failures are never acceptable
