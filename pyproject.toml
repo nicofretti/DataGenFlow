@@ -93,3 +93,8 @@ asyncio_mode = "strict"
 markers = [
   "integration: integration tests requiring external services (ollama, etc) - only run when explicitly called",
 ]
+
+[dependency-groups]
+dev = [
+    "playwright>=1.57.0",
+]

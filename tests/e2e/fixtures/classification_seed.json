@@ -1,0 +1,16 @@
+[
+  {
+    "repetitions": 1,
+    "metadata": {
+      "text": "This is a positive review of a great product.",
+      "categories": ["positive", "negative", "neutral"]
+    }
+  },
+  {
+    "repetitions": 1,
+    "metadata": {
+      "text": "The service was terrible and disappointing.",
+      "categories": ["positive", "negative", "neutral"]
+    }
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "repetitions": 2,
+    "metadata": {
+      "topic": "artificial intelligence",
+      "role": "teacher",
+      "system": "You are a {{ role }}.",
+      "user": "Explain {{ topic }} in simple terms."
+    }
+  },
+  {
+    "repetitions": 1,
+    "metadata": {
+      "topic": "machine learning",
+      "role": "expert",
+      "system": "You are a {{ role }}.",
+      "user": "Describe {{ topic }} with examples."
+    }
+  }
+]

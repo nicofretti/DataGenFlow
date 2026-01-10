@@ -91,6 +91,12 @@ test:
 test-integration:
 	uv run pytest -m integration -v
 
+test-e2e:
+	./tests/e2e/run_all_tests.sh
+
+test-e2e-ui:
+	./tests/e2e/run_all_tests.sh --ui
+
 pre-merge: format-all lint-all typecheck-all test 
 	@echo "✅ Pre-merge checks completed successfully. Ready to merge!"
 

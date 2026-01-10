@@ -1,0 +1,18 @@
+[
+  {
+    "repetitions": 3,
+    "metadata": {
+      "domain": "science",
+      "difficulty": "medium",
+      "question_type": "factual"
+    }
+  },
+  {
+    "repetitions": 2,
+    "metadata": {
+      "domain": "history",
+      "difficulty": "easy",
+      "question_type": "conceptual"
+    }
+  }
+]
