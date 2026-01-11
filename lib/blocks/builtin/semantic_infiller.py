@@ -94,14 +94,14 @@ class SemanticInfiller(BaseBlock):
 
         hints_str = "\n".join(hint_lines) if hint_lines else "  (none)"
 
-        prompt = f"""You are a synthetic data generator.
+        prompt = f"""You are a synthetic data generator. Create NEW and DIVERSE content - do NOT copy the examples.
 
 Generate a JSON object with the following fields: {fields_str}
 
 CONSTRAINTS (must follow exactly):
 {constraints_str}
 
-HINTS (use as guidance):
+HINTS (for inspiration only - create variations, NOT copies):
 {hints_str}
 
 Return ONLY valid JSON with the requested fields, no markdown formatting or explanations."""
@@ -150,6 +150,19 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
         skeleton = context.accumulated_state.copy()
         hints = skeleton.pop("_hints", {})
         skeleton.pop("_usage", None)  # remove internal fields
+
+        # filter out input metadata fields that were merged for template rendering
+        # these should not be treated as data constraints in the prompt
+        metadata_fields = {
+            "samples",
+            "target_count",
+            "categorical_fields",
+            "numeric_fields",
+            "dependencies",
+            "fields_to_generate",
+            "comparison_fields",
+        }
+        skeleton = {k: v for k, v in skeleton.items() if k not in metadata_fields}
 
         # render fields_to_generate template and parse as JSON
         fields_template_rendered = render_template(

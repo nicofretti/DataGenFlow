@@ -50,6 +50,7 @@ frontend/src/
 .claude/
   skills/
     implementing-datagenflow-blocks/  # guide for creating new blocks
+    debugging-pipelines/              # systematic debugging workflow for pipeline issues
 
 tests/
   conftest.py         # test db setup

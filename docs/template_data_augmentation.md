@@ -25,8 +25,8 @@ description: Generate synthetic records preserving statistical distributions fro
 **Use Case:** Generate synthetic data that preserves statistical patterns from samples
 
 This template creates realistic synthetic records from sample data while maintaining:
-- Statistical distributions (e.g., "Free" plan appears 40% of the time)
-- Field dependencies (e.g., "Admin" role only with "Pro" or "Enterprise" plans)
+- Statistical distributions (e.g., "electronics" appears 50% of the time)
+- Numeric range constraints (e.g., electronics prices $299-$899, furniture prices $199-$349)
 - Semantic coherence (LLM-generated fields match context)
 - Output diversity (duplicate detection via embeddings)
 
@@ -46,9 +46,9 @@ This template creates realistic synthetic records from sample data while maintai
 
 Input: samples array
   ↓
-+ plan, role, storage, generation_hints (multiplies: 1 seed → N skeletons)
++ category, generation_hints (multiplies: 1 seed → N skeletons)
   ↓
-+ bio (LLM-generated semantic field)
++ description, price (LLM-generated fields)
   ↓
 + is_duplicate, similarity_score
 ```
@@ -73,34 +73,39 @@ Input: samples array
 - `dependencies` - Field relationships (e.g., role depends on plan)
 - `comparison_fields` - Fields for duplicate detection
 
-**Example seed:**
+**Example seed (Product Catalog):**
 ```json
 [
   {
     "repetitions": 1,
     "metadata": {
       "samples": [
-        {"plan": "Free", "role": "Viewer", "storage": 1, "bio": "Student learning web development"},
-        {"plan": "Free", "role": "Viewer", "storage": 2, "bio": "Just exploring the platform"},
-        {"plan": "Pro", "role": "Editor", "storage": 50, "bio": "Freelance designer managing projects"},
-        {"plan": "Pro", "role": "Editor", "storage": 75, "bio": "Small agency owner"},
-        {"plan": "Pro", "role": "Admin", "storage": 100, "bio": "Team lead overseeing projects"},
-        {"plan": "Enterprise", "role": "Admin", "storage": 500, "bio": "CTO managing infrastructure"}
+        {"category": "electronics", "price": 299, "description": "Wireless noise-canceling headphones with premium sound quality"},
+        {"category": "electronics", "price": 899, "description": "13-inch laptop with high-resolution display"},
+        {"category": "furniture", "price": 199, "description": "Ergonomic office chair with lumbar support"},
+        {"category": "furniture", "price": 349, "description": "Adjustable standing desk with memory presets"}
       ],
-      "target_count": 20,
-      "categorical_fields": ["plan", "role"],
-      "numeric_fields": ["storage"],
-      "fields_to_generate": ["bio", "storage"],
-      "dependencies": {
-        "role": ["plan"]
-      },
-      "comparison_fields": ["bio"]
+      "target_count": 10,
+      "categorical_fields": ["category"],
+      "numeric_fields": ["price"],
+      "fields_to_generate": ["description", "price"],
+      "comparison_fields": ["description"]
     }
   }
 ]
 ```
 
-> **Tip:** Use 5-10 diverse samples for best results. More samples = better distribution learning.
+**Field Explanations:**
+- **`samples`** - Example products showing the data structure (4 samples provided)
+- **`target_count`** - How many new products to generate (10 in this example)
+- **`categorical_fields`** - Fields with discrete values that preserve distribution (50% electronics, 50% furniture)
+- **`numeric_fields`** - Fields with numeric ranges that provide hints to the LLM (electronics: $299-$899, furniture: $199-$349)
+- **`fields_to_generate`** - Fields for the LLM to create NEW content for (description and price)
+- **`comparison_fields`** - Fields to check for duplicates using embedding similarity (description)
+
+> **Note:** `price` appears in both `numeric_fields` and `fields_to_generate`. This provides range hints to guide the LLM while letting it generate contextually appropriate prices.
+
+> **Tip:** Use 4-10 diverse samples for best results. More samples = better distribution learning.
 
 ## Output Format
 
@@ -113,22 +118,20 @@ Each generated record contains:
 **Example output:**
 ```json
 {
-  "plan": "Pro",
-  "role": "Editor",
-  "storage": 75,
-  "bio": "Product designer with 5 years experience managing client projects",
+  "category": "electronics",
+  "price": 449,
+  "description": "Bluetooth speaker with 360-degree sound and waterproof design",
   "is_duplicate": false,
-  "similarity_score": 0.72,
-  "generation_hints": {
-    "numeric_ranges": {
-      "storage": {"mean": 50.5, "std": 30.2, "min": 1, "max": 500}
-    },
-    "matching_exemplars": [
-      {"plan": "Pro", "role": "Editor", "storage": 50, "bio": "Freelance designer"}
-    ]
-  }
+  "similarity_score": 0.68
 }
 ```
+
+**Output contains only:**
+- Sampled categorical fields (`category`)
+- LLM-generated fields (`price`, `description`)
+- Duplicate detection metadata (`is_duplicate`, `similarity_score`)
+
+**Note:** Input configuration fields like `samples`, `target_count`, `categorical_fields`, etc. are NOT included in the output.
 
 ## How It Works
 

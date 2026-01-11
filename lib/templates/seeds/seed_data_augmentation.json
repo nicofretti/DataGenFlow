@@ -3,21 +3,17 @@
     "repetitions": 1,
     "metadata": {
       "samples": [
-        {"plan": "Free", "role": "Viewer", "storage": 1, "bio": "Student learning web development"},
-        {"plan": "Free", "role": "Viewer", "storage": 2, "bio": "Just exploring the platform"},
-        {"plan": "Pro", "role": "Editor", "storage": 50, "bio": "Freelance designer managing projects"},
-        {"plan": "Pro", "role": "Editor", "storage": 75, "bio": "Small agency owner"},
-        {"plan": "Pro", "role": "Admin", "storage": 100, "bio": "Team lead overseeing projects"},
-        {"plan": "Enterprise", "role": "Admin", "storage": 500, "bio": "CTO managing infrastructure"}
+        {"category": "electronics", "price": 299, "description": "Wireless noise-canceling headphones with premium sound quality"},
+        {"category": "electronics", "price": 899, "description": "13-inch laptop with high-resolution display"},
+        {"category": "furniture", "price": 199, "description": "Ergonomic office chair with lumbar support"},
+        {"category": "furniture", "price": 349, "description": "Adjustable standing desk with memory presets"}
       ],
-      "target_count": 20,
-      "categorical_fields": ["plan", "role"],
-      "numeric_fields": ["storage"],
-      "fields_to_generate": ["bio", "storage"],
-      "dependencies": {
-        "role": ["plan"]
-      },
-      "comparison_fields": ["bio"]
+      "target_count": 10,
+      "categorical_fields": ["category"],
+      "numeric_fields": ["price"],
+      "dependencies": {},
+      "fields_to_generate": ["description", "price"],
+      "comparison_fields": ["description"]
     }
   }
 ]
