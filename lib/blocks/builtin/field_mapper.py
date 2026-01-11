@@ -30,12 +30,16 @@ class FieldMapper(BaseBlock):
         "mappings": "json-or-template",
     }
 
-    def __init__(self, mappings: str = "{}"):
+    def __init__(self, mappings: str | dict[str, str] = "{}"):
         """
         Args:
             mappings: JSON object or template of {"field_name": "{{ jinja2.expression }}"}
         """
-        self.mappings_template = mappings
+        # handle both string (from UI/templates with jinja) and dict (from static YAML)
+        if isinstance(mappings, dict):
+            self.mappings_template = json.dumps(mappings) if mappings else "{}"
+        else:
+            self.mappings_template = mappings
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         # parse mappings from template

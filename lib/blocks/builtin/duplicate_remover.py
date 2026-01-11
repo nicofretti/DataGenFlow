@@ -38,11 +38,15 @@ class DuplicateRemover(BaseBlock):
     def __init__(
         self,
         similarity_threshold: float = 0.85,
-        comparison_fields: str = "",
+        comparison_fields: str | list[str] = "",
         embedding_model: str | None = None,
     ):
         self.similarity_threshold = similarity_threshold
-        self.comparison_fields_template = comparison_fields
+        # handle both string (from UI/templates with jinja) and list (from static YAML)
+        if isinstance(comparison_fields, list):
+            self.comparison_fields_template = json.dumps(comparison_fields)
+        else:
+            self.comparison_fields_template = comparison_fields if comparison_fields else ""
         self.embedding_model_name = embedding_model
 
         # cache reference embeddings per trace_id (one cache per pipeline execution)

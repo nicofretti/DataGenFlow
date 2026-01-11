@@ -4,9 +4,9 @@ blocks:
   - type: StructureSampler
     config:
       target_count: "{{ target_count }}"
-      categorical_fields: "{{ categorical_fields }}"
-      numeric_fields: "{{ numeric_fields }}"
-      dependencies: "{{ dependencies }}"
+      categorical_fields: "{{ categorical_fields | tojson }}"
+      numeric_fields: "{{ numeric_fields | tojson }}"
+      dependencies: "{{ dependencies | tojson }}"
       seed: 42
 
   - type: SemanticInfiller
@@ -14,10 +14,8 @@ blocks:
       fields_to_generate: "{{ fields_to_generate | tojson }}"
       temperature: 0.8
       max_tokens: 200
-      model: null
 
   - type: DuplicateRemover
     config:
       similarity_threshold: 0.85
-      comparison_fields: "{{ comparison_fields }}"
-      embedding_model: null
+      comparison_fields: "{{ comparison_fields | tojson }}"

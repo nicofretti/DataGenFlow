@@ -29,11 +29,15 @@ class ValidatorBlock(BaseBlock):
         self,
         min_length: int = 0,
         max_length: int = 100000,
-        forbidden_words: str = "",
+        forbidden_words: str | list[str] = "",
     ) -> None:
         self.min_length = min_length
         self.max_length = max_length
-        self.forbidden_words_template = forbidden_words
+        # handle both string (from UI/templates with jinja) and list (from static YAML)
+        if isinstance(forbidden_words, list):
+            self.forbidden_words_template = json.dumps(forbidden_words)
+        else:
+            self.forbidden_words_template = forbidden_words if forbidden_words else ""
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         # parse forbidden_words from template (optional)

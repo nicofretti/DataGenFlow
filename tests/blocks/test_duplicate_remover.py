@@ -25,23 +25,23 @@ class TestDuplicateRemoverInit:
     def test_init_basic(self):
         block = DuplicateRemover()
         assert block.similarity_threshold == 0.85
-        assert block.comparison_fields is None
+        assert block.comparison_fields_template == ""
         assert block.embedding_model_name is None
 
     def test_init_with_params(self):
         block = DuplicateRemover(
             similarity_threshold=0.9,
-            comparison_fields=["bio", "description"],
+            comparison_fields='["bio", "description"]',
             embedding_model="text-embedding-ada-002",
         )
         assert block.similarity_threshold == 0.9
-        assert block.comparison_fields == ["bio", "description"]
+        assert block.comparison_fields_template == '["bio", "description"]'
         assert block.embedding_model_name == "text-embedding-ada-002"
 
 
 class TestDuplicateRemoverTextExtraction:
     def test_extract_text_specific_fields(self):
-        block = DuplicateRemover(comparison_fields=["bio"])
+        block = DuplicateRemover(comparison_fields='["bio"]')
 
         record = {"bio": "Test bio", "other": "Ignored"}
         text = block._extract_text(record, ["bio"])
@@ -68,7 +68,7 @@ class TestDuplicateRemoverTextExtraction:
         assert "123" not in text
 
     def test_extract_text_handles_none(self):
-        block = DuplicateRemover(comparison_fields=["bio"])
+        block = DuplicateRemover(comparison_fields='["bio"]')
 
         record = {"bio": None, "other": "text"}
         text = block._extract_text(record, ["bio"])
@@ -104,7 +104,7 @@ class TestDuplicateRemoverNoSamples:
 class TestDuplicateRemoverNoText:
     @pytest.mark.asyncio
     async def test_no_text_returns_not_duplicate(self):
-        block = DuplicateRemover(comparison_fields=["bio"])
+        block = DuplicateRemover(comparison_fields='["bio"]')
 
         context = make_context({}, {"samples": [{"bio": "Sample"}]})
 
@@ -137,7 +137,7 @@ class TestDuplicateRemoverWithEmbeddings:
 
         block = DuplicateRemover(
             similarity_threshold=0.85,
-            comparison_fields=["bio"],
+            comparison_fields='["bio"]',
         )
 
         context = make_context(
@@ -172,7 +172,7 @@ class TestDuplicateRemoverWithEmbeddings:
 
         block = DuplicateRemover(
             similarity_threshold=0.85,
-            comparison_fields=["bio"],
+            comparison_fields='["bio"]',
         )
 
         context = make_context(
@@ -206,7 +206,7 @@ class TestDuplicateRemoverWithEmbeddings:
             MagicMock(data=[{"embedding": [0.6, 0.4, 0.0]}]),
         ]
 
-        block = DuplicateRemover(comparison_fields=["bio"])
+        block = DuplicateRemover(comparison_fields='["bio"]')
 
         # first execution
         context1 = make_context(

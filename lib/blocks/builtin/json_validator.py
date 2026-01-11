@@ -31,7 +31,7 @@ class JSONValidatorBlock(BaseBlock):
     def __init__(
         self,
         field_name: str = "assistant",
-        required_fields: str = "",
+        required_fields: str | list[str] = "",
         strict: bool = False,
     ) -> None:
         """
@@ -43,7 +43,11 @@ class JSONValidatorBlock(BaseBlock):
             strict: if true, fail on parse errors; if false, mark as invalid but continue
         """
         self.field_name = field_name
-        self.required_fields_template = required_fields
+        # handle both string (from UI/templates with jinja) and list (from static YAML)
+        if isinstance(required_fields, list):
+            self.required_fields_template = json.dumps(required_fields)
+        else:
+            self.required_fields_template = required_fields if required_fields else ""
         self.strict = strict
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:

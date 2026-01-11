@@ -24,7 +24,10 @@ class StructureSampler(BaseMultiplierBlock):
     MAX_MATCHING_EXEMPLARS = 3
 
     _config_descriptions = {
-        "target_count": "Number of skeleton records to generate",
+        "target_count": (
+            'Number of skeleton records to generate. '
+            'Can be an integer or Jinja template. Examples: 10 or {{ target_count }}'
+        ),
         "categorical_fields": (
             'JSON array or Jinja template. Examples: ["plan", "role"] or '
             '{{ categorical_fields | tojson }}'
@@ -41,6 +44,7 @@ class StructureSampler(BaseMultiplierBlock):
     }
 
     _config_formats = {
+        "target_count": "json-or-template",
         "categorical_fields": "json-or-template",
         "numeric_fields": "json-or-template",
         "dependencies": "json-or-template",
@@ -48,16 +52,33 @@ class StructureSampler(BaseMultiplierBlock):
 
     def __init__(
         self,
-        target_count: int,
-        categorical_fields: str,
-        numeric_fields: str = "",
-        dependencies: str = "",
+        target_count: int | str,
+        categorical_fields: str | list[str],
+        numeric_fields: str | list[str] = "",
+        dependencies: str | dict[str, list[str]] = "",
         seed: int | None = None,
     ):
-        self.target_count = target_count
-        self.categorical_fields_template = categorical_fields
-        self.numeric_fields_template = numeric_fields
-        self.dependencies_template = dependencies
+        # handle both int (direct value) and string (template)
+        if isinstance(target_count, int):
+            self.target_count_template = str(target_count)
+        else:
+            self.target_count_template = target_count
+        # handle both string (from UI/templates with jinja) and list/dict (from static YAML)
+        if isinstance(categorical_fields, list):
+            self.categorical_fields_template = json.dumps(categorical_fields)
+        else:
+            self.categorical_fields_template = categorical_fields
+
+        if isinstance(numeric_fields, list):
+            self.numeric_fields_template = json.dumps(numeric_fields)
+        else:
+            self.numeric_fields_template = numeric_fields if numeric_fields else ""
+
+        if isinstance(dependencies, dict):
+            self.dependencies_template = json.dumps(dependencies)
+        else:
+            self.dependencies_template = dependencies if dependencies else ""
+
         self.seed = seed
         self._rng = random.Random(seed)
 
@@ -289,6 +310,26 @@ class StructureSampler(BaseMultiplierBlock):
         return results
 
     async def execute(self, context: BlockExecutionContext) -> list[dict[str, Any]]:  # type: ignore[override]
+        # render and parse target_count from template
+        target_count_rendered = render_template(
+            self.target_count_template, context.accumulated_state
+        )
+        try:
+            target_count = int(target_count_rendered.strip())
+            if target_count <= 0:
+                raise BlockExecutionError(
+                    "target_count must be a positive integer",
+                    detail={"rendered_value": target_count_rendered, "parsed_value": target_count},
+                )
+        except ValueError as e:
+            raise BlockExecutionError(
+                f"target_count must be a valid integer: {str(e)}",
+                detail={
+                    "template": self.target_count_template,
+                    "rendered": target_count_rendered,
+                },
+            )
+
         # parse categorical_fields from template
         categorical_fields_rendered = render_template(
             self.categorical_fields_template, context.accumulated_state
@@ -393,8 +434,8 @@ class StructureSampler(BaseMultiplierBlock):
         profile = self._analyze_samples(samples)
 
         # generate skeletons
-        logger.info(f"Generating {self.target_count} skeleton records")
-        skeletons = self._generate_skeletons(profile, self.target_count)
+        logger.info(f"Generating {target_count} skeleton records")
+        skeletons = self._generate_skeletons(profile, target_count)
 
         logger.info(
             f"Successfully generated {len(skeletons)} skeletons with "

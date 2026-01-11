@@ -40,13 +40,17 @@ class StructuredGenerator(BaseBlock):
 
     def __init__(
         self,
-        json_schema: str,
+        json_schema: str | dict[str, Any],
         model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2048,
         user_prompt: str = "",
     ):
-        self.json_schema_template = json_schema
+        # handle both string (from UI/templates with jinja) and dict (from static YAML)
+        if isinstance(json_schema, dict):
+            self.json_schema_template = json.dumps(json_schema)
+        else:
+            self.json_schema_template = json_schema
         self.model_name = model  # model name or None for default
         self.temperature = temperature
         self.max_tokens = max_tokens

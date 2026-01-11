@@ -34,15 +34,23 @@ class SemanticInfiller(BaseBlock):
         "system_prompt": "Custom system prompt (optional, overrides default)",
     }
 
+    _config_formats = {
+        "fields_to_generate": "json-or-template",
+    }
+
     def __init__(
         self,
-        fields_to_generate: str,
+        fields_to_generate: str | list[str],
         model: str | None = None,
         temperature: float = 0.8,
         max_tokens: int = 500,
         system_prompt: str = "",
     ):
-        self.fields_to_generate_template = fields_to_generate
+        # handle both string (from UI/templates with jinja) and list (from static YAML)
+        if isinstance(fields_to_generate, list):
+            self.fields_to_generate_template = json.dumps(fields_to_generate)
+        else:
+            self.fields_to_generate_template = fields_to_generate
         self.model_name = model
         self.temperature = temperature
         self.max_tokens = max_tokens

@@ -534,6 +534,7 @@ async def get_pipeline(pipeline_id: int) -> dict[str, Any]:
     blocks = pipeline.definition.get("blocks", [])
     pipeline_dict = pipeline.model_dump()
     pipeline_dict["first_block_is_multiplier"] = is_multiplier_pipeline(blocks)
+    pipeline_dict["first_block_type"] = blocks[0].get("type") if blocks else None
 
     return pipeline_dict
 

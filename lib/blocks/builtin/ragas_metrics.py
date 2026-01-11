@@ -62,7 +62,7 @@ class RagasMetrics(BaseBlock):
         answer_field: str = "answer",
         contexts_field: str = "contexts",
         ground_truth_field: str = "ground_truth",
-        metrics: str = '["faithfulness"]',
+        metrics: str | list[str] = '["faithfulness"]',
         score_threshold: float = 0.5,
         model: str | None = None,
         embedding_model: str | None = None,
@@ -71,7 +71,11 @@ class RagasMetrics(BaseBlock):
         self.answer_field = answer_field
         self.contexts_field = contexts_field
         self.ground_truth_field = ground_truth_field
-        self.metrics_template = metrics
+        # handle both string (from UI/templates with jinja) and list (from static YAML)
+        if isinstance(metrics, list):
+            self.metrics_template = json.dumps(metrics)
+        else:
+            self.metrics_template = metrics
         self.score_threshold = max(0.0, min(1.0, score_threshold))
         self.model_name = model
         self.embedding_model_name = embedding_model
