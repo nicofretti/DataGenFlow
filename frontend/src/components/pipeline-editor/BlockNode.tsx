@@ -105,8 +105,19 @@ function getPreviewFields(blockType: string, config: Record<string, any>): Array
     if (config[key] !== undefined && config[key] !== null && config[key] !== "") {
       let displayValue = String(config[key]);
 
+      // special handling for fields_to_generate (JSON string)
+      if (key === "fields_to_generate" && typeof config[key] === "string") {
+        try {
+          const parsed = JSON.parse(config[key]);
+          if (Array.isArray(parsed)) {
+            displayValue = `[${parsed.length} items]`;
+          }
+        } catch {
+          // if not valid JSON, treat as template string
+        }
+      }
       // special formatting for arrays/objects
-      if (Array.isArray(config[key])) {
+      else if (Array.isArray(config[key])) {
         displayValue = `[${config[key].length} items]`;
       } else if (typeof config[key] === "object") {
         displayValue = `{${Object.keys(config[key]).length} keys}`;

@@ -32,6 +32,7 @@ export default function BlockConfigPanel({
   const [formData, setFormData] = useState<Record<string, any>>(config || {});
   const { resolvedColorScheme } = useTheme();
   const [wordWrap, setWordWrap] = useState(false);
+  const [jsonMode, setJsonMode] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [panelWidth, setPanelWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
@@ -79,28 +80,38 @@ export default function BlockConfigPanel({
 
   // fetch available LLM and embedding models
   useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+
     const fetchModels = async () => {
       try {
         const [llmResponse, embeddingResponse] = await Promise.all([
-          fetch("/api/llm-models"),
-          fetch("/api/embedding-models"),
+          fetch("/api/llm-models", { signal }),
+          fetch("/api/embedding-models", { signal }),
         ]);
 
         if (llmResponse.ok) {
           const llmData = await llmResponse.json();
-          setLlmModels(llmData.map((m: any) => m.name));
+          if (Array.isArray(llmData)) {
+            setLlmModels(llmData.map((m: any) => m.name).filter(Boolean));
+          }
         }
 
         if (embeddingResponse.ok) {
           const embeddingData = await embeddingResponse.json();
-          setEmbeddingModels(embeddingData.map((m: any) => m.name));
+          if (Array.isArray(embeddingData)) {
+            setEmbeddingModels(embeddingData.map((m: any) => m.name).filter(Boolean));
+          }
         }
       } catch (error) {
-        console.error("Failed to fetch models:", error);
+        if ((error as any)?.name !== "AbortError") {
+          console.error("Failed to fetch models:", error);
+        }
       }
     };
 
     fetchModels();
+    return () => controller.abort();
   }, []);
 
   // handle resize
@@ -143,6 +154,12 @@ export default function BlockConfigPanel({
 
     Object.entries(schema).forEach(([key, fieldSchema]: [string, any]) => {
       const value = processedData[key];
+
+      // skip json-or-template fields - they stay as strings
+      if (fieldSchema.format === "json-or-template") {
+        return;
+      }
+
       if (
         (fieldSchema.type === "array" || fieldSchema.type === "object") &&
         typeof value === "string"
@@ -369,6 +386,80 @@ export default function BlockConfigPanel({
               padding: { top: 8, bottom: 8 },
             }}
           />
+        </Box>
+      );
+    }
+
+    // json-or-template field - use monaco editor with toggle
+    if (schema.format === "json-or-template") {
+      const isJsonMode = jsonMode[key] ?? true; // default to JSON mode
+      const jsonValue = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+
+      return (
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+            <Checkbox
+              checked={isJsonMode}
+              onChange={(e) => setJsonMode((prev) => ({ ...prev, [key]: e.target.checked }))}
+              id={`jsonmode-${key}`}
+              sx={{ m: 0 }}
+            />
+            <Text
+              as="label"
+              htmlFor={`jsonmode-${key}`}
+              sx={{ fontSize: 0, color: "fg.muted", cursor: "pointer" }}
+            >
+              JSON mode
+            </Text>
+            <Text sx={{ fontSize: 0, color: "fg.muted" }}>
+              {isJsonMode ? "(JSON syntax)" : "(Jinja2 template)"}
+            </Text>
+          </Box>
+          <Box
+            sx={{
+              border: "1px solid",
+              borderColor: "border.default",
+              borderRadius: 2,
+              overflow: "hidden",
+            }}
+          >
+            <Editor
+              key={`${node.id}-${key}`}
+              height="200px"
+              defaultLanguage={isJsonMode ? "json" : "python"}
+              value={jsonValue}
+              onChange={(newValue) => {
+                // keep as string during editing, will be parsed on save if needed
+                handleChange(key, newValue || "");
+              }}
+              theme={resolvedColorScheme === "dark" ? "vs-dark" : "light"}
+              options={{
+                minimap: { enabled: false },
+                scrollbar: {
+                  vertical: "auto",
+                  horizontal: "auto",
+                  verticalScrollbarSize: 10,
+                  horizontalScrollbarSize: 10,
+                },
+                lineNumbers: "on",
+                lineNumbersMinChars: 3,
+                glyphMargin: false,
+                folding: true,
+                lineDecorationsWidth: 5,
+                scrollBeyondLastLine: false,
+                renderLineHighlight: "none",
+                overviewRulerLanes: 0,
+                hideCursorInOverviewRuler: true,
+                overviewRulerBorder: false,
+                wordWrap: wordWrap ? "on" : "off",
+                fontSize: 13,
+                fontFamily:
+                  "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
+                tabSize: 2,
+                padding: { top: 8, bottom: 8 },
+              }}
+            />
+          </Box>
         </Box>
       );
     }

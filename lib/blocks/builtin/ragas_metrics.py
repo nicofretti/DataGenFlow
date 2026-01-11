@@ -8,6 +8,8 @@ os.environ["RAGAS_DO_NOT_TRACK"] = "true"
 
 from lib.blocks.base import BaseBlock
 from lib.entities.block_execution_context import BlockExecutionContext
+from lib.errors import BlockExecutionError
+from lib.template_renderer import render_template
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +38,6 @@ class RagasMetrics(BaseBlock):
         "ground_truth_field",
     ]
 
-    _config_enums = {
-        "metrics": [
-            "answer_relevancy",
-            "context_precision",
-            "context_recall",
-            "faithfulness",
-        ]
-    }
-
     _config_descriptions = {
         "model": "LLM model for evaluation (leave empty for default)",
         "embedding_model": "Embedding model for answer_relevancy (leave empty for default)",
@@ -52,8 +45,15 @@ class RagasMetrics(BaseBlock):
         "answer_field": "Field containing the answer",
         "contexts_field": "Field containing contexts (list of strings)",
         "ground_truth_field": "Field containing expected answer",
-        "metrics": "RAGAS metrics to calculate",
+        "metrics": (
+            'JSON array or Jinja template. Available: ["answer_relevancy", "context_precision", '
+            '"context_recall", "faithfulness"]. Example: ["faithfulness"] or {{ metrics | tojson }}'
+        ),
         "score_threshold": "Minimum score (0.0-1.0) to pass",
+    }
+
+    _config_formats = {
+        "metrics": "json-or-template",
     }
 
     def __init__(
@@ -62,7 +62,7 @@ class RagasMetrics(BaseBlock):
         answer_field: str = "answer",
         contexts_field: str = "contexts",
         ground_truth_field: str = "ground_truth",
-        metrics: list[str] | None = None,
+        metrics: str | list[str] = '["faithfulness"]',
         score_threshold: float = 0.5,
         model: str | None = None,
         embedding_model: str | None = None,
@@ -71,13 +71,44 @@ class RagasMetrics(BaseBlock):
         self.answer_field = answer_field
         self.contexts_field = contexts_field
         self.ground_truth_field = ground_truth_field
-        self.metrics = metrics if isinstance(metrics, list) else ["faithfulness"]
+        # handle both string (from UI/templates with jinja) and list (from static YAML)
+        if isinstance(metrics, list):
+            self.metrics_template = json.dumps(metrics)
+        else:
+            self.metrics_template = metrics
         self.score_threshold = max(0.0, min(1.0, score_threshold))
         self.model_name = model
         self.embedding_model_name = embedding_model
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         from lib.blocks.commons import UsageTracker
+
+        # parse metrics from template
+        metrics_rendered = render_template(self.metrics_template, context.accumulated_state)
+        try:
+            metrics_list = json.loads(metrics_rendered)
+            if not isinstance(metrics_list, list):
+                raise BlockExecutionError(
+                    "metrics must be a JSON array",
+                    detail={"rendered_value": metrics_rendered},
+                )
+            if not all(isinstance(m, str) for m in metrics_list):
+                raise BlockExecutionError(
+                    "All items in metrics must be strings",
+                    detail={"metrics": metrics_list},
+                )
+            metrics = metrics_list
+        except json.JSONDecodeError as e:
+            raise BlockExecutionError(
+                f"metrics must be valid JSON: {str(e)}",
+                detail={
+                    "template": self.metrics_template,
+                    "rendered": metrics_rendered,
+                },
+            )
+
+        # store parsed metrics for use in other methods
+        self.metrics = metrics
 
         # 1. collect inputs from configured fields
         inputs = {

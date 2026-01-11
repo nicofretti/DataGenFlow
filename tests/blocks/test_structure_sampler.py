@@ -20,10 +20,10 @@ class TestStructureSamplerInit:
             target_count=10,
             categorical_fields=["plan"],
         )
-        assert block.target_count == 10
-        assert block.categorical_fields == ["plan"]
-        assert block.numeric_fields == []
-        assert block.dependencies == {}
+        assert block.target_count_template == "10"
+        assert block.categorical_fields_template == '["plan"]'
+        assert block.numeric_fields_template == ""
+        assert block.dependencies_template == ""
 
     def test_init_with_all_params(self):
         block = StructureSampler(
@@ -33,10 +33,10 @@ class TestStructureSamplerInit:
             dependencies={"role": ["plan"]},
             seed=42,
         )
-        assert block.target_count == 5
-        assert block.categorical_fields == ["plan", "role"]
-        assert block.numeric_fields == ["storage"]
-        assert block.dependencies == {"role": ["plan"]}
+        assert block.target_count_template == "5"
+        assert block.categorical_fields_template == '["plan", "role"]'
+        assert block.numeric_fields_template == '["storage"]'
+        assert block.dependencies_template == '{"role": ["plan"]}'
         assert block.seed == 42
 
 
@@ -48,6 +48,9 @@ class TestStructureSamplerDistributions:
             categorical_fields=["plan"],
             seed=42,
         )
+        # set attributes that would normally be set in execute()
+        block.categorical_fields = ["plan"]
+
         samples = [
             {"plan": "Free"},
             {"plan": "Free"},
@@ -70,6 +73,10 @@ class TestStructureSamplerDistributions:
             dependencies={"role": ["plan"]},
             seed=42,
         )
+        # set attributes that would normally be set in execute()
+        block.categorical_fields = ["plan", "role"]
+        block.dependencies = {"role": ["plan"]}
+
         samples = [
             {"plan": "Free", "role": "Viewer"},
             {"plan": "Free", "role": "Viewer"},
@@ -95,6 +102,9 @@ class TestStructureSamplerDistributions:
             categorical_fields=[],
             seed=42,
         )
+        # set attributes that would normally be set in execute()
+        block.numeric_fields = ["storage"]
+
         samples = [
             {"storage": 1},
             {"storage": 2},
@@ -117,13 +127,15 @@ class TestStructureSamplerGeneration:
             seed=42,
         )
 
-        context = make_context({
-            "samples": [
-                {"plan": "Free"},
-                {"plan": "Free"},
-                {"plan": "Pro"},
-            ]
-        })
+        context = make_context(
+            {
+                "samples": [
+                    {"plan": "Free"},
+                    {"plan": "Free"},
+                    {"plan": "Pro"},
+                ]
+            }
+        )
 
         results = await block.execute(context)
 
@@ -143,13 +155,15 @@ class TestStructureSamplerGeneration:
             seed=42,
         )
 
-        context = make_context({
-            "samples": [
-                {"plan": "Free", "role": "Viewer"},
-                {"plan": "Free", "role": "Viewer"},
-                {"plan": "Pro", "role": "Editor"},
-            ]
-        })
+        context = make_context(
+            {
+                "samples": [
+                    {"plan": "Free", "role": "Viewer"},
+                    {"plan": "Free", "role": "Viewer"},
+                    {"plan": "Pro", "role": "Editor"},
+                ]
+            }
+        )
 
         results = await block.execute(context)
 
@@ -167,13 +181,15 @@ class TestStructureSamplerGeneration:
             seed=42,
         )
 
-        context = make_context({
-            "samples": [
-                {"plan": "Free", "storage": 1},
-                {"plan": "Free", "storage": 2},
-                {"plan": "Pro", "storage": 50},
-            ]
-        })
+        context = make_context(
+            {
+                "samples": [
+                    {"plan": "Free", "storage": 1},
+                    {"plan": "Free", "storage": 2},
+                    {"plan": "Pro", "storage": 50},
+                ]
+            }
+        )
 
         results = await block.execute(context)
 
@@ -219,9 +235,7 @@ class TestStructureSamplerEdgeCases:
             dependencies={"a": ["b"], "b": ["a"]},
         )
 
-        context = make_context({
-            "samples": [{"a": "1", "b": "2"}]
-        })
+        context = make_context({"samples": [{"a": "1", "b": "2"}]})
 
         with pytest.raises(ValidationError, match="Circular dependency"):
             await block.execute(context)

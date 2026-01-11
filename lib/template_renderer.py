@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Any
 
-from jinja2 import Environment, StrictUndefined, TemplateSyntaxError, UndefinedError
+from jinja2 import Environment, StrictUndefined, TemplateSyntaxError, UndefinedError, is_undefined
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,19 @@ class TemplateRenderer:
 
     def _register_custom_filters(self) -> None:
         """register custom jinja2 filters"""
+
         # add json filter for pretty-printing dicts/lists
-        self.env.filters["tojson"] = lambda obj: json.dumps(obj, indent=2)
+        def safe_tojson(obj):
+            if is_undefined(obj):
+                # extract variable name from StrictUndefined if available
+                var_name = getattr(obj, "_undefined_name", "unknown")
+                raise UndefinedError(
+                    f"cannot serialize undefined variable '{var_name}' to JSON. "
+                    f"ensure the variable is defined in the template context."
+                )
+            return json.dumps(obj, indent=2)
+
+        self.env.filters["tojson"] = safe_tojson
 
         # add truncate filter
         self.env.filters["truncate"] = (

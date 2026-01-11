@@ -1,0 +1,95 @@
+language: en-US
+early_access: false
+enable_free_tier: true
+
+reviews:
+  request_changes_workflow: true
+  
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    ignore_title_keywords: []
+    
+  # Path-based instructions
+  path_instructions:
+    # Backend code
+    - path: "**/*.py"
+      instructions: |
+        Apply backend code review checklist from llm/rules-backend.md:
+        Identify which llm/*.md files need updates:
+        - New API endpoints → update llm/state-backend.md
+        - New blocks → update llm/state-backend.md and llm/state-project.md
+        - Changed patterns → update relevant llm/state-*.md
+        Identify if the docs needs updates.
+        Golden rule: if code cannot be explained in one sentence, it's too complex.
+    
+    # Frontend code
+    - path: "frontend/**/*.{ts,tsx,js,jsx}"
+      instructions: |
+        Apply frontend code review checklist from llm/rules-frontend.md:
+        Identify which llm/*.md files need updates:
+        - New pages/components → update llm/state-frontend.md
+        - Changed UI flow → update llm/state-frontend.md
+        - New patterns → update llm/state-frontend.md
+        Identify if the docs needs updates.
+        Golden rule: keep components focused and maintainable.
+    
+    # Block implementations
+    - path: "lib/blocks/**/*.py"
+      instructions: |
+        Apply block implementation checklist from .claude/skills/implementing-datagenflow-blocks/SKILL.md:
+        Identify which llm/*.md files need updates:
+        - New blocks → update llm/state-backend.md and llm/state-project.md
+        - Changed block behavior → update relevant llm/state-*.md
+        Identify if the docs needs updates.
+        Golden rule: blocks should be single-responsibility and reusable.
+    # Tests
+    - path: "tests/**/*.py"
+      instructions: |
+        Review test quality:
+        - One behavior per test
+        - Test names: test_<method>_<scenario>_<expected>
+        - Error cases tested (not just happy path)
+        - Proper use of fixtures
+        - Mocks used appropriately
+        - Tests are focused and maintainable
+    
+    # Documentation files
+    - path: "llm/**/*.md"
+      instructions: |
+        Review documentation updates:
+        - Changes reflect actual code (not aspirational designs)
+        - Updates are gradual and incremental (not complete rewrites)
+        - Technical and concise
+        - Explain what changed and why
+        - Note any breaking changes
+    
+    # Configuration files
+    - path: "**/*.{yaml,yml,json,toml}"
+      instructions: |
+        Review configuration changes:
+        - No secrets committed
+        - Valid syntax
+        - Changes documented if needed
+        - Backwards compatible or migration documented
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: "auto"
+  
+  opt_out: false
+
+tone_instructions: |
+  Be direct, technical, and concise:
+  1. Blocking issues (anti-patterns, security, broken tests) - must fix
+  2. Code quality violations - should fix
+  3. Documentation updates needed
+  4. Improvements - nice to have

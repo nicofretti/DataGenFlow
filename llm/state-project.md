@@ -28,7 +28,7 @@ tools: uv (python), yarn (js)
 ```
 lib/
   blocks/
-    builtin/          # 12 blocks (generators, multiplier, validators, metrics, seeders, observability)
+    builtin/          # 14 blocks (generators, multiplier, validators, metrics, seeders, observability, utilities)
     custom/           # experimental
     base.py           # BaseBlock interface
     config.py         # schema extraction
@@ -98,7 +98,7 @@ class BaseBlock:
         pass
 ```
 
-### builtin blocks (12 total)
+### builtin blocks (14 total)
 
 **seeders:**
 - StructureSampler: statistical sampler (target_count, categorical_fields, numeric_fields, dependencies, seed) → * (skeletons + hints)
@@ -120,6 +120,10 @@ class BaseBlock:
 - DiversityScore: lexical diversity (field_name) → diversity_score
 - CoherenceScore: text coherence (field_name) → coherence_score
 - RougeScore: rouge comparison (generated_field, reference_field, rouge_type) → rouge_score
+- RagasMetrics: evaluate QA using RAGAS metrics (question_field, answer_field, etc.) → ragas_scores
+
+**utilities:**
+- FieldMapper: create fields from Jinja2 expressions (mappings) → * (dynamic based on mappings)
 
 **observability:**
 - LangfuseBlock: logging (public_key, secret_key, host, session_id) → langfuse_trace_url
@@ -370,7 +374,7 @@ blocks/, integration/, test_api.py, test_workflow.py, test_storage.py, test_cons
 production-ready full-stack data generation platform
 
 ### features
-- 12 blocks (seeders, generators, multiplier, validators, metrics, observability)
+- 14 blocks (seeders, generators, multiplier, validators, metrics, observability, utilities)
 - auto-discovery from builtin/custom/user_blocks
 - reactflow visual editor with drag-drop
 - jinja2 templates + 4 yaml templates

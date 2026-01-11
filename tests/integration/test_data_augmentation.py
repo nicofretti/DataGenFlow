@@ -1,4 +1,5 @@
 """integration test for data augmentation pipeline"""
+
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -30,11 +31,7 @@ async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, 
     # mock LLM response with realistic generated fields
     mock_completion.return_value = MagicMock(
         choices=[
-            MagicMock(
-                message=MagicMock(
-                    content='{"bio": "Generated bio text", "storage": 10}'
-                )
-            )
+            MagicMock(message=MagicMock(content='{"bio": "Generated bio text", "storage": 10}'))
         ],
         usage=MagicMock(prompt_tokens=100, completion_tokens=50, cache_read_input_tokens=0),
     )
@@ -80,6 +77,7 @@ async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, 
 
         # save pipeline to database
         pipeline_id = await storage.save_pipeline("test_augmentation", json.dumps(pipeline_def))
+        assert pipeline_id > 0
 
         # create pipeline instance
         pipeline = Pipeline("test_augmentation", pipeline_def["blocks"])
@@ -142,7 +140,9 @@ async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, 
             assert result["plan"] in ["Free", "Pro"], f"Invalid plan: {result['plan']}"
 
             # check role values are valid
-            assert result["role"] in ["Viewer", "Editor", "Admin"], f"Invalid role: {result['role']}"
+            assert result["role"] in ["Viewer", "Editor", "Admin"], (
+                f"Invalid role: {result['role']}"
+            )
 
             # check dependencies: Free -> Viewer
             if result["plan"] == "Free":
@@ -166,7 +166,7 @@ async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, 
 
         # print sample result for inspection
         sample = results[0].result
-        print(f"\nSample result:")
+        print("\nSample result:")
         print(f"  plan: {sample['plan']}")
         print(f"  role: {sample['role']}")
         print(f"  storage: {sample['storage']}")
@@ -203,6 +203,7 @@ async def test_structure_sampler_alone(tmp_path):
         }
 
         pipeline_id = await storage.save_pipeline("test_sampler", json.dumps(pipeline_def))
+        assert pipeline_id > 0
         pipeline = Pipeline("test_sampler", pipeline_def["blocks"])
 
         initial_data = {
@@ -265,9 +266,8 @@ async def test_data_augmentation_with_no_embedding_model(tmp_path):
             ]
         }
 
-        pipeline_id = await storage.save_pipeline(
-            "test_no_embedding", json.dumps(pipeline_def)
-        )
+        pipeline_id = await storage.save_pipeline("test_no_embedding", json.dumps(pipeline_def))
+        assert pipeline_id > 0
         pipeline = Pipeline("test_no_embedding", pipeline_def["blocks"])
 
         initial_data = {"samples": [{"plan": "Free"}]}

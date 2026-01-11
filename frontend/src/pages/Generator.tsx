@@ -41,6 +41,7 @@ export default function Generator() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
   const [isMultiplierPipeline, setIsMultiplierPipeline] = useState(false);
+  const [needsMarkdown, setNeedsMarkdown] = useState(false);
   const [validationResult, setValidationResult] = useState<{
     valid: boolean;
     errors: string[];
@@ -112,6 +113,7 @@ export default function Generator() {
       if (!selectedPipeline) {
         if (mounted) {
           setIsMultiplierPipeline(false);
+          setNeedsMarkdown(false);
           setValidationResult(null);
         }
         return;
@@ -123,6 +125,8 @@ export default function Generator() {
         });
         const data = await res.json();
         const isMultiplier = data.first_block_is_multiplier || false;
+        const firstBlockType = data.first_block_type || "";
+        const needsMd = firstBlockType === "MarkdownMultiplierBlock";
 
         if (!mounted) return;
 
@@ -130,7 +134,7 @@ export default function Generator() {
           const isMarkdown = file.name.endsWith(".md");
           const isJson = file.name.endsWith(".json");
 
-          if ((isMultiplier && isJson) || (!isMultiplier && isMarkdown)) {
+          if ((needsMd && isJson) || (!needsMd && isMarkdown)) {
             setFile(null);
             setValidationResult(null);
             setValidated(false);
@@ -138,10 +142,14 @@ export default function Generator() {
         }
 
         setIsMultiplierPipeline(isMultiplier);
+        setNeedsMarkdown(needsMd);
       } catch (err) {
         if (err instanceof Error && err.name !== "AbortError") {
           console.error("Failed to load pipeline details:", err);
-          if (mounted) setIsMultiplierPipeline(false);
+          if (mounted) {
+            setIsMultiplierPipeline(false);
+            setNeedsMarkdown(false);
+          }
         }
       }
     };
@@ -199,7 +207,7 @@ export default function Generator() {
       const isJson = droppedFile.type === "application/json" || droppedFile.name.endsWith(".json");
       const isMarkdown = droppedFile.name.endsWith(".md");
 
-      const isValidFile = isMultiplierPipeline ? isMarkdown : isJson;
+      const isValidFile = needsMarkdown ? isMarkdown : isJson;
 
       if (isValidFile) {
         const input = fileInputRef.current;
@@ -210,7 +218,7 @@ export default function Generator() {
           input.dispatchEvent(new Event("change", { bubbles: true }));
         }
       } else {
-        const expected = isMultiplierPipeline ? "Markdown (.md) file" : "JSON (.json) file";
+        const expected = needsMarkdown ? "Markdown (.md) file" : "JSON (.json) file";
         toast.error(`Please drop a ${expected}`);
       }
     }
@@ -223,12 +231,12 @@ export default function Generator() {
     const isMarkdown = selectedFile.name.endsWith(".md");
     const isJson = selectedFile.name.endsWith(".json");
 
-    if (isMultiplierPipeline && isJson) {
+    if (needsMarkdown && isJson) {
       toast.error("Please upload a Markdown (.md) file for this pipeline.");
       return;
     }
 
-    if (!isMultiplierPipeline && isMarkdown) {
+    if (!needsMarkdown && isMarkdown) {
       toast.error("Please upload a JSON (.json) file for this pipeline.");
       return;
     }
@@ -650,7 +658,7 @@ export default function Generator() {
             <input
               ref={fileInputRef}
               type="file"
-              accept={isMultiplierPipeline ? ".md" : ".json"}
+              accept={needsMarkdown ? ".md" : ".json"}
               onChange={handleFileChange}
               style={{ display: "none" }}
             />
@@ -663,7 +671,7 @@ export default function Generator() {
                 ? "Select a pipeline first"
                 : file
                   ? file.name
-                  : isMultiplierPipeline
+                  : needsMarkdown
                     ? "Drop Markdown file here or click to browse"
                     : "Drop JSON seed file here or click to browse"}
             </Heading>
@@ -672,7 +680,7 @@ export default function Generator() {
                 ? "Choose a pipeline from the configuration panel"
                 : file
                   ? `Size: ${(file.size / 1024).toFixed(2)} KB`
-                  : isMultiplierPipeline
+                  : needsMarkdown
                     ? "Markdown (.md) format"
                     : 'Format: {"repetitions": N, "metadata": {...}}'}
             </Text>
@@ -725,7 +733,7 @@ export default function Generator() {
           </FormControl>
 
           {/* Verify Seeds Button */}
-          {file && selectedPipeline && !isMultiplierPipeline && file.name.endsWith(".json") && (
+          {file && selectedPipeline && !needsMarkdown && file.name.endsWith(".json") && (
             <Button
               variant="default"
               size="medium"

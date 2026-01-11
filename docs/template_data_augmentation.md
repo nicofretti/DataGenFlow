@@ -38,7 +38,7 @@ This template creates realistic synthetic records from sample data while maintai
 
 ## Pipeline Architecture
 
-```
+```text
 ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
 │  Structure  │──►│  Semantic   │──►│  Duplicate  │
 │   Sampler   │   │  Infiller   │   │   Remover   │
@@ -360,7 +360,7 @@ similarity_threshold: 0.75
 
 **Goal:** Generate 100 synthetic user profiles
 
-**Step 1: Prepare samples (6 examples)**
+### Step 1: Prepare samples (6 examples)
 ```json
 [
   {"plan": "Free", "role": "Viewer", "storage": 1, "bio": "Student learning"},
@@ -372,27 +372,27 @@ similarity_threshold: 0.75
 ]
 ```
 
-**Step 2: Create pipeline from template**
+### Step 2: Create pipeline from template
 ```bash
 curl -X POST http://localhost:8000/api/pipelines/from_template/data_augmentation \
   -H "Content-Type: application/json" \
   -d '{"name": "User Profile Augmentation"}'
 ```
 
-**Step 3: Start generation**
+### Step 3: Start generation
 ```bash
 curl -X POST http://localhost:8000/api/generate \
   -F "file=@seed_data_augmentation.json" \
   -F "pipeline_id=1"
 ```
 
-**Step 4: Monitor progress**
+### Step 4: Monitor progress
 ```bash
 # Poll job status
 curl http://localhost:8000/api/jobs/1
 ```
 
-**Step 5: Review and export**
+### Step 5: Review and export
 ```bash
 # Export unique records only
 curl http://localhost:8000/api/export?job_id=1 | jq 'select(.is_duplicate == false)' > unique_users.jsonl
