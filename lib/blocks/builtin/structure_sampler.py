@@ -4,7 +4,12 @@ import random
 from collections import Counter, defaultdict
 from typing import Any
 
-from lib.blocks.base import BaseMultiplierBlock
+from lib.blocks.base import BaseBlock
+from lib.blocks.commons.template_utils import (
+    normalize_template_param,
+    render_and_parse_json,
+    validate_string_list,
+)
 from lib.entities.block_execution_context import BlockExecutionContext
 from lib.errors import BlockExecutionError, ValidationError
 from lib.template_renderer import render_template
@@ -12,12 +17,12 @@ from lib.template_renderer import render_template
 logger = logging.getLogger(__name__)
 
 
-class StructureSampler(BaseMultiplierBlock):
+class StructureSampler(BaseBlock):
     name = "Structure Sampler"
     description = "Learn distributions from samples and generate skeleton records"
     category = "seeders"
     inputs = []  # reads from initial state
-    outputs = ["*"]  # dynamic based on categorical fields
+    outputs = ["skeletons"]
 
     # constants for sampling configuration
     MAX_EXEMPLARS = 5
@@ -58,27 +63,10 @@ class StructureSampler(BaseMultiplierBlock):
         dependencies: str | dict[str, list[str]] = "",
         seed: int | None = None,
     ):
-        # handle both int (direct value) and string (template)
-        if isinstance(target_count, int):
-            self.target_count_template = str(target_count)
-        else:
-            self.target_count_template = target_count
-        # handle both string (from UI/templates with jinja) and list/dict (from static YAML)
-        if isinstance(categorical_fields, list):
-            self.categorical_fields_template = json.dumps(categorical_fields)
-        else:
-            self.categorical_fields_template = categorical_fields
-
-        if isinstance(numeric_fields, list):
-            self.numeric_fields_template = json.dumps(numeric_fields)
-        else:
-            self.numeric_fields_template = numeric_fields if numeric_fields else ""
-
-        if isinstance(dependencies, dict):
-            self.dependencies_template = json.dumps(dependencies)
-        else:
-            self.dependencies_template = dependencies if dependencies else ""
-
+        self.target_count_template = str(target_count) if isinstance(target_count, int) else target_count
+        self.categorical_fields_template = normalize_template_param(categorical_fields, list)
+        self.numeric_fields_template = normalize_template_param(numeric_fields, list) if numeric_fields else ""
+        self.dependencies_template = normalize_template_param(dependencies, dict) if dependencies else ""
         self.seed = seed
         self._rng = random.Random(seed)
 
@@ -309,7 +297,7 @@ class StructureSampler(BaseMultiplierBlock):
 
         return results
 
-    async def execute(self, context: BlockExecutionContext) -> list[dict[str, Any]]:  # type: ignore[override]
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         # render and parse target_count from template
         target_count_rendered = render_template(
             self.target_count_template, context.accumulated_state
@@ -331,92 +319,46 @@ class StructureSampler(BaseMultiplierBlock):
             )
 
         # parse categorical_fields from template
-        categorical_fields_rendered = render_template(
-            self.categorical_fields_template, context.accumulated_state
+        categorical_fields = render_and_parse_json(
+            self.categorical_fields_template,
+            context.accumulated_state,
+            "categorical_fields",
+            expected_type=list,
         )
-        try:
-            categorical_fields = json.loads(categorical_fields_rendered)
-            if not isinstance(categorical_fields, list):
-                raise BlockExecutionError(
-                    "categorical_fields must be a JSON array",
-                    detail={"rendered_value": categorical_fields_rendered},
-                )
-            if not all(isinstance(f, str) for f in categorical_fields):
-                raise BlockExecutionError(
-                    "All items in categorical_fields must be strings",
-                    detail={"categorical_fields": categorical_fields},
-                )
-        except json.JSONDecodeError as e:
-            raise BlockExecutionError(
-                f"categorical_fields must be valid JSON: {str(e)}",
-                detail={
-                    "template": self.categorical_fields_template,
-                    "rendered": categorical_fields_rendered,
-                },
-            )
+        validate_string_list(categorical_fields, "categorical_fields")
 
         # parse numeric_fields from template (optional)
         numeric_fields: list[str] = []
         if self.numeric_fields_template:
-            numeric_fields_rendered = render_template(
-                self.numeric_fields_template, context.accumulated_state
+            numeric_fields = render_and_parse_json(
+                self.numeric_fields_template,
+                context.accumulated_state,
+                "numeric_fields",
+                expected_type=list,
             )
-            try:
-                numeric_fields_list = json.loads(numeric_fields_rendered)
-                if not isinstance(numeric_fields_list, list):
-                    raise BlockExecutionError(
-                        "numeric_fields must be a JSON array",
-                        detail={"rendered_value": numeric_fields_rendered},
-                    )
-                if not all(isinstance(f, str) for f in numeric_fields_list):
-                    raise BlockExecutionError(
-                        "All items in numeric_fields must be strings",
-                        detail={"numeric_fields": numeric_fields_list},
-                    )
-                numeric_fields = numeric_fields_list
-            except json.JSONDecodeError as e:
-                raise BlockExecutionError(
-                    f"numeric_fields must be valid JSON: {str(e)}",
-                    detail={
-                        "template": self.numeric_fields_template,
-                        "rendered": numeric_fields_rendered,
-                    },
-                )
+            validate_string_list(numeric_fields, "numeric_fields")
 
         # parse dependencies from template (optional)
         dependencies: dict[str, list[str]] = {}
         if self.dependencies_template:
-            dependencies_rendered = render_template(
-                self.dependencies_template, context.accumulated_state
+            dependencies = render_and_parse_json(
+                self.dependencies_template,
+                context.accumulated_state,
+                "dependencies",
+                expected_type=dict,
             )
-            try:
-                dependencies_obj = json.loads(dependencies_rendered)
-                if not isinstance(dependencies_obj, dict):
+            # validate structure: dict[str, list[str]]
+            for key, value in dependencies.items():
+                if not isinstance(key, str):
                     raise BlockExecutionError(
-                        "dependencies must be a JSON object",
-                        detail={"rendered_value": dependencies_rendered},
+                        "All dependency keys must be strings",
+                        detail={"dependencies": dependencies},
                     )
-                # validate structure: dict[str, list[str]]
-                for key, value in dependencies_obj.items():
-                    if not isinstance(key, str):
-                        raise BlockExecutionError(
-                            "All dependency keys must be strings",
-                            detail={"dependencies": dependencies_obj},
-                        )
-                    if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
-                        raise BlockExecutionError(
-                            f"Dependency value for '{key}' must be a list of strings",
-                            detail={"dependencies": dependencies_obj},
-                        )
-                dependencies = dependencies_obj
-            except json.JSONDecodeError as e:
-                raise BlockExecutionError(
-                    f"dependencies must be valid JSON: {str(e)}",
-                    detail={
-                        "template": self.dependencies_template,
-                        "rendered": dependencies_rendered,
-                    },
-                )
+                if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+                    raise BlockExecutionError(
+                        f"Dependency value for '{key}' must be a list of strings",
+                        detail={"dependencies": dependencies},
+                    )
 
         # store parsed values for use in methods
         self.categorical_fields = categorical_fields
@@ -442,4 +384,4 @@ class StructureSampler(BaseMultiplierBlock):
             f"{len(self.categorical_fields)} categorical fields"
         )
 
-        return skeletons
+        return {"skeletons": skeletons}

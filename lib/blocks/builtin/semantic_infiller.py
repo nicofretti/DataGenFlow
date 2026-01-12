@@ -1,11 +1,19 @@
+import asyncio
 import json
 import logging
-import re
 from typing import Any
 
 import litellm
 
 from lib.blocks.base import BaseBlock
+from lib.blocks.commons.template_utils import (
+    clean_internal_fields,
+    clean_metadata_fields,
+    normalize_template_param,
+    parse_llm_json_response,
+    render_and_parse_json,
+    validate_string_list,
+)
 from lib.entities import pipeline
 from lib.entities.block_execution_context import BlockExecutionContext
 from lib.errors import BlockExecutionError
@@ -18,8 +26,8 @@ class SemanticInfiller(BaseBlock):
     name = "Semantic Infiller"
     description = "Complete skeleton records using LLM to generate free-text fields"
     category = "generators"
-    inputs = ["*"]  # accepts any skeleton fields
-    outputs = ["*"]  # returns merged skeleton + generated fields
+    inputs = ["skeletons"]
+    outputs = ["samples"]
 
     # constants for prompt generation
     MAX_EXEMPLARS_IN_PROMPT = 2
@@ -46,11 +54,7 @@ class SemanticInfiller(BaseBlock):
         max_tokens: int = 500,
         system_prompt: str = "",
     ):
-        # handle both string (from UI/templates with jinja) and list (from static YAML)
-        if isinstance(fields_to_generate, list):
-            self.fields_to_generate_template = json.dumps(fields_to_generate)
-        else:
-            self.fields_to_generate_template = fields_to_generate
+        self.fields_to_generate_template = normalize_template_param(fields_to_generate, list)
         self.model_name = model
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -108,88 +112,22 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
 
         return prompt
 
-    def _parse_json_safely(self, content: str) -> dict[str, Any]:
-        """
-        parse JSON from LLM response
-        handles markdown code blocks and other common patterns
-        """
-        # first try direct parsing
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError:
-            pass
-
-        # try extracting from markdown code block
-        json_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", content, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group(1))
-            except json.JSONDecodeError:
-                pass
-
-        # try extracting anything that looks like JSON
-        json_match = re.search(r"\{.*\}", content, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group(0))
-            except json.JSONDecodeError:
-                pass
-
-        raise BlockExecutionError(
-            "LLM returned invalid JSON",
-            detail={
-                "content": content[:500],  # first 500 chars
-                "hint": "LLM should return pure JSON without markdown or explanations",
-            },
-        )
-
-    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+    async def _process_skeleton(
+        self,
+        skeleton_raw: dict[str, Any],
+        fields_to_generate: list[str],
+        llm_config: Any,
+        context: BlockExecutionContext,
+    ) -> dict[str, Any]:
+        """process single skeleton to generate complete sample"""
         from app import llm_config_manager
 
-        # extract skeleton from context
-        skeleton = context.accumulated_state.copy()
-        hints = skeleton.pop("_hints", {})
-        skeleton.pop("_usage", None)  # remove internal fields
+        # clean skeleton and extract hints
+        skeleton = clean_internal_fields(skeleton_raw)
+        hints = skeleton_raw.get("_hints", {})
+        skeleton = clean_metadata_fields(skeleton)
 
-        # filter out input metadata fields that were merged for template rendering
-        # these should not be treated as data constraints in the prompt
-        metadata_fields = {
-            "samples",
-            "target_count",
-            "categorical_fields",
-            "numeric_fields",
-            "dependencies",
-            "fields_to_generate",
-            "comparison_fields",
-        }
-        skeleton = {k: v for k, v in skeleton.items() if k not in metadata_fields}
-
-        # render fields_to_generate template and parse as JSON
-        fields_template_rendered = render_template(
-            self.fields_to_generate_template, context.accumulated_state
-        )
-        try:
-            fields_to_generate = json.loads(fields_template_rendered)
-            if not isinstance(fields_to_generate, list):
-                raise BlockExecutionError(
-                    "fields_to_generate must be a JSON array",
-                    detail={"rendered_value": fields_template_rendered},
-                )
-            if not all(isinstance(f, str) for f in fields_to_generate):
-                raise BlockExecutionError(
-                    "All items in fields_to_generate must be strings",
-                    detail={"fields_to_generate": fields_to_generate},
-                )
-        except json.JSONDecodeError as e:
-            raise BlockExecutionError(
-                f"fields_to_generate must be valid JSON: {str(e)}",
-                detail={
-                    "template": self.fields_to_generate_template,
-                    "rendered": fields_template_rendered,
-                },
-            )
-
-        # build generation prompt
+        # build prompt
         prompt = self._build_generation_prompt(fields_to_generate, skeleton, hints)
 
         # prepare system prompt
@@ -204,8 +142,7 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
             {"role": "user", "content": prompt},
         ]
 
-        # get LLM config
-        llm_config = await llm_config_manager.get_llm_model(self.model_name)
+        # prepare LLM call
         llm_params = llm_config_manager.prepare_llm_call(
             llm_config,
             messages=messages,
@@ -219,8 +156,6 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
             "tags": ["datagenflow", "semantic-infiller"],
         }
 
-        logger.info(f"Generating fields {fields_to_generate} with model={llm_params.get('model')}")
-
         try:
             response = await litellm.acompletion(**llm_params)
         except Exception as e:
@@ -233,13 +168,9 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
                 },
             )
 
-        # parse response
+        # parse response using utility
         content = response.choices[0].message.content
-        try:
-            generated = self._parse_json_safely(content)
-        except BlockExecutionError as e:
-            logger.error(f"Failed to parse JSON: {e.message}")
-            raise
+        generated = parse_llm_json_response(content, "fields_to_generate")
 
         # validate that LLM didn't modify skeleton fields
         for field, value in skeleton.items():
@@ -262,9 +193,40 @@ Return ONLY valid JSON with the requested fields, no markdown formatting or expl
 
         result["_usage"] = usage_info.model_dump()
 
+        return result
+
+    async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+        from app import llm_config_manager
+
+        # extract skeletons from input
+        skeletons = context.accumulated_state.get("skeletons", [])
+        if not skeletons:
+            raise BlockExecutionError("No skeletons provided in input")
+
+        # parse fields_to_generate using utility
+        fields_to_generate = render_and_parse_json(
+            self.fields_to_generate_template,
+            context.accumulated_state,
+            "fields_to_generate",
+            expected_type=list,
+        )
+        validate_string_list(fields_to_generate, "fields_to_generate")
+
+        # get LLM config once (reuse for all skeletons)
+        llm_config = await llm_config_manager.get_llm_model(self.model_name)
+
         logger.info(
-            f"Generated {len(generated)} fields "
-            f"(tokens: {usage_info.input_tokens}+{usage_info.output_tokens})"
+            f"Processing {len(skeletons)} skeletons to generate fields {fields_to_generate} "
+            f"with model={llm_config.get('model')}"
         )
 
-        return result
+        # process all skeletons in parallel
+        tasks = [
+            self._process_skeleton(skeleton, fields_to_generate, llm_config, context)
+            for skeleton in skeletons
+        ]
+        samples = await asyncio.gather(*tasks)
+
+        logger.info(f"Successfully generated {len(samples)} samples")
+
+        return {"samples": samples}

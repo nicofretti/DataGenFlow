@@ -137,14 +137,17 @@ class TestStructureSamplerGeneration:
             }
         )
 
-        results = await block.execute(context)
+        result = await block.execute(context)
 
-        # check we got 5 results
-        assert len(results) == 5
+        # check we got dict with skeletons key
+        assert "skeletons" in result
+        skeletons = result["skeletons"]
+        # check we got 5 skeletons
+        assert len(skeletons) == 5
         # check all have plan field
-        for result in results:
-            assert "plan" in result
-            assert result["plan"] in ["Free", "Pro"]
+        for skeleton in skeletons:
+            assert "plan" in skeleton
+            assert skeleton["plan"] in ["Free", "Pro"]
 
     @pytest.mark.asyncio
     async def test_generate_skeletons_with_dependencies(self):
@@ -165,12 +168,13 @@ class TestStructureSamplerGeneration:
             }
         )
 
-        results = await block.execute(context)
+        result = await block.execute(context)
 
         # check all Free plans have Viewer role (100% in samples)
-        for result in results:
-            if result["plan"] == "Free":
-                assert result["role"] == "Viewer"
+        skeletons = result["skeletons"]
+        for skeleton in skeletons:
+            if skeleton["plan"] == "Free":
+                assert skeleton["role"] == "Viewer"
 
     @pytest.mark.asyncio
     async def test_generate_skeletons_with_hints(self):
@@ -191,15 +195,16 @@ class TestStructureSamplerGeneration:
             }
         )
 
-        results = await block.execute(context)
+        result = await block.execute(context)
 
         # check hints are included
-        for result in results:
-            assert "_hints" in result
-            assert "storage_range" in result["_hints"]
-            assert "exemplars" in result["_hints"]
+        skeletons = result["skeletons"]
+        for skeleton in skeletons:
+            assert "_hints" in skeleton
+            assert "storage_range" in skeleton["_hints"]
+            assert "exemplars" in skeleton["_hints"]
             # check storage range is [1, 50]
-            assert result["_hints"]["storage_range"] == [1, 50]
+            assert skeleton["_hints"]["storage_range"] == [1, 50]
 
 
 class TestStructureSamplerEdgeCases:
@@ -246,7 +251,7 @@ class TestStructureSamplerSchema:
         schema = StructureSampler.get_schema()
         assert schema["name"] == "Structure Sampler"
         assert schema["category"] == "seeders"
-        assert schema["outputs"] == ["*"]
+        assert schema["outputs"] == ["skeletons"]
 
     def test_schema_has_required_configs(self):
         schema = StructureSampler.get_schema()

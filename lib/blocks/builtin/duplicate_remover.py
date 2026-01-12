@@ -1,14 +1,19 @@
-import json
 import logging
 from typing import Any
 
 import litellm
+import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 from lib.blocks.base import BaseBlock
+from lib.blocks.commons.template_utils import (
+    clean_internal_fields,
+    normalize_template_param,
+    render_and_parse_json,
+    validate_string_list,
+)
 from lib.entities.block_execution_context import BlockExecutionContext
 from lib.errors import BlockExecutionError
-from lib.template_renderer import render_template
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +22,8 @@ class DuplicateRemover(BaseBlock):
     name = "Duplicate Remover"
     description = "Flag records similar to reference dataset using embedding-based similarity"
     category = "validators"
-    inputs = ["*"]
-    outputs = ["*", "is_duplicate", "similarity_score"]
+    inputs = ["samples"]
+    outputs = ["samples"]
 
     _config_descriptions = {
         "similarity_threshold": "Similarity threshold (0.0-1.0). Above = duplicate.",
@@ -42,11 +47,7 @@ class DuplicateRemover(BaseBlock):
         embedding_model: str | None = None,
     ):
         self.similarity_threshold = similarity_threshold
-        # handle both string (from UI/templates with jinja) and list (from static YAML)
-        if isinstance(comparison_fields, list):
-            self.comparison_fields_template = json.dumps(comparison_fields)
-        else:
-            self.comparison_fields_template = comparison_fields if comparison_fields else ""
+        self.comparison_fields_template = normalize_template_param(comparison_fields, list) if comparison_fields else ""
         self.embedding_model_name = embedding_model
 
         # cache reference embeddings per trace_id (one cache per pipeline execution)
@@ -72,63 +73,116 @@ class DuplicateRemover(BaseBlock):
 
         return " ".join(texts)
 
+    async def _get_seed_embeddings(
+        self,
+        seed_samples: list[dict],
+        comparison_fields: list[str] | None,
+        embedding_config: Any,
+        trace_id: str,
+    ) -> list[list[float]]:
+        """get seed embeddings with trace_id caching"""
+        from app import llm_config_manager
+
+        # check cache
+        if trace_id in self._embeddings_cache:
+            return self._embeddings_cache[trace_id]
+
+        logger.info(f"Building reference embeddings for {len(seed_samples)} seed samples")
+
+        # extract and embed seed texts
+        seed_texts = [self._extract_text(s, comparison_fields) for s in seed_samples]
+        seed_texts = [t for t in seed_texts if t]
+
+        if not seed_texts:
+            return []
+
+        embedding_params = llm_config_manager._prepare_embedding_call(
+            embedding_config, input_text=seed_texts
+        )
+        response = await litellm.aembedding(**embedding_params)
+
+        # cache by trace_id
+        self._embeddings_cache[trace_id] = [item["embedding"] for item in response.data]
+        logger.info(f"Cached {len(self._embeddings_cache[trace_id])} seed embeddings")
+
+        return self._embeddings_cache[trace_id]
+
+    def _compute_similarities(
+        self,
+        samples: list[dict],
+        sample_embeddings: list[list[float]],
+        seed_embeddings: list[list[float]],
+    ) -> list[dict]:
+        """compute dual similarity scores for each sample"""
+        n = len(sample_embeddings)
+
+        # similarity to seeds (each sample vs all seeds)
+        seed_sims = cosine_similarity(sample_embeddings, seed_embeddings)
+        similarity_to_seeds = seed_sims.max(axis=1)  # max per row
+
+        # similarity to other generated samples (exclude self)
+        if n > 1:
+            batch_sims = cosine_similarity(sample_embeddings, sample_embeddings)
+            np.fill_diagonal(batch_sims, -1)  # ignore self-similarity
+            similarity_to_generated = batch_sims.max(axis=1)
+        else:
+            similarity_to_generated = np.zeros(n)
+
+        # enrich samples
+        enriched = []
+        for i, sample in enumerate(samples):
+            sim_to_seeds = float(similarity_to_seeds[i])
+            sim_to_generated = float(similarity_to_generated[i])
+
+            enriched.append({
+                **sample,
+                "similarity_to_seeds": round(sim_to_seeds, 4),
+                "similarity_to_generated": round(sim_to_generated, 4),
+                "is_duplicate": (
+                    sim_to_seeds >= self.similarity_threshold
+                    or sim_to_generated >= self.similarity_threshold
+                ),
+            })
+
+        return enriched
+
+    def _add_default_similarity(self, samples: list[dict]) -> dict[str, Any]:
+        """add default similarity values when embeddings unavailable"""
+        enriched = [
+            {
+                **sample,
+                "similarity_to_seeds": 0.0,
+                "similarity_to_generated": 0.0,
+                "is_duplicate": False,
+            }
+            for sample in samples
+        ]
+        return {"samples": enriched}
+
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         from app import llm_config_manager
 
-        # get current record from context
-        current_record = context.accumulated_state.copy()
-        current_record.pop("_usage", None)  # remove internal fields
-        current_record.pop("_hints", None)
-
-        # parse comparison_fields from template
-        comparison_fields: list[str] | None = None
-        if self.comparison_fields_template:
-            fields_rendered = render_template(
-                self.comparison_fields_template, context.accumulated_state
-            )
-            try:
-                fields_list = json.loads(fields_rendered)
-                if not isinstance(fields_list, list):
-                    raise BlockExecutionError(
-                        "comparison_fields must be a JSON array",
-                        detail={"rendered_value": fields_rendered},
-                    )
-                if not all(isinstance(f, str) for f in fields_list):
-                    raise BlockExecutionError(
-                        "All items in comparison_fields must be strings",
-                        detail={"comparison_fields": fields_list},
-                    )
-                comparison_fields = fields_list
-            except json.JSONDecodeError as e:
-                raise BlockExecutionError(
-                    f"comparison_fields must be valid JSON: {str(e)}",
-                    detail={
-                        "template": self.comparison_fields_template,
-                        "rendered": fields_rendered,
-                    },
-                )
-
-        # get reference samples from initial state
-        samples = context.get_state("samples", [])
-
+        # extract samples from input
+        samples = context.accumulated_state.get("samples", [])
         if not samples:
-            logger.warning("No samples found for duplicate checking, marking as not duplicate")
-            return {
-                **current_record,
-                "is_duplicate": False,
-                "similarity_score": 0.0,
-            }
+            raise BlockExecutionError("No samples provided in input")
 
-        # extract text for comparison
-        current_text = self._extract_text(current_record, comparison_fields)
+        # parse comparison_fields
+        comparison_fields = None
+        if self.comparison_fields_template:
+            comparison_fields = render_and_parse_json(
+                self.comparison_fields_template,
+                context.accumulated_state,
+                "comparison_fields",
+                expected_type=list,
+            )
+            validate_string_list(comparison_fields, "comparison_fields")
 
-        if not current_text:
-            logger.warning("No text found in record for comparison, skipping check")
-            return {
-                **current_record,
-                "is_duplicate": False,
-                "similarity_score": 0.0,
-            }
+        # get seed samples
+        seed_samples = context.get_state("samples", [])
+        if not seed_samples:
+            logger.warning("No seed samples for duplicate checking")
+            return self._add_default_similarity(samples)
 
         try:
             # get embedding model
@@ -136,69 +190,42 @@ class DuplicateRemover(BaseBlock):
                 self.embedding_model_name
             )
 
-            # get trace_id for cache key
-            trace_id = context.trace_id
+            # get seed embeddings (cached by trace_id)
+            seed_embeddings = await self._get_seed_embeddings(
+                seed_samples, comparison_fields, embedding_config, context.trace_id
+            )
 
-            # build reference embeddings (lazy, once per pipeline execution)
-            if trace_id not in self._embeddings_cache:
-                logger.info(f"Building reference embeddings for {len(samples)} samples")
+            # get batch embeddings for generated samples
+            sample_texts = [
+                self._extract_text(clean_internal_fields(s), comparison_fields)
+                for s in samples
+            ]
+            sample_texts = [t for t in sample_texts if t]
 
-                sample_texts = [self._extract_text(s, comparison_fields) for s in samples]
+            if not sample_texts:
+                return self._add_default_similarity(samples)
 
-                # filter empty texts
-                sample_texts = [t for t in sample_texts if t]
-
-                if not sample_texts:
-                    logger.warning("No valid sample texts for embedding, skipping check")
-                    return {
-                        **current_record,
-                        "is_duplicate": False,
-                        "similarity_score": 0.0,
-                    }
-
-                # embed all sample texts
-                embedding_params = llm_config_manager._prepare_embedding_call(
-                    embedding_config, input_text=sample_texts
-                )
-                response = await litellm.aembedding(**embedding_params)
-
-                self._embeddings_cache[trace_id] = [item["embedding"] for item in response.data]
-
-                logger.info(
-                    f"Initialized {len(self._embeddings_cache[trace_id])} reference embeddings "
-                    f"for trace_id={trace_id}"
-                )
-
-            # embed current text
+            # embed all generated samples at once
             embedding_params = llm_config_manager._prepare_embedding_call(
-                embedding_config, input_text=current_text
+                embedding_config, input_text=sample_texts
             )
             response = await litellm.aembedding(**embedding_params)
-            current_embedding = response.data[0]["embedding"]
+            sample_embeddings = [item["embedding"] for item in response.data]
 
-            # compute cosine similarities against cached embeddings
-            reference_embeddings = self._embeddings_cache[trace_id]
-            similarities = cosine_similarity([current_embedding], reference_embeddings)[0]
+            # compute dual similarities
+            enriched_samples = self._compute_similarities(
+                samples,
+                sample_embeddings,
+                seed_embeddings,
+            )
 
-            max_similarity = float(max(similarities)) if len(similarities) > 0 else 0.0
-            is_duplicate = max_similarity >= self.similarity_threshold
+            logger.info(
+                f"Checked {len(samples)} samples for duplicates. "
+                f"Found {sum(1 for s in enriched_samples if s['is_duplicate'])} duplicates."
+            )
 
-            if is_duplicate:
-                logger.warning(
-                    f"Duplicate detected: similarity={max_similarity:.4f} >= "
-                    f"{self.similarity_threshold}"
-                )
+            return {"samples": enriched_samples}
 
         except Exception as e:
-            # no embedding model configured or error - skip check
-            logger.warning(
-                f"Embedding check failed or no model configured: {e}. Skipping similarity check."
-            )
-            is_duplicate = False
-            max_similarity = 0.0
-
-        return {
-            **current_record,
-            "is_duplicate": is_duplicate,
-            "similarity_score": round(max_similarity, 4),
-        }
+            logger.warning(f"Embedding check failed: {e}. Skipping.")
+            return self._add_default_similarity(samples)

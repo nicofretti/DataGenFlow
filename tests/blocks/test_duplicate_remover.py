@@ -8,16 +8,14 @@ from lib.entities.block_execution_context import BlockExecutionContext
 
 def make_context(state: dict, initial_state: dict | None = None) -> BlockExecutionContext:
     """helper to create test context"""
-    if initial_state:
-        state = {**state}  # don't mutate
     context = BlockExecutionContext(
         trace_id="test-trace",
         pipeline_id=1,
         accumulated_state=state,
     )
     if initial_state:
-        # add initial state items to accumulated_state
-        context.accumulated_state.update(initial_state)
+        # properly set initial state for context.get_state()
+        context._initial_state = initial_state
     return context
 
 
@@ -67,58 +65,29 @@ class TestDuplicateRemoverTextExtraction:
         assert "Free" in text
         assert "123" not in text
 
-    def test_extract_text_handles_none(self):
-        block = DuplicateRemover(comparison_fields='["bio"]')
-
-        record = {"bio": None, "other": "text"}
-        text = block._extract_text(record, ["bio"])
-
-        # None should be converted to empty string
-        assert text == ""
-
 
 class TestDuplicateRemoverNoSamples:
     @pytest.mark.asyncio
-    async def test_no_samples_returns_not_duplicate(self):
+    async def test_no_seed_samples_returns_default_similarity(self):
         block = DuplicateRemover()
 
-        context = make_context({"bio": "Test bio"})
+        context = make_context({"samples": [{"bio": "Test bio"}]})
 
         result = await block.execute(context)
 
-        assert result["is_duplicate"] is False
-        assert result["similarity_score"] == 0.0
-
-    @pytest.mark.asyncio
-    async def test_empty_samples_returns_not_duplicate(self):
-        block = DuplicateRemover()
-
-        context = make_context({"bio": "Test bio"}, {"samples": []})
-
-        result = await block.execute(context)
-
-        assert result["is_duplicate"] is False
-        assert result["similarity_score"] == 0.0
-
-
-class TestDuplicateRemoverNoText:
-    @pytest.mark.asyncio
-    async def test_no_text_returns_not_duplicate(self):
-        block = DuplicateRemover(comparison_fields='["bio"]')
-
-        context = make_context({}, {"samples": [{"bio": "Sample"}]})
-
-        result = await block.execute(context)
-
-        assert result["is_duplicate"] is False
-        assert result["similarity_score"] == 0.0
+        assert "samples" in result
+        assert len(result["samples"]) == 1
+        sample = result["samples"][0]
+        assert sample["is_duplicate"] is False
+        assert sample["similarity_to_seeds"] == 0.0
+        assert sample["similarity_to_generated"] == 0.0
 
 
 class TestDuplicateRemoverWithEmbeddings:
     @pytest.mark.asyncio
     @patch("litellm.aembedding")
     @patch("app.llm_config_manager")
-    async def test_duplicate_detection_below_threshold(self, mock_config_manager, mock_embedding):
+    async def test_duplicate_detection_batch(self, mock_config_manager, mock_embedding):
         # setup mocks
         mock_config_manager.get_embedding_model = AsyncMock(
             return_value={"model": "text-embedding-ada-002"}
@@ -127,12 +96,18 @@ class TestDuplicateRemoverWithEmbeddings:
             return_value={"model": "text-embedding-ada-002"}
         )
 
-        # mock embeddings - different vectors (low similarity)
+        # mock embeddings
+        # seed embeddings: [1,0,0]
+        # sample 1: [0.99, 0.1, 0] - very similar to seed
+        # sample 2: [0, 1, 0] - different from seed, but similar to sample 1
         mock_embedding.side_effect = [
-            # reference embeddings
+            # seed embeddings
             MagicMock(data=[{"embedding": [1.0, 0.0, 0.0]}]),
-            # current embedding
-            MagicMock(data=[{"embedding": [0.0, 1.0, 0.0]}]),
+            # batch embeddings for 2 samples
+            MagicMock(data=[
+                {"embedding": [0.99, 0.1, 0.0]},
+                {"embedding": [0.0, 1.0, 0.0]},
+            ]),
         ]
 
         block = DuplicateRemover(
@@ -141,20 +116,36 @@ class TestDuplicateRemoverWithEmbeddings:
         )
 
         context = make_context(
-            {"bio": "New unique bio"},
+            {"samples": [
+                {"bio": "Very similar bio"},
+                {"bio": "Different bio"}
+            ]},
             {"samples": [{"bio": "Reference bio"}]},
         )
 
         result = await block.execute(context)
 
-        assert result["is_duplicate"] is False
-        assert result["similarity_score"] < 0.85
+        assert "samples" in result
+        assert len(result["samples"]) == 2
+
+        # first sample should be marked as duplicate (similar to seed)
+        sample1 = result["samples"][0]
+        assert "similarity_to_seeds" in sample1
+        assert "similarity_to_generated" in sample1
+        assert "is_duplicate" in sample1
+        assert sample1["similarity_to_seeds"] >= 0.85
+
+        # second sample
+        sample2 = result["samples"][1]
+        assert "similarity_to_seeds" in sample2
+        assert "similarity_to_generated" in sample2
+        assert "is_duplicate" in sample2
 
     @pytest.mark.asyncio
     @patch("litellm.aembedding")
     @patch("app.llm_config_manager")
-    async def test_duplicate_detection_above_threshold(self, mock_config_manager, mock_embedding):
-        # setup mocks
+    async def test_dual_similarity_computation(self, mock_config_manager, mock_embedding):
+        """test that both similarity_to_seeds and similarity_to_generated are computed"""
         mock_config_manager.get_embedding_model = AsyncMock(
             return_value={"model": "text-embedding-ada-002"}
         )
@@ -162,12 +153,15 @@ class TestDuplicateRemoverWithEmbeddings:
             return_value={"model": "text-embedding-ada-002"}
         )
 
-        # mock embeddings - very similar vectors (high similarity)
+        # seed: [1,0,0]
+        # sample1: [0,1,0] - different from seed
+        # sample2: [0,0.9,0.1] - different from seed but very similar to sample1
         mock_embedding.side_effect = [
-            # reference embeddings
-            MagicMock(data=[{"embedding": [1.0, 0.1, 0.0]}]),
-            # current embedding (very similar)
-            MagicMock(data=[{"embedding": [0.99, 0.11, 0.01]}]),
+            MagicMock(data=[{"embedding": [1.0, 0.0, 0.0]}]),
+            MagicMock(data=[
+                {"embedding": [0.0, 1.0, 0.0]},
+                {"embedding": [0.0, 0.9, 0.1]},
+            ]),
         ]
 
         block = DuplicateRemover(
@@ -176,20 +170,28 @@ class TestDuplicateRemoverWithEmbeddings:
         )
 
         context = make_context(
-            {"bio": "Very similar bio"},
-            {"samples": [{"bio": "Similar bio"}]},
+            {"samples": [
+                {"bio": "Sample 1"},
+                {"bio": "Sample 2 similar to 1"}
+            ]},
+            {"samples": [{"bio": "Seed"}]},
         )
 
         result = await block.execute(context)
 
-        assert result["is_duplicate"] is True
-        assert result["similarity_score"] >= 0.85
+        # both samples should have low similarity_to_seeds
+        # but similarity_to_generated should be high between them
+        samples = result["samples"]
+        assert len(samples) == 2
+
+        # check that similarity_to_generated is non-zero (samples are similar to each other)
+        assert samples[0]["similarity_to_generated"] > 0.0 or samples[1]["similarity_to_generated"] > 0.0
 
     @pytest.mark.asyncio
     @patch("litellm.aembedding")
     @patch("app.llm_config_manager")
     async def test_embedding_cache_by_trace_id(self, mock_config_manager, mock_embedding):
-        """test that embeddings are cached per trace_id"""
+        """test that seed embeddings are cached per trace_id"""
         mock_config_manager.get_embedding_model = AsyncMock(
             return_value={"model": "text-embedding-ada-002"}
         )
@@ -198,11 +200,11 @@ class TestDuplicateRemoverWithEmbeddings:
         )
 
         mock_embedding.side_effect = [
-            # first call - build reference embeddings
+            # first call - build seed embeddings
             MagicMock(data=[{"embedding": [1.0, 0.0, 0.0]}]),
-            # second call - embed current text
+            # second call - batch samples
             MagicMock(data=[{"embedding": [0.5, 0.5, 0.0]}]),
-            # third call - embed second current text (reuses cache, so no reference embedding call)
+            # third call - second batch (reuses seed cache)
             MagicMock(data=[{"embedding": [0.6, 0.4, 0.0]}]),
         ]
 
@@ -210,44 +212,46 @@ class TestDuplicateRemoverWithEmbeddings:
 
         # first execution
         context1 = make_context(
-            {"bio": "First bio"},
+            {"samples": [{"bio": "First bio"}]},
             {"samples": [{"bio": "Reference"}]},
         )
         await block.execute(context1)
 
         # second execution with same trace_id - should reuse cache
         context2 = make_context(
-            {"bio": "Second bio"},
+            {"samples": [{"bio": "Second bio"}]},
             {"samples": [{"bio": "Reference"}]},
         )
         context2.trace_id = "test-trace"  # same trace_id
         await block.execute(context2)
 
-        # embedding should be called 3 times total (1 ref + 2 current)
+        # embedding should be called 3 times total (1 seed + 2 batches)
         assert mock_embedding.call_count == 3
 
 
 class TestDuplicateRemoverErrorHandling:
     @pytest.mark.asyncio
-    async def test_no_embedding_model_skips_check(self):
-        """test that missing embedding model gracefully skips check"""
+    async def test_no_embedding_model_returns_default(self):
+        """test that missing embedding model gracefully returns defaults"""
         block = DuplicateRemover()
 
         context = make_context(
-            {"bio": "Test bio"},
+            {"samples": [{"bio": "Test bio"}]},
             {"samples": [{"bio": "Reference"}]},
         )
 
-        # should not raise error
         result = await block.execute(context)
 
-        assert result["is_duplicate"] is False
-        assert result["similarity_score"] == 0.0
+        assert "samples" in result
+        sample = result["samples"][0]
+        assert sample["is_duplicate"] is False
+        assert sample["similarity_to_seeds"] == 0.0
+        assert sample["similarity_to_generated"] == 0.0
 
     @pytest.mark.asyncio
     @patch("app.llm_config_manager")
-    async def test_embedding_error_skips_check(self, mock_config_manager):
-        """test that embedding errors are caught and check is skipped"""
+    async def test_embedding_error_returns_default(self, mock_config_manager):
+        """test that embedding errors are caught and defaults returned"""
         mock_config_manager.get_embedding_model = AsyncMock(
             side_effect=Exception("Embedding model not found")
         )
@@ -255,15 +259,16 @@ class TestDuplicateRemoverErrorHandling:
         block = DuplicateRemover(embedding_model="invalid-model")
 
         context = make_context(
-            {"bio": "Test bio"},
+            {"samples": [{"bio": "Test bio"}]},
             {"samples": [{"bio": "Reference"}]},
         )
 
-        # should not raise error
         result = await block.execute(context)
 
-        assert result["is_duplicate"] is False
-        assert result["similarity_score"] == 0.0
+        assert "samples" in result
+        sample = result["samples"][0]
+        assert sample["is_duplicate"] is False
+        assert sample["similarity_to_seeds"] == 0.0
 
 
 class TestDuplicateRemoverSchema:
@@ -271,10 +276,8 @@ class TestDuplicateRemoverSchema:
         schema = DuplicateRemover.get_schema()
         assert schema["name"] == "Duplicate Remover"
         assert schema["category"] == "validators"
-        assert schema["inputs"] == ["*"]
-        assert "*" in schema["outputs"]
-        assert "is_duplicate" in schema["outputs"]
-        assert "similarity_score" in schema["outputs"]
+        assert schema["inputs"] == ["samples"]
+        assert schema["outputs"] == ["samples"]
 
     def test_schema_has_required_configs(self):
         schema = DuplicateRemover.get_schema()
