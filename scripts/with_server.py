@@ -10,14 +10,14 @@ Usage:
 """
 
 import argparse
+import os
+import signal
 import subprocess
 import sys
 import time
-import signal
-import urllib.request
 import urllib.error
+import urllib.request
 from typing import List, Tuple
-import os
 
 
 class ServerManager:
@@ -76,7 +76,7 @@ class ServerManager:
                 print(f"  error stopping server on port {port}: {e}")
                 try:
                     os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                except:
+                except OSError:
                     pass
 
     def run_command(self, command: List[str]) -> int:

@@ -1,4 +1,5 @@
 """End-to-end test for Data Augmentation pipeline template"""
+
 import pytest
 
 from lib.llm_config import LLMConfigManager
@@ -48,8 +49,16 @@ async def test_data_augmentation_pipeline_e2e_real(e2e_storage):
             "fields_to_generate": ["description", "price"],
             "comparison_fields": ["description"],
             "samples": [
-                {"category": "electronics", "price": 299, "description": "Wireless noise-canceling headphones with premium sound quality"},
-                {"category": "furniture", "price": 199, "description": "Ergonomic office chair with lumbar support"},
+                {
+                    "category": "electronics",
+                    "price": 299,
+                    "description": "Wireless noise-canceling headphones with premium sound quality",
+                },
+                {
+                    "category": "furniture",
+                    "price": 199,
+                    "description": "Ergonomic office chair with lumbar support",
+                },
             ],
         }
 
@@ -82,21 +91,25 @@ async def test_data_augmentation_pipeline_e2e_real(e2e_storage):
 
         # verify DuplicateRemover added dual similarity fields
         assert "is_duplicate" in first_sample, "DuplicateRemover should add is_duplicate flag"
-        assert (
-            "similarity_to_seeds" in first_sample
-        ), "DuplicateRemover should add similarity_to_seeds"
-        assert (
-            "similarity_to_generated" in first_sample
-        ), "DuplicateRemover should add similarity_to_generated"
+        assert "similarity_to_seeds" in first_sample, (
+            "DuplicateRemover should add similarity_to_seeds"
+        )
+        assert "similarity_to_generated" in first_sample, (
+            "DuplicateRemover should add similarity_to_generated"
+        )
         assert isinstance(first_sample["is_duplicate"], bool), "is_duplicate should be boolean"
-        assert isinstance(
-            first_sample["similarity_to_seeds"], (int, float)
-        ), "similarity_to_seeds should be numeric"
-        assert isinstance(
-            first_sample["similarity_to_generated"], (int, float)
-        ), "similarity_to_generated should be numeric"
-        assert 0.0 <= first_sample["similarity_to_seeds"] <= 1.0, "similarity_to_seeds should be in [0,1]"
-        assert 0.0 <= first_sample["similarity_to_generated"] <= 1.0, "similarity_to_generated should be in [0,1]"
+        assert isinstance(first_sample["similarity_to_seeds"], (int, float)), (
+            "similarity_to_seeds should be numeric"
+        )
+        assert isinstance(first_sample["similarity_to_generated"], (int, float)), (
+            "similarity_to_generated should be numeric"
+        )
+        assert 0.0 <= first_sample["similarity_to_seeds"] <= 1.0, (
+            "similarity_to_seeds should be in [0,1]"
+        )
+        assert 0.0 <= first_sample["similarity_to_generated"] <= 1.0, (
+            "similarity_to_generated should be in [0,1]"
+        )
         print(f"✅ Sample structure valid: {list(first_sample.keys())}")
 
         # verify trace contains all blocks in batch pipeline
@@ -123,7 +136,7 @@ async def test_data_augmentation_pipeline_e2e_real(e2e_storage):
         assert isinstance(price, (int, float)), "Generated price should be numeric"
         assert price > 0, "Generated price should be positive"
 
-        print(f"\n✅ E2E test passed!")
+        print("\n✅ E2E test passed!")
         print(f"📊 Sample result: {first_sample}")
         print(f"📈 Usage: in={usage.input_tokens}, out={usage.output_tokens}")
 

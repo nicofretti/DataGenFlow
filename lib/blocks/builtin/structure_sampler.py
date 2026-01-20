@@ -1,4 +1,3 @@
-import json
 import logging
 import random
 from collections import Counter, defaultdict
@@ -22,7 +21,7 @@ class StructureSampler(BaseBlock):
     description = "Learn distributions from samples and generate skeleton records"
     category = "seeders"
     inputs = []  # reads from initial state
-    outputs = ["skeletons"]
+    outputs = ["skeletons", "_seed_samples"]
 
     # constants for sampling configuration
     MAX_EXEMPLARS = 5
@@ -30,20 +29,20 @@ class StructureSampler(BaseBlock):
 
     _config_descriptions = {
         "target_count": (
-            'Number of skeleton records to generate. '
-            'Can be an integer or Jinja template. Examples: 10 or {{ target_count }}'
+            "Number of skeleton records to generate. "
+            "Can be an integer or Jinja template. Examples: 10 or {{ target_count }}"
         ),
         "categorical_fields": (
             'JSON array or Jinja template. Examples: ["plan", "role"] or '
-            '{{ categorical_fields | tojson }}'
+            "{{ categorical_fields | tojson }}"
         ),
         "numeric_fields": (
             'JSON array or Jinja template. Examples: ["storage"] or '
-            '{{ numeric_fields | tojson }} (leave empty for none)'
+            "{{ numeric_fields | tojson }} (leave empty for none)"
         ),
         "dependencies": (
             'JSON object or Jinja template. Example: {"role": ["plan"]} or '
-            '{{ dependencies | tojson }} (leave empty for none)'
+            "{{ dependencies | tojson }} (leave empty for none)"
         ),
         "seed": "Random seed for reproducibility (optional)",
     }
@@ -63,10 +62,16 @@ class StructureSampler(BaseBlock):
         dependencies: str | dict[str, list[str]] = "",
         seed: int | None = None,
     ):
-        self.target_count_template = str(target_count) if isinstance(target_count, int) else target_count
+        self.target_count_template = (
+            str(target_count) if isinstance(target_count, int) else target_count
+        )
         self.categorical_fields_template = normalize_template_param(categorical_fields, list)
-        self.numeric_fields_template = normalize_template_param(numeric_fields, list) if numeric_fields else ""
-        self.dependencies_template = normalize_template_param(dependencies, dict) if dependencies else ""
+        self.numeric_fields_template = (
+            normalize_template_param(numeric_fields, list) if numeric_fields else ""
+        )
+        self.dependencies_template = (
+            normalize_template_param(dependencies, dict) if dependencies else ""
+        )
         self.seed = seed
         self._rng = random.Random(seed)
 
@@ -89,9 +94,9 @@ class StructureSampler(BaseBlock):
 
     def _compute_categorical_distributions(
         self, samples: list[dict[str, Any]]
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[str, dict[Any, float]]:
         """compute probability distributions for categorical fields"""
-        distributions = {}
+        distributions: dict[str, dict[Any, float]] = {}
         for field in self.categorical_fields:
             values = [sample.get(field) for sample in samples]
             counts = Counter(values)
@@ -109,7 +114,7 @@ class StructureSampler(BaseBlock):
                 continue
 
             # group samples by parent values
-            grouped: dict[tuple, list[Any]] = defaultdict(list)
+            grouped: dict[tuple[Any, ...], list[Any]] = defaultdict(list)
             for sample in samples:
                 parent_key = tuple(sample.get(p) for p in parent_fields)
                 child_value = sample.get(child_field)
@@ -137,8 +142,10 @@ class StructureSampler(BaseBlock):
             values = [sample.get(field) for sample in samples if sample.get(field) is not None]
             if values:
                 # filter non-numeric
-                numeric_values = []
+                numeric_values: list[float] = []
                 for v in values:
+                    if v is None:
+                        continue
                     try:
                         numeric_values.append(float(v))
                     except (ValueError, TypeError):
@@ -154,7 +161,7 @@ class StructureSampler(BaseBlock):
 
     def _select_exemplars(
         self, samples: list[dict[str, Any]], max_count: int | None = None
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """randomly select exemplar samples for reference"""
         if max_count is None:
             max_count = self.MAX_EXEMPLARS
@@ -384,4 +391,5 @@ class StructureSampler(BaseBlock):
             f"{len(self.categorical_fields)} categorical fields"
         )
 
-        return {"skeletons": skeletons}
+        # preserve original samples for duplicate checking downstream
+        return {"skeletons": skeletons, "_seed_samples": samples}

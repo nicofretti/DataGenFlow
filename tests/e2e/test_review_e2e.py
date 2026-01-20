@@ -3,9 +3,11 @@ e2e tests for review page.
 tests record viewing, status updates, deletion, and export workflows.
 """
 
-from playwright.sync_api import sync_playwright, expect
 import time
-from test_helpers import get_headless_mode, cleanup_database, wait_for_server
+
+from playwright.sync_api import sync_playwright
+
+from .test_helpers import get_headless_mode
 
 
 def test_review_page_loads():
@@ -20,9 +22,7 @@ def test_review_page_loads():
 
         # verify we're on review page
         # look for job selector or records section
-        elements = page.get_by_text("Select Job", exact=False).or_(
-            page.get_by_text("Records", exact=False)
-        )
+        page.get_by_text("Select Job", exact=False).or_(page.get_by_text("Records", exact=False))
 
         # take screenshot
         page.screenshot(path="/tmp/review_page.png", full_page=True)
@@ -116,9 +116,11 @@ def test_update_record_status():
 
         # find status dropdown in record card
         # might be labeled as "pending", "accepted", "rejected"
-        status_dropdowns = page.locator('select').filter(
-            has_text="pending"
-        ).or_(page.locator('[aria-label*="status"]'))
+        status_dropdowns = (
+            page.locator("select")
+            .filter(has_text="pending")
+            .or_(page.locator('[aria-label*="status"]'))
+        )
 
         if status_dropdowns.count() > 0:
             # click first status dropdown
@@ -167,7 +169,7 @@ def test_expand_trace():
             page.get_by_role("button")
             .filter(has_text="Trace")
             .or_(page.get_by_role("button").filter(has_text="Details"))
-            .or_(page.locator('button[aria-expanded]'))
+            .or_(page.locator("button[aria-expanded]"))
         )
 
         if trace_buttons.count() > 0:
@@ -177,7 +179,7 @@ def test_expand_trace():
 
             # verify trace content is visible
             # look for block type, execution time, or trace data
-            trace_content = page.get_by_text("block_type", exact=False).or_(
+            page.get_by_text("block_type", exact=False).or_(
                 page.get_by_text("execution_time", exact=False)
             )
 
@@ -268,7 +270,7 @@ def test_export_records():
             try:
                 download = download_info.value
                 print(f"download started: {download.suggested_filename}")
-            except:
+            except Exception:
                 print("no download (may be no records)")
 
             # take screenshot

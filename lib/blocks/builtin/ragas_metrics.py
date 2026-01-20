@@ -143,10 +143,10 @@ class RagasMetrics(BaseBlock):
                     logger.warning(f"failed to create embeddings, skipping answer_relevancy: {e}")
 
             # 6. build metrics
-            metrics = self._build_metrics(llm, embeddings)
+            metric_instances = self._build_metrics(llm, embeddings)
 
             # 7. evaluate (with per-metric validation)
-            scores = await self._evaluate(inputs, metrics)
+            scores = await self._evaluate(inputs, metric_instances)
         finally:
             # clear trace_id context after ragas calls complete
             UsageTracker.set_current_trace_id(None)

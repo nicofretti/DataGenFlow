@@ -43,8 +43,16 @@ def test_template_seeds_use_content_field():
             # check first seed item
             first_seed = example_seed[0]
             assert "metadata" in first_seed
-            # allow either "content" or "file_content" (for markdown templates)
-            assert "content" in first_seed["metadata"] or "file_content" in first_seed["metadata"]
+
+            # some templates use "content" or "file_content" in metadata,
+            # others (like data_augmentation) use specialized fields like "samples"
+            has_content = (
+                "content" in first_seed["metadata"] or "file_content" in first_seed["metadata"]
+            )
+            has_samples = "samples" in first_seed["metadata"]
+            assert has_content or has_samples, (
+                f"Template {template['id']} seed missing expected metadata fields"
+            )
 
             # ensure no old-style system/user fields
             assert "system" not in first_seed["metadata"]

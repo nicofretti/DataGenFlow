@@ -17,7 +17,7 @@ class ValidatorBlock(BaseBlock):
     _config_descriptions = {
         "forbidden_words": (
             'JSON array or Jinja template. Examples: ["spam", "bad"] or '
-            '{{ forbidden_words | tojson }} (leave empty for none)'
+            "{{ forbidden_words | tojson }} (leave empty for none)"
         )
     }
 

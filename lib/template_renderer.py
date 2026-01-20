@@ -21,7 +21,7 @@ class TemplateRenderer:
         """register custom jinja2 filters"""
 
         # add json filter for pretty-printing dicts/lists
-        def safe_tojson(obj):
+        def safe_tojson(obj: Any) -> str:
             if is_undefined(obj):
                 # extract variable name from StrictUndefined if available
                 var_name = getattr(obj, "_undefined_name", "unknown")

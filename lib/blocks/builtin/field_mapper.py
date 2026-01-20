@@ -21,7 +21,7 @@ class FieldMapper(BaseBlock):
 
     _config_descriptions = {
         "mappings": (
-            'JSON object or Jinja template mapping field names to Jinja2 expressions. '
+            "JSON object or Jinja template mapping field names to Jinja2 expressions. "
             'Example: {"question": "{{ parsed_json.qa.q }}"} or {{ mappings | tojson }}'
         )
     }
@@ -47,9 +47,7 @@ class FieldMapper(BaseBlock):
             logger.warning("no mappings configured, returning empty result")
             return {}
 
-        mappings_rendered = render_template(
-            self.mappings_template, context.accumulated_state
-        )
+        mappings_rendered = render_template(self.mappings_template, context.accumulated_state)
         try:
             mappings = json.loads(mappings_rendered)
             if not isinstance(mappings, dict):

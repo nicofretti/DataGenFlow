@@ -14,7 +14,7 @@ from lib.workflow import Pipeline
 @patch("litellm.acompletion")
 @patch("app.llm_config_manager")
 async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, tmp_path):
-    """test complete data augmentation pipeline with all 3 blocks"""
+    """test complete data augmentation pipeline with all 3 blocks (batch mode)"""
 
     # setup mocks for LLM calls
     mock_config_manager.get_llm_model = AsyncMock(
@@ -28,6 +28,9 @@ async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, 
     mock_config_manager.prepare_llm_call = MagicMock(
         return_value={"model": "gpt-4", "messages": []}
     )
+    # mock embedding model to skip (will fall back to default similarity)
+    mock_config_manager.get_embedding_model = AsyncMock(side_effect=Exception("No embedding"))
+
     # mock LLM response with realistic generated fields
     mock_completion.return_value = MagicMock(
         choices=[
@@ -113,66 +116,50 @@ async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, 
         }
 
         # execute pipeline
-        results = await pipeline.execute(initial_data)
+        result = await pipeline.execute(initial_data)
 
-        # verify results
-        assert isinstance(results, list), "Multiplier pipeline should return list"
-        assert len(results) == 5, f"Expected 5 results, got {len(results)}"
+        # verify batch mode return (single ExecutionResult)
+        assert hasattr(result, "result"), "Batch pipeline should return ExecutionResult"
 
-        # verify each result
-        for exec_result in results:
-            result = exec_result.result
-            trace = exec_result.trace
-            trace_id = exec_result.trace_id
-            # check required fields
-            assert "plan" in result, "Missing plan field"
-            assert "role" in result, "Missing role field"
-            assert "storage" in result, "Missing storage field"
-            assert "bio" in result, "Missing bio field"
+        # get samples from result
+        samples = result.result.get("generated_samples", [])
+        assert len(samples) == 5, f"Expected 5 samples, got {len(samples)}"
 
-            # check duplicate check fields
-            assert "is_duplicate" in result, "Missing is_duplicate field"
-            assert "similarity_score" in result, "Missing similarity_score field"
-            assert isinstance(result["is_duplicate"], bool)
-            assert isinstance(result["similarity_score"], float)
+        # verify each sample
+        for sample in samples:
+            assert "plan" in sample, "Missing plan field"
+            assert "role" in sample, "Missing role field"
+            assert "storage" in sample, "Missing storage field"
+            assert "bio" in sample, "Missing bio field"
 
-            # check plan values are valid
-            assert result["plan"] in ["Free", "Pro"], f"Invalid plan: {result['plan']}"
+            # check duplicate fields
+            assert "is_duplicate" in sample, "Missing is_duplicate"
+            assert "similarity_to_seeds" in sample, "Missing similarity_to_seeds"
+            assert "similarity_to_generated" in sample, "Missing similarity_to_generated"
 
-            # check role values are valid
-            assert result["role"] in ["Viewer", "Editor", "Admin"], (
-                f"Invalid role: {result['role']}"
-            )
+            # check valid values
+            assert sample["plan"] in ["Free", "Pro"]
+            if sample["plan"] == "Free":
+                assert sample["role"] == "Viewer"
 
-            # check dependencies: Free -> Viewer
-            if result["plan"] == "Free":
-                assert result["role"] == "Viewer", "Free plan should have Viewer role"
-
-            # check trace has 2 steps (StructureSampler is multiplier, doesn't appear in per-item trace)
-            assert len(trace) == 2, f"Expected 2 trace steps, got {len(trace)}"
-
-            step_types = [step.block_type for step in trace]
-            assert step_types == [
-                "SemanticInfiller",
-                "DuplicateRemover",
-            ], f"Unexpected trace steps: {step_types}"
-
-            # verify trace_id is valid
-            assert isinstance(trace_id, str)
-            assert len(trace_id) > 0
+        # verify trace has 3 blocks (batch mode)
+        trace = result.trace
+        assert len(trace) == 3, f"Expected 3 blocks in trace, got {len(trace)}"
+        assert trace[0].block_type == "StructureSampler"
+        assert trace[1].block_type == "SemanticInfiller"
+        assert trace[2].block_type == "DuplicateRemover"
 
         print("\n✅ All integration tests passed!")
-        print(f"Generated {len(results)} records successfully")
+        print(f"Generated {len(samples)} records successfully")
 
         # print sample result for inspection
-        sample = results[0].result
+        sample = samples[0]
         print("\nSample result:")
         print(f"  plan: {sample['plan']}")
         print(f"  role: {sample['role']}")
         print(f"  storage: {sample['storage']}")
         print(f"  bio: {sample['bio']}")
         print(f"  is_duplicate: {sample['is_duplicate']}")
-        print(f"  similarity_score: {sample['similarity_score']}")
 
     finally:
         await storage.close()
@@ -180,7 +167,7 @@ async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, 
 
 @pytest.mark.asyncio
 async def test_structure_sampler_alone(tmp_path):
-    """test StructureSampler block in isolation"""
+    """test StructureSampler block in isolation (batch mode)"""
 
     db_path = tmp_path / "test.db"
     storage = Storage(str(db_path))
@@ -214,15 +201,18 @@ async def test_structure_sampler_alone(tmp_path):
             ]
         }
 
-        results = await pipeline.execute(initial_data)
+        result = await pipeline.execute(initial_data)
 
-        assert isinstance(results, list)
-        assert len(results) == 10
+        # verify batch mode (single ExecutionResult)
+        assert hasattr(result, "result"), "Should return ExecutionResult"
+
+        skeletons = result.result.get("skeletons", [])
+        assert len(skeletons) == 10, f"Expected 10 skeletons, got {len(skeletons)}"
 
         # check distribution approximately matches input (2 Free, 1 Pro = 67% Free, 33% Pro)
         plan_counts = {"Free": 0, "Pro": 0}
-        for exec_result in results:
-            plan_counts[exec_result.result["plan"]] += 1
+        for skeleton in skeletons:
+            plan_counts[skeleton["plan"]] += 1
 
         # expect approximately 6-7 Free, 3-4 Pro (with seed=42, should be deterministic)
         assert 5 <= plan_counts["Free"] <= 8, f"Free count out of range: {plan_counts['Free']}"
@@ -235,8 +225,35 @@ async def test_structure_sampler_alone(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_data_augmentation_with_no_embedding_model(tmp_path):
+@patch("litellm.acompletion")
+@patch("app.llm_config_manager")
+async def test_data_augmentation_with_no_embedding_model(
+    mock_config_manager, mock_completion, tmp_path
+):
     """test that DuplicateRemover gracefully handles missing embedding model"""
+
+    # setup mocks for LLM calls
+    mock_config_manager.get_llm_model = AsyncMock(
+        return_value=LLMModelConfig(
+            name="test",
+            provider=LLMProvider.OPENAI,
+            endpoint="http://test",
+            model_name="gpt-4",
+        )
+    )
+    mock_config_manager.prepare_llm_call = MagicMock(
+        return_value={"model": "gpt-4", "messages": []}
+    )
+    # mock embedding model to fail (simulates no embedding model configured)
+    mock_config_manager.get_embedding_model = AsyncMock(
+        side_effect=Exception("Embedding model not configured")
+    )
+
+    # mock LLM response
+    mock_completion.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='{"bio": "Test bio"}'))],
+        usage=MagicMock(prompt_tokens=100, completion_tokens=50, cache_read_input_tokens=0),
+    )
 
     db_path = tmp_path / "test.db"
     storage = Storage(str(db_path))
@@ -256,10 +273,19 @@ async def test_data_augmentation_with_no_embedding_model(tmp_path):
                     },
                 },
                 {
+                    "type": "SemanticInfiller",
+                    "config": {
+                        "fields_to_generate": '["bio"]',
+                        "temperature": 0.8,
+                        "max_tokens": 200,
+                        "model": None,
+                    },
+                },
+                {
                     "type": "DuplicateRemover",
                     "config": {
                         "similarity_threshold": 0.85,
-                        "comparison_fields": ["plan"],
+                        "comparison_fields": ["bio"],
                         "embedding_model": "non_existent_model",
                     },
                 },
@@ -270,18 +296,22 @@ async def test_data_augmentation_with_no_embedding_model(tmp_path):
         assert pipeline_id > 0
         pipeline = Pipeline("test_no_embedding", pipeline_def["blocks"])
 
-        initial_data = {"samples": [{"plan": "Free"}]}
+        initial_data = {"samples": [{"plan": "Free", "bio": "Original"}]}
 
         # should not raise error, just skip similarity check
-        results = await pipeline.execute(initial_data)
+        result = await pipeline.execute(initial_data)
 
-        assert isinstance(results, list)
-        assert len(results) == 3
+        # verify batch mode (single ExecutionResult)
+        assert hasattr(result, "result"), "Should return ExecutionResult"
 
-        for exec_result in results:
+        samples = result.result.get("generated_samples", [])
+        assert len(samples) == 3
+
+        for sample in samples:
             # should have is_duplicate = False when embedding check fails
-            assert exec_result.result["is_duplicate"] is False
-            assert exec_result.result["similarity_score"] == 0.0
+            assert sample["is_duplicate"] is False
+            assert sample["similarity_to_seeds"] == 0.0
+            assert sample["similarity_to_generated"] == 0.0
 
         print("\n✅ No embedding model test passed!")
 

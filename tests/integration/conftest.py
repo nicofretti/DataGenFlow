@@ -1,4 +1,5 @@
 """Test fixtures for e2e tests with real LLM/embedding models"""
+
 import pytest_asyncio
 
 from lib.entities import EmbeddingModelConfig, LLMModelConfig, LLMProvider
@@ -10,6 +11,7 @@ async def e2e_storage():
     """create test database with real LLM and embedding model configs"""
     # ensure data directory exists
     import os
+
     os.makedirs("data", exist_ok=True)
 
     storage = Storage("data/test_e2e_records.db")
@@ -44,5 +46,6 @@ async def e2e_storage():
     finally:
         # ensure cleanup happens even if close() fails
         import os
+
         if os.path.exists("data/test_e2e_records.db"):
             os.remove("data/test_e2e_records.db")

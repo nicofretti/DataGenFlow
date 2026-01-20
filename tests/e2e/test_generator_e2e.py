@@ -3,11 +3,13 @@ e2e tests for generator page.
 tests job creation, file upload, and progress monitoring workflows.
 """
 
-from playwright.sync_api import sync_playwright, expect
-import time
 import json
 import os
-from test_helpers import cleanup_database, wait_for_server, get_headless_mode
+import time
+
+from playwright.sync_api import expect, sync_playwright
+
+from .test_helpers import cleanup_database, get_headless_mode, wait_for_server
 
 
 def test_generator_page_loads():
@@ -171,7 +173,7 @@ def test_start_generation_job():
 
             # verify job progress appears
             # look for progress indicators
-            progress_elements = page.get_by_text("Progress", exact=False).or_(
+            page.get_by_text("Progress", exact=False).or_(
                 page.get_by_text("Generated", exact=False)
             )
 
@@ -196,7 +198,7 @@ def test_job_progress_monitoring():
 
         # look for job progress section (may or may not be running)
         # check for progress bar, percentage, or status indicators
-        progress_indicators = (
+        (
             page.locator('[role="progressbar"]')
             .or_(page.locator(".progress, .Progress"))
             .or_(page.get_by_text("%", exact=False))

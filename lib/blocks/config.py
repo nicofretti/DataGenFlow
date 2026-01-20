@@ -57,7 +57,13 @@ class BlockConfigSchema:
 
             param_type = type_hints.get(param_name, str)
             property_def, is_required = BlockConfigSchema._build_property(
-                param_name, param, param_type, enum_values, field_refs, field_descriptions, field_formats
+                param_name,
+                param,
+                param_type,
+                enum_values,
+                field_refs,
+                field_descriptions,
+                field_formats,
             )
 
             properties[param_name] = property_def

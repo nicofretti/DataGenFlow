@@ -88,7 +88,7 @@ disable_error_code = ["import-untyped"]
 module = "lib.blocks.builtin.ragas_metrics"
 
 [tool.pytest.ini_options]
-addopts = "-m 'not integration' --tb=short --ignore=scripts/"
+addopts = "-m 'not integration' --tb=short --ignore=scripts/ --ignore=tests/e2e/"
 asyncio_mode = "strict"
 markers = [
   "integration: integration tests requiring external services (ollama, etc) - only run when explicitly called",

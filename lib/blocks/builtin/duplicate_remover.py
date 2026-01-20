@@ -3,7 +3,7 @@ from typing import Any
 
 import litellm
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
 
 from lib.blocks.base import BaseBlock
 from lib.blocks.commons.template_utils import (
@@ -23,13 +23,13 @@ class DuplicateRemover(BaseBlock):
     description = "Flag records similar to reference dataset using embedding-based similarity"
     category = "validators"
     inputs = ["samples"]
-    outputs = ["samples"]
+    outputs = ["generated_samples"]
 
     _config_descriptions = {
         "similarity_threshold": "Similarity threshold (0.0-1.0). Above = duplicate.",
         "comparison_fields": (
             'JSON array or Jinja template. Examples: ["name", "bio"] or '
-            '{{ comparison_fields | tojson }} (leave empty to compare all text fields)'
+            "{{ comparison_fields | tojson }} (leave empty to compare all text fields)"
         ),
         "embedding_model": (
             "Embedding model to use (leave empty for default). Skips check if no model configured."
@@ -47,7 +47,9 @@ class DuplicateRemover(BaseBlock):
         embedding_model: str | None = None,
     ):
         self.similarity_threshold = similarity_threshold
-        self.comparison_fields_template = normalize_template_param(comparison_fields, list) if comparison_fields else ""
+        self.comparison_fields_template = (
+            normalize_template_param(comparison_fields, list) if comparison_fields else ""
+        )
         self.embedding_model_name = embedding_model
 
         # cache reference embeddings per trace_id (one cache per pipeline execution)
@@ -75,7 +77,7 @@ class DuplicateRemover(BaseBlock):
 
     async def _get_seed_embeddings(
         self,
-        seed_samples: list[dict],
+        seed_samples: list[dict[str, Any]],
         comparison_fields: list[str] | None,
         embedding_config: Any,
         trace_id: str,
@@ -97,7 +99,8 @@ class DuplicateRemover(BaseBlock):
             return []
 
         embedding_params = llm_config_manager._prepare_embedding_call(
-            embedding_config, input_text=seed_texts
+            embedding_config,
+            input_text=seed_texts,  # type: ignore[arg-type]
         )
         response = await litellm.aembedding(**embedding_params)
 
@@ -109,10 +112,10 @@ class DuplicateRemover(BaseBlock):
 
     def _compute_similarities(
         self,
-        samples: list[dict],
+        samples: list[dict[str, Any]],
         sample_embeddings: list[list[float]],
         seed_embeddings: list[list[float]],
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """compute dual similarity scores for each sample"""
         n = len(sample_embeddings)
 
@@ -128,36 +131,38 @@ class DuplicateRemover(BaseBlock):
         else:
             similarity_to_generated = np.zeros(n)
 
-        # enrich samples
+        # enrich samples (strip internal fields like _usage, _hints)
         enriched = []
         for i, sample in enumerate(samples):
             sim_to_seeds = float(similarity_to_seeds[i])
             sim_to_generated = float(similarity_to_generated[i])
 
-            enriched.append({
-                **sample,
-                "similarity_to_seeds": round(sim_to_seeds, 4),
-                "similarity_to_generated": round(sim_to_generated, 4),
-                "is_duplicate": (
-                    sim_to_seeds >= self.similarity_threshold
-                    or sim_to_generated >= self.similarity_threshold
-                ),
-            })
+            enriched.append(
+                {
+                    **clean_internal_fields(sample),
+                    "similarity_to_seeds": round(sim_to_seeds, 4),
+                    "similarity_to_generated": round(sim_to_generated, 4),
+                    "is_duplicate": (
+                        sim_to_seeds >= self.similarity_threshold
+                        or sim_to_generated >= self.similarity_threshold
+                    ),
+                }
+            )
 
         return enriched
 
-    def _add_default_similarity(self, samples: list[dict]) -> dict[str, Any]:
+    def _add_default_similarity(self, samples: list[dict[str, Any]]) -> dict[str, Any]:
         """add default similarity values when embeddings unavailable"""
         enriched = [
             {
-                **sample,
+                **clean_internal_fields(sample),
                 "similarity_to_seeds": 0.0,
                 "similarity_to_generated": 0.0,
                 "is_duplicate": False,
             }
             for sample in samples
         ]
-        return {"samples": enriched}
+        return {"generated_samples": enriched}
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         from app import llm_config_manager
@@ -178,8 +183,11 @@ class DuplicateRemover(BaseBlock):
             )
             validate_string_list(comparison_fields, "comparison_fields")
 
-        # get seed samples
-        seed_samples = context.get_state("samples", [])
+        # get original seed samples (preserved by StructureSampler as _seed_samples)
+        seed_samples = context.get_state("_seed_samples", [])
+        if not seed_samples:
+            # fallback to samples from metadata (for standalone use)
+            seed_samples = context.get_state("samples", [])
         if not seed_samples:
             logger.warning("No seed samples for duplicate checking")
             return self._add_default_similarity(samples)
@@ -197,8 +205,7 @@ class DuplicateRemover(BaseBlock):
 
             # get batch embeddings for generated samples
             sample_texts = [
-                self._extract_text(clean_internal_fields(s), comparison_fields)
-                for s in samples
+                self._extract_text(clean_internal_fields(s), comparison_fields) for s in samples
             ]
             sample_texts = [t for t in sample_texts if t]
 
@@ -207,7 +214,8 @@ class DuplicateRemover(BaseBlock):
 
             # embed all generated samples at once
             embedding_params = llm_config_manager._prepare_embedding_call(
-                embedding_config, input_text=sample_texts
+                embedding_config,
+                input_text=sample_texts,  # type: ignore[arg-type]
             )
             response = await litellm.aembedding(**embedding_params)
             sample_embeddings = [item["embedding"] for item in response.data]
@@ -224,7 +232,7 @@ class DuplicateRemover(BaseBlock):
                 f"Found {sum(1 for s in enriched_samples if s['is_duplicate'])} duplicates."
             )
 
-            return {"samples": enriched_samples}
+            return {"generated_samples": enriched_samples}
 
         except Exception as e:
             logger.warning(f"Embedding check failed: {e}. Skipping.")

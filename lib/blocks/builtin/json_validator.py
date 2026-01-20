@@ -20,7 +20,7 @@ class JSONValidatorBlock(BaseBlock):
     _config_descriptions = {
         "required_fields": (
             'JSON array or Jinja template. Examples: ["name", "email"] or '
-            '{{ required_fields | tojson }} (leave empty for none)'
+            "{{ required_fields | tojson }} (leave empty for none)"
         )
     }
 

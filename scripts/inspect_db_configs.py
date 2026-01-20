@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Inspect LLM and embedding configurations in database"""
+
 import asyncio
 import sys
 from pathlib import Path
@@ -8,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import aiosqlite
+
 from lib.storage import Storage
 
 
@@ -18,6 +20,7 @@ async def main():
     # get LLM models
     print("=== LLM Models ===")
     llm_models = []
+
     async def get_llm_models(db):
         db.row_factory = aiosqlite.Row
         cursor = await db.execute("SELECT * FROM llm_models")
@@ -31,6 +34,7 @@ async def main():
 
     print("\n=== Embedding Models ===")
     embedding_models = []
+
     async def get_embedding_models(db):
         db.row_factory = aiosqlite.Row
         cursor = await db.execute("SELECT * FROM embedding_models")

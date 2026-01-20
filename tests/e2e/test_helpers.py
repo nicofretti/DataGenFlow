@@ -3,9 +3,10 @@ helper functions for e2e tests.
 handles database cleanup and initialization.
 """
 
-import httpx
-import time
 import os
+import time
+
+import httpx
 
 
 def get_headless_mode():
@@ -28,10 +29,7 @@ def cleanup_database():
 
             # delete each pipeline
             for pipeline in pipelines:
-                httpx.delete(
-                    f"{base_url}/api/pipelines/{pipeline['id']}",
-                    timeout=10.0
-                )
+                httpx.delete(f"{base_url}/api/pipelines/{pipeline['id']}", timeout=10.0)
 
         time.sleep(0.5)  # wait for cleanup to complete
 
@@ -41,8 +39,8 @@ def cleanup_database():
 
 def wait_for_server(url: str = "http://localhost:8000/health", timeout: int = 30):
     """wait for server to be ready"""
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -62,6 +60,6 @@ def get_pipeline_count():
         response = httpx.get("http://localhost:8000/api/pipelines", timeout=10.0)
         if response.status_code == 200:
             return len(response.json())
-    except:
+    except Exception:
         pass
     return -1

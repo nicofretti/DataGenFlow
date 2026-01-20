@@ -3,7 +3,7 @@
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, cast
 
 from lib.errors import BlockExecutionError
 from lib.template_renderer import render_template
@@ -44,7 +44,7 @@ def render_and_parse_json(
     return parsed
 
 
-def validate_string_list(value: list, field_name: str) -> None:
+def validate_string_list(value: list[Any], field_name: str) -> None:
     """validate that all items in list are strings"""
     if not all(isinstance(item, str) for item in value):
         raise BlockExecutionError(
@@ -70,7 +70,7 @@ def parse_llm_json_response(content: str, field_name: str) -> dict[str, Any]:
     """
     # strategy 1: direct parse
     try:
-        return json.loads(content)
+        return cast(dict[str, Any], json.loads(content))
     except json.JSONDecodeError:
         pass
 
@@ -78,7 +78,7 @@ def parse_llm_json_response(content: str, field_name: str) -> dict[str, Any]:
     markdown_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL)
     if markdown_match:
         try:
-            return json.loads(markdown_match.group(1))
+            return cast(dict[str, Any], json.loads(markdown_match.group(1)))
         except json.JSONDecodeError:
             pass
 
@@ -86,7 +86,7 @@ def parse_llm_json_response(content: str, field_name: str) -> dict[str, Any]:
     json_match = re.search(r"\{.*\}", content, re.DOTALL)
     if json_match:
         try:
-            return json.loads(json_match.group(0))
+            return cast(dict[str, Any], json.loads(json_match.group(0)))
         except json.JSONDecodeError:
             pass
 
@@ -101,11 +101,7 @@ def clean_internal_fields(state: dict[str, Any]) -> dict[str, Any]:
     remove internal fields (_usage, _hints, etc) from state
     returns new dict without mutation
     """
-    return {
-        key: value
-        for key, value in state.items()
-        if not key.startswith("_")
-    }
+    return {key: value for key, value in state.items() if not key.startswith("_")}
 
 
 def clean_metadata_fields(state: dict[str, Any]) -> dict[str, Any]:
@@ -121,12 +117,9 @@ def clean_metadata_fields(state: dict[str, Any]) -> dict[str, Any]:
         "dependencies",
         "comparison_fields",
         "similarity_threshold",
+        "fields_to_generate",
     }
-    return {
-        key: value
-        for key, value in state.items()
-        if key not in metadata_fields
-    }
+    return {key: value for key, value in state.items() if key not in metadata_fields}
 
 
 def render_template_or_return_default(

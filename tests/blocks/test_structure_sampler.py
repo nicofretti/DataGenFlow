@@ -251,7 +251,7 @@ class TestStructureSamplerSchema:
         schema = StructureSampler.get_schema()
         assert schema["name"] == "Structure Sampler"
         assert schema["category"] == "seeders"
-        assert schema["outputs"] == ["skeletons"]
+        assert schema["outputs"] == ["skeletons", "_seed_samples"]
 
     def test_schema_has_required_configs(self):
         schema = StructureSampler.get_schema()

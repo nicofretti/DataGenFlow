@@ -1,4 +1,5 @@
 """tests for template_renderer module"""
+
 import pytest
 
 from lib.template_renderer import render_template
@@ -80,7 +81,7 @@ def test_tojson_filter_error_includes_variable_name():
 
 def test_tojson_filter_nested_in_complex_template():
     """test tojson filter in a realistic template like StructureSampler uses"""
-    template = '{{ fields | tojson }}'
+    template = "{{ fields | tojson }}"
 
     # with defined variable - should work
     context = {"fields": ["field1", "field2"]}

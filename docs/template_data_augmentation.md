@@ -46,11 +46,11 @@ This template creates realistic synthetic records from sample data while maintai
 
 Input: samples array
   ↓
-+ category, generation_hints (multiplies: 1 seed → N skeletons)
++ category, _hints (multiplies: 1 seed → N skeletons)
   ↓
 + description, price (LLM-generated fields)
   ↓
-+ is_duplicate, similarity_score
++ is_duplicate, similarity_to_seeds, similarity_to_generated
 ```
 
 **Blocks:**
@@ -109,27 +109,36 @@ Input: samples array
 
 ## Output Format
 
+The pipeline outputs a `generated_samples` array containing the final records.
+
 Each generated record contains:
 - Sampled categorical fields (preserving distribution)
-- Sampled or generated numeric fields
 - LLM-generated semantic fields
 - Duplicate detection metadata
 
 **Example output:**
 ```json
 {
-  "category": "electronics",
-  "price": 449,
-  "description": "Bluetooth speaker with 360-degree sound and waterproof design",
-  "is_duplicate": false,
-  "similarity_score": 0.68
+  "generated_samples": [
+    {
+      "category": "electronics",
+      "price": 449,
+      "description": "Bluetooth speaker with 360-degree sound and waterproof design",
+      "is_duplicate": false,
+      "similarity_to_seeds": 0.45,
+      "similarity_to_generated": 0.42
+    }
+  ]
 }
 ```
 
-**Output contains only:**
+**Each record contains:**
 - Sampled categorical fields (`category`)
 - LLM-generated fields (`price`, `description`)
-- Duplicate detection metadata (`is_duplicate`, `similarity_score`)
+- Duplicate detection metadata:
+  - `similarity_to_seeds`: highest similarity to original seed samples
+  - `similarity_to_generated`: highest similarity to other generated records
+  - `is_duplicate`: true if either similarity exceeds threshold
 
 **Note:** Input configuration fields like `samples`, `target_count`, `categorical_fields`, etc. are NOT included in the output.
 
@@ -139,8 +148,8 @@ Each generated record contains:
 
 **What it does:**
 - Analyzes sample data to learn categorical frequencies
-- Computes numeric statistics (mean, std, min, max)
-- Detects field dependencies (e.g., role depends on plan)
+- Computes numeric statistics (min, max, mean) for range hints
+- Respects field dependencies (e.g., role depends on plan)
 - Generates N skeletons respecting learned distributions
 
 **Example:** If samples show "Free" plan 40% and "Pro" 30%, generated skeletons maintain these ratios.
@@ -148,13 +157,12 @@ Each generated record contains:
 **Output per skeleton:**
 ```json
 {
-  "plan": "Pro",
-  "role": "Editor",
-  "storage": 75,
-  "generation_hints": {
-    "numeric_ranges": {"storage": {"mean": 50.5, "std": 30.2}},
-    "matching_exemplars": [
-      {"plan": "Pro", "role": "Editor", "storage": 50, "bio": "Freelance designer"}
+  "category": "electronics",
+  "_hints": {
+    "price_range": [199.0, 899.0],
+    "exemplars": [
+      {"category": "electronics", "price": 299, "description": "Wireless headphones"},
+      {"category": "electronics", "price": 899, "description": "13-inch laptop"}
     ]
   }
 }
@@ -172,19 +180,19 @@ Each generated record contains:
 ```text
 You are a data generator. Complete the following record skeleton.
 
-Skeleton: {plan: "Pro", role: "Editor", storage: 75}
+Skeleton: {category: "electronics"}
 
 Numeric hints:
-- storage: mean=50.5, std=30.2, range=[1,500]
+- price should be between 199-899
 
 Matching examples:
-- {plan: "Pro", role: "Editor", storage: 50, bio: "Freelance designer"}
+- {category: "electronics", price: 299, description: "Wireless headphones"}
 
-Generate: ["bio", "storage"]
-Return JSON: {"bio": "...", "storage": 75}
+Generate: ["description", "price"]
+Return JSON: {"description": "...", "price": ...}
 ```
 
-**Locked fields behavior:** If skeleton has `storage: 75` but `fields_to_generate` includes "storage", the LLM generates it but SemanticInfiller restores the original value to preserve statistical sampling.
+**Locked fields behavior:** Categorical fields sampled by StructureSampler (e.g., `category`) are preserved even if the LLM tries to modify them.
 
 ### Stage 3: DuplicateRemover (Similarity Filtering)
 
@@ -197,16 +205,21 @@ Return JSON: {"bio": "...", "storage": 75}
 **Output:**
 ```json
 {
-  "plan": "Pro",
-  "role": "Editor",
-  "storage": 75,
-  "bio": "Product designer with 5 years experience",
+  "category": "electronics",
+  "price": 549,
+  "description": "Portable bluetooth speaker with waterproof design",
   "is_duplicate": false,
-  "similarity_score": 0.72
+  "similarity_to_seeds": 0.72,
+  "similarity_to_generated": 0.45
 }
 ```
 
-> **Note:** DuplicateRemover gracefully degrades if embedding model is unavailable - marks all records as `is_duplicate: false`.
+**Output fields:**
+- `similarity_to_seeds`: highest similarity to any original sample
+- `similarity_to_generated`: highest similarity to previously generated records
+- `is_duplicate`: true if either similarity exceeds threshold
+
+> **Note:** DuplicateRemover gracefully degrades if embedding model is unavailable - marks all records as `is_duplicate: false` with similarity scores of 0.0.
 
 ## Use Cases
 
@@ -265,8 +278,9 @@ Records marked as `is_duplicate: true` should be filtered post-generation:
 
 **Via API:**
 ```python
-records = await storage.get_all(job_id=job_id)
-unique_records = [r for r in records if not r.output.get("is_duplicate")]
+result = await pipeline.execute(seed_data)
+generated = result.result.get("generated_samples", [])
+unique_records = [r for r in generated if not r.get("is_duplicate")]
 ```
 
 **Via export (manual filter):**
@@ -274,11 +288,11 @@ unique_records = [r for r in records if not r.output.get("is_duplicate")]
 # Export all records
 curl http://localhost:8000/api/export?job_id=1 > output.jsonl
 
-# Filter duplicates
-jq 'select(.is_duplicate == false)' output.jsonl > unique.jsonl
+# Filter duplicates from generated_samples
+jq '.generated_samples[] | select(.is_duplicate == false)' output.jsonl > unique.jsonl
 ```
 
-> **Note:** Keeping duplicates in the trace allows adjusting the threshold post-generation and analyzing similarity score distribution.
+> **Note:** Keeping duplicates in the trace allows adjusting the threshold post-generation and analyzing similarity score distributions (`similarity_to_seeds` and `similarity_to_generated`).
 
 ## Tuning Parameters
 

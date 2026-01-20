@@ -30,7 +30,7 @@ class StructuredGenerator(BaseBlock):
         ),
         "json_schema": (
             'JSON object or Jinja template. Example: {"type": "object", "properties": {...}} or '
-            '{{ json_schema | tojson }}'
+            "{{ json_schema | tojson }}"
         ),
     }
 

@@ -3,9 +3,11 @@ e2e tests for pipelines page.
 tests pipeline creation, editing, and deletion workflows.
 """
 
-from playwright.sync_api import sync_playwright, expect
 import time
-from test_helpers import cleanup_database, wait_for_server, get_headless_mode
+
+from playwright.sync_api import expect, sync_playwright
+
+from .test_helpers import cleanup_database, get_headless_mode, wait_for_server
 
 
 def test_pipelines_page_loads():
@@ -50,9 +52,11 @@ def test_view_templates():
 
         # check for template-related content or buttons
         # look for "Use Template" buttons or template names
-        use_template_buttons = page.get_by_role("button").filter(
-            has_text="Use Template"
-        ).or_(page.get_by_role("button").filter(has_text="Create from Template"))
+        use_template_buttons = (
+            page.get_by_role("button")
+            .filter(has_text="Use Template")
+            .or_(page.get_by_role("button").filter(has_text="Create from Template"))
+        )
 
         # take screenshot first for debugging
         page.screenshot(path="/tmp/templates_view.png", full_page=True)
@@ -81,9 +85,11 @@ def test_create_pipeline_from_template():
 
         # find and click the first template's create button
         # look for buttons with text "Use Template" or similar
-        create_buttons = page.get_by_role("button").filter(
-            has_text="Use Template"
-        ).or_(page.get_by_role("button").filter(has_text="Create"))
+        create_buttons = (
+            page.get_by_role("button")
+            .filter(has_text="Use Template")
+            .or_(page.get_by_role("button").filter(has_text="Create"))
+        )
 
         if create_buttons.count() > 0:
             first_button = create_buttons.first
@@ -133,7 +139,7 @@ def test_delete_pipeline():
             page.get_by_role("button")
             .filter(has_text="Delete")
             .or_(page.locator('button[aria-label*="Delete"]'))
-            .or_(page.locator('button:has(svg)'))
+            .or_(page.locator("button:has(svg)"))
         )
 
         initial_count = delete_buttons.count()
