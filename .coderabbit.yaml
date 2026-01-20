@@ -14,6 +14,9 @@ reviews:
     enabled: true
     auto_incremental_review: true
     ignore_title_keywords: []
+    branches:
+      - "main"
+      - "develop"
     
   # Path-based instructions
   path_instructions:
