@@ -15,40 +15,41 @@ from lib.storage import Storage
 
 async def main():
     storage = Storage("data/qa_records.db")
-    await storage.init_db()
+    try:
+        await storage.init_db()
 
-    # get LLM models
-    print("=== LLM Models ===")
-    llm_models = []
+        # get LLM models
+        print("=== LLM Models ===")
+        llm_models = []
 
-    async def get_llm_models(db):
-        db.row_factory = aiosqlite.Row
-        cursor = await db.execute("SELECT * FROM llm_models")
-        return await cursor.fetchall()
+        async def get_llm_models(db):
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM llm_models")
+            return await cursor.fetchall()
 
-    llm_rows = await storage._execute_with_connection(get_llm_models)
-    for row in llm_rows:
-        model_dict = {key: row[key] for key in row.keys()}
-        print(model_dict)
-        llm_models.append(model_dict)
+        llm_rows = await storage._execute_with_connection(get_llm_models)
+        for row in llm_rows:
+            model_dict = {key: row[key] for key in row.keys()}
+            print(model_dict)
+            llm_models.append(model_dict)
 
-    print("\n=== Embedding Models ===")
-    embedding_models = []
+        print("\n=== Embedding Models ===")
+        embedding_models = []
 
-    async def get_embedding_models(db):
-        db.row_factory = aiosqlite.Row
-        cursor = await db.execute("SELECT * FROM embedding_models")
-        return await cursor.fetchall()
+        async def get_embedding_models(db):
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM embedding_models")
+            return await cursor.fetchall()
 
-    emb_rows = await storage._execute_with_connection(get_embedding_models)
-    for row in emb_rows:
-        model_dict = {key: row[key] for key in row.keys()}
-        print(model_dict)
-        embedding_models.append(model_dict)
+        emb_rows = await storage._execute_with_connection(get_embedding_models)
+        for row in emb_rows:
+            model_dict = {key: row[key] for key in row.keys()}
+            print(model_dict)
+            embedding_models.append(model_dict)
 
-    await storage.close()
-
-    return llm_models, embedding_models
+        return llm_models, embedding_models
+    finally:
+        await storage.close()
 
 
 if __name__ == "__main__":

@@ -227,7 +227,9 @@ class SemanticInfiller(BaseBlock):
 
     def _cosine_similarity(self, vec1: list[float], vec2: list[float]) -> float:
         """compute cosine similarity between two vectors"""
-        dot = sum(a * b for a, b in zip(vec1, vec2))
+        if len(vec1) != len(vec2):
+            raise ValueError(f"Vector dimensions must match: {len(vec1)} vs {len(vec2)}")
+        dot = sum(a * b for a, b in zip(vec1, vec2, strict=True))
         norm1 = sum(a * a for a in vec1) ** 0.5
         norm2 = sum(b * b for b in vec2) ** 0.5
         if norm1 == 0 or norm2 == 0:

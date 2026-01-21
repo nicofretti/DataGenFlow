@@ -387,6 +387,7 @@ class BaseBlock:
     _config_enums: dict[str, list[str]]      # enum dropdown options
     _field_references: list[str]              # field reference dropdowns
     _config_descriptions: dict[str, str]      # inline help text
+    _config_formats: dict[str, str]           # json schema format hints
 
     async def execute(context: BlockExecutionContext) -> dict:
         # receives typed execution context instead of plain dict
@@ -413,6 +414,7 @@ class BaseBlock:
 - `_config_enums` → enum arrays in schema
 - `_field_references` → isFieldReference: true in schema
 - `_config_descriptions` → description fields in schema
+- `_config_formats` → format field in schema (e.g., "json-or-template" for hybrid json/jinja editors)
 
 ### builtin blocks
 - **StructureSampler**: statistical sampler (target_count, categorical_fields, numeric_fields, dependencies, seed)

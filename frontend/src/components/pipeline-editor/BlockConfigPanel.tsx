@@ -253,14 +253,18 @@ export default function BlockConfigPanel({
 
     // llm model dropdown
     if (key === "model" && llmModels.length > 0) {
+      const currentValue = typeof value === "string" ? value : "";
+      // preserve custom model names not returned by API
+      const modelOptions =
+        currentValue && !llmModels.includes(currentValue) ? [currentValue, ...llmModels] : llmModels;
       return (
         <Select
-          value={value || ""}
+          value={currentValue}
           onChange={(e) => handleChange(key, e.target.value || null)}
           sx={{ width: "100%" }}
         >
           <Select.Option value="">-- Use default model --</Select.Option>
-          {llmModels.map((modelName: string) => (
+          {modelOptions.map((modelName: string) => (
             <Select.Option key={modelName} value={modelName}>
               {modelName}
             </Select.Option>
@@ -271,14 +275,20 @@ export default function BlockConfigPanel({
 
     // embedding model dropdown
     if (key === "embedding_model" && embeddingModels.length > 0) {
+      const currentValue = typeof value === "string" ? value : "";
+      // preserve custom model names not returned by API
+      const modelOptions =
+        currentValue && !embeddingModels.includes(currentValue)
+          ? [currentValue, ...embeddingModels]
+          : embeddingModels;
       return (
         <Select
-          value={value || ""}
+          value={currentValue}
           onChange={(e) => handleChange(key, e.target.value || null)}
           sx={{ width: "100%" }}
         >
           <Select.Option value="">-- Use default model --</Select.Option>
-          {embeddingModels.map((modelName: string) => (
+          {modelOptions.map((modelName: string) => (
             <Select.Option key={modelName} value={modelName}>
               {modelName}
             </Select.Option>

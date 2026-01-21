@@ -357,8 +357,9 @@ export default function Generator() {
       <Box sx={{ mb: 4 }}>
         <Heading sx={{ mb: 2, color: "fg.default" }}>Generate Records</Heading>
         <Text sx={{ color: "fg.default" }}>
-          Upload a JSON seed file with input data. Each seed will be executed through your pipeline
-          multiple times based on repetitions.
+          {needsMarkdown
+            ? "Upload a Markdown file with your content. The file will be processed through your pipeline."
+            : "Upload a JSON seed file with input data. Each seed will be executed through your pipeline multiple times based on repetitions."}
         </Text>
       </Box>
 

@@ -21,6 +21,7 @@ data/*.db-journal
 .idea/
 .claude/*
 !.claude/skills/
+!.claude/skills/**
 .worktrees/
 
 # cache

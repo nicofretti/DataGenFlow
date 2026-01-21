@@ -1,17 +1,19 @@
 """Test fixtures for e2e tests with real LLM/embedding models"""
 
+import os
+
 import pytest_asyncio
 
 from lib.entities import EmbeddingModelConfig, LLMModelConfig, LLMProvider
 from lib.storage import Storage
 
+# configurable ollama endpoint for different environments
+OLLAMA_ENDPOINT = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434")
+
 
 @pytest_asyncio.fixture
 async def e2e_storage():
     """create test database with real LLM and embedding model configs"""
-    # ensure data directory exists
-    import os
-
     os.makedirs("data", exist_ok=True)
 
     storage = Storage("data/test_e2e_records.db")
@@ -21,7 +23,7 @@ async def e2e_storage():
     llm_config = LLMModelConfig(
         name="default",
         provider=LLMProvider.OLLAMA,
-        endpoint="http://172.20.160.1:11434/v1/chat/completions",
+        endpoint=f"{OLLAMA_ENDPOINT}/v1/chat/completions",
         api_key="",
         model_name="gemma3:1b",
     )
@@ -31,7 +33,7 @@ async def e2e_storage():
     embedding_config = EmbeddingModelConfig(
         name="ollama-nomic",
         provider=LLMProvider.OLLAMA,
-        endpoint="http://172.20.160.1:11434/v1/embeddings",
+        endpoint=f"{OLLAMA_ENDPOINT}/v1/embeddings",
         api_key="",
         model_name="nomic-embed-text",
         dimensions=768,
@@ -44,8 +46,9 @@ async def e2e_storage():
     try:
         await storage.close()
     finally:
-        # ensure cleanup happens even if close() fails
-        import os
-
-        if os.path.exists("data/test_e2e_records.db"):
-            os.remove("data/test_e2e_records.db")
+        # clean up database and WAL files
+        db_path = "data/test_e2e_records.db"
+        for suffix in ("", "-wal", "-shm"):
+            path = db_path + suffix
+            if os.path.exists(path):
+                os.remove(path)

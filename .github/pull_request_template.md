@@ -23,4 +23,4 @@ Title Format: copy the one of the issue keep this format
 - [ ] `make format` passes
 - [ ] `make pre-merge` passes
 - [ ] PR update from develop branch
-- [ ] Ask CodeRabbit review addressed (comment `@coderabbitai review`)
+- [ ] CodeRabbit review requested and addressed (comment `@coderabbitai review`)

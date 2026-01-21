@@ -32,11 +32,10 @@ class ServerManager:
         for cmd, port in self.servers:
             print(f"  starting: {cmd} (port {port})")
             # use shell=True to support commands with cd and &&
+            # don't pipe stdout/stderr to avoid deadlock when buffers fill
             proc = subprocess.Popen(
                 cmd,
                 shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
                 preexec_fn=os.setsid,  # create process group for cleanup
             )
             self.processes.append((proc, port))

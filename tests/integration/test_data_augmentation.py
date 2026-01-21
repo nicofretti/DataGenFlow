@@ -79,7 +79,7 @@ async def test_data_augmentation_pipeline(mock_config_manager, mock_completion, 
         }
 
         # save pipeline to database
-        pipeline_id = await storage.save_pipeline("test_augmentation", json.dumps(pipeline_def))
+        pipeline_id = await storage.save_pipeline("test_augmentation", pipeline_def)
         assert pipeline_id > 0
 
         # create pipeline instance

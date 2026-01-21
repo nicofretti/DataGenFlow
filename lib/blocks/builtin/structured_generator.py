@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, ClassVar
 
 import litellm
 from jinja2 import Environment, meta
@@ -34,7 +34,7 @@ class StructuredGenerator(BaseBlock):
         ),
     }
 
-    _config_formats = {
+    _config_formats: ClassVar[dict[str, str]] = {
         "json_schema": "json-or-template",
     }
 
@@ -112,12 +112,12 @@ class StructuredGenerator(BaseBlock):
                 )
         except json.JSONDecodeError as e:
             raise BlockExecutionError(
-                f"json_schema must be valid JSON: {str(e)}",
+                f"json_schema must be valid JSON: {e!s}",
                 detail={
                     "template": self.json_schema_template,
                     "rendered": schema_rendered,
                 },
-            )
+            ) from e
 
         user_prompt = self._prepare_prompt(context.accumulated_state)
         messages = [{"role": "user", "content": user_prompt}]

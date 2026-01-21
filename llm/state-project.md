@@ -55,7 +55,8 @@ frontend/src/
 tests/
   conftest.py         # test db setup
   blocks/             # block unit tests
-  integration/        # end-to-end tests
+  integration/        # integration tests with external services
+  e2e/                # browser-based end-to-end tests (playwright)
   test_*.py           # api, workflow, storage, constraints, cancellation
 ```
 
@@ -89,6 +90,7 @@ class BaseBlock:
     outputs: list[str]
     _config_enums: dict[str, list] = {}      # dropdown options
     _field_references: list[str] = []        # field dropdowns
+    _config_formats: dict[str, str] = {}     # json schema format hints (e.g., "json-or-template")
 
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
         # must return only declared outputs

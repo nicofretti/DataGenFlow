@@ -20,21 +20,26 @@ def cleanup_database():
 
     try:
         # delete all records
-        httpx.delete(f"{base_url}/api/records", timeout=10.0)
+        resp = httpx.delete(f"{base_url}/api/records", timeout=10.0)
+        if resp.status_code >= 400:
+            raise RuntimeError(f"failed to delete records: {resp.status_code}")
 
         # get all pipelines
         response = httpx.get(f"{base_url}/api/pipelines", timeout=10.0)
-        if response.status_code == 200:
-            pipelines = response.json()
+        if response.status_code >= 400:
+            raise RuntimeError(f"failed to list pipelines: {response.status_code}")
+        pipelines = response.json()
 
-            # delete each pipeline
-            for pipeline in pipelines:
-                httpx.delete(f"{base_url}/api/pipelines/{pipeline['id']}", timeout=10.0)
+        # delete each pipeline
+        for pipeline in pipelines:
+            resp = httpx.delete(f"{base_url}/api/pipelines/{pipeline['id']}", timeout=10.0)
+            if resp.status_code >= 400:
+                raise RuntimeError(f"failed to delete pipeline {pipeline['id']}: {resp.status_code}")
 
         time.sleep(0.5)  # wait for cleanup to complete
 
     except Exception as e:
-        print(f"cleanup warning: {e}")
+        raise RuntimeError(f"cleanup failed: {e}") from e
 
 
 def wait_for_server(url: str = "http://localhost:8000/health", timeout: int = 30):
@@ -60,6 +65,6 @@ def get_pipeline_count():
         response = httpx.get("http://localhost:8000/api/pipelines", timeout=10.0)
         if response.status_code == 200:
             return len(response.json())
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"get_pipeline_count warning: {e}")
     return -1

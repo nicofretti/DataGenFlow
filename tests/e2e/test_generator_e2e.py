@@ -45,6 +45,7 @@ def test_select_pipeline():
 
         # find pipeline selector (dropdown or select)
         selectors = page.locator('select, [role="combobox"]').all()
+        assert len(selectors) > 0, "No pipeline selector found on page"
 
         if len(selectors) > 0:
             # click first selector
@@ -173,9 +174,10 @@ def test_start_generation_job():
 
             # verify job progress appears
             # look for progress indicators
-            page.get_by_text("Progress", exact=False).or_(
+            progress_indicator = page.get_by_text("Progress", exact=False).or_(
                 page.get_by_text("Generated", exact=False)
             )
+            assert progress_indicator.count() > 0, "Progress indicator should be visible"
 
             # take screenshot
             page.screenshot(path="/tmp/job_started.png", full_page=True)
@@ -196,16 +198,17 @@ def test_job_progress_monitoring():
         page.wait_for_load_state("networkidle")
         time.sleep(2)
 
-        # look for job progress section (may or may not be running)
-        # check for progress bar, percentage, or status indicators
-        (
+        # look for job progress section or upload UI
+        # check for progress bar, percentage, status indicators, or upload UI
+        progress_or_upload = (
             page.locator('[role="progressbar"]')
             .or_(page.locator(".progress, .Progress"))
             .or_(page.get_by_text("%", exact=False))
+            .or_(page.get_by_text("Upload", exact=False))
         )
 
-        # if a job is running, progress should be visible
-        # otherwise, the page should show upload/generate UI
+        # page should show either job progress or upload UI
+        assert progress_or_upload.count() > 0, "Page should show progress or upload UI"
         page.screenshot(path="/tmp/job_progress.png", full_page=True)
 
         browser.close()

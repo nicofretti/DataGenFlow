@@ -145,6 +145,7 @@ async def test_data_augmentation_pipeline_e2e_real(e2e_storage):
         app.llm_config_manager = original_manager
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_data_augmentation_pipeline_missing_fields_error():
     """test that pipeline fails with clear error when required fields are missing"""

@@ -22,7 +22,10 @@ def test_review_page_loads():
 
         # verify we're on review page
         # look for job selector or records section
-        page.get_by_text("Select Job", exact=False).or_(page.get_by_text("Records", exact=False))
+        job_or_records = page.get_by_text("Select Job", exact=False).or_(
+            page.get_by_text("Records", exact=False)
+        )
+        assert job_or_records.count() > 0, "Review page should show job selector or records section"
 
         # take screenshot
         page.screenshot(path="/tmp/review_page.png", full_page=True)
@@ -179,9 +182,10 @@ def test_expand_trace():
 
             # verify trace content is visible
             # look for block type, execution time, or trace data
-            page.get_by_text("block_type", exact=False).or_(
+            trace_content = page.get_by_text("block_type", exact=False).or_(
                 page.get_by_text("execution_time", exact=False)
             )
+            assert trace_content.count() > 0, "Trace should show block_type or execution_time"
 
             # take screenshot
             page.screenshot(path="/tmp/trace_expanded.png", full_page=True)

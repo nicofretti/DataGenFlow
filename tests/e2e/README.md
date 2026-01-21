@@ -267,7 +267,7 @@ file_input.set_input_files(seed_path)
 
 ## CI/CD Integration
 
-example github actions workflow:
+example GitHub Actions workflow:
 
 ```yaml
 name: E2E Tests
@@ -278,7 +278,7 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh

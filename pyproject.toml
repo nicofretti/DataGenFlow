@@ -23,7 +23,7 @@ dependencies = [
   "llama-index-core>=0.14.7",
   "anthropic>=0.73.0",
   "google-generativeai>=0.8.5",
-  "ragas>=0.2.0",
+  "ragas>=0.4.0",
   "pytest-timeout>=2.4.0",
   "langfuse==2.59.7",
   "instructor",
@@ -37,12 +37,6 @@ version = "0.1.0"
 [tool.setuptools.packages.find]
 exclude = ["ui*", "data*"]
 include = ["lib*"]
-
-[project.optional-dependencies]
-dev = [
-  "ruff>=0.7.0",
-  "mypy>=1.13.0",
-]
 
 [tool.ruff]
 line-length = 100
@@ -96,5 +90,7 @@ markers = [
 
 [dependency-groups]
 dev = [
+    "ruff>=0.7.0",
+    "mypy>=1.13.0",
     "playwright>=1.57.0",
 ]

@@ -5,6 +5,7 @@ tests pipeline creation, editing, and deletion workflows.
 
 import time
 
+import pytest
 from playwright.sync_api import expect, sync_playwright
 
 from .test_helpers import cleanup_database, get_headless_mode, wait_for_server
@@ -65,6 +66,9 @@ def test_view_templates():
         # otherwise page should at least load without error
         print(f"found {use_template_buttons.count()} template buttons")
 
+        # verify page loaded correctly
+        expect(page.get_by_text("Pipelines", exact=True)).to_be_visible()
+
         browser.close()
 
 
@@ -106,7 +110,8 @@ def test_create_pipeline_from_template():
             # take screenshot
             page.screenshot(path="/tmp/pipeline_created.png", full_page=True)
         else:
-            print("no template buttons found, skipping test")
+            browser.close()
+            pytest.skip("no template buttons found - templates may not be loaded")
 
         browser.close()
 
@@ -138,8 +143,8 @@ def test_delete_pipeline():
         delete_buttons = (
             page.get_by_role("button")
             .filter(has_text="Delete")
-            .or_(page.locator('button[aria-label*="Delete"]'))
-            .or_(page.locator("button:has(svg)"))
+            .or_(page.locator('button[aria-label*="Delete" i]'))
+            .or_(page.locator('button[aria-label*="delete" i]'))
         )
 
         initial_count = delete_buttons.count()
