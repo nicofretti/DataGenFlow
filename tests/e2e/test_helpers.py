@@ -34,7 +34,9 @@ def cleanup_database():
         for pipeline in pipelines:
             resp = httpx.delete(f"{base_url}/api/pipelines/{pipeline['id']}", timeout=10.0)
             if resp.status_code >= 400:
-                raise RuntimeError(f"failed to delete pipeline {pipeline['id']}: {resp.status_code}")
+                raise RuntimeError(
+                    f"failed to delete pipeline {pipeline['id']}: {resp.status_code}"
+                )
 
         time.sleep(0.5)  # wait for cleanup to complete
 

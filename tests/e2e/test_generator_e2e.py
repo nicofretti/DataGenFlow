@@ -9,7 +9,10 @@ import time
 
 from playwright.sync_api import expect, sync_playwright
 
-from .test_helpers import cleanup_database, get_headless_mode, wait_for_server
+try:
+    from .test_helpers import cleanup_database, get_headless_mode, wait_for_server
+except ImportError:
+    from test_helpers import cleanup_database, get_headless_mode, wait_for_server
 
 
 def test_generator_page_loads():
@@ -100,6 +103,8 @@ def test_upload_seed_file():
         # select pipeline
         selectors = page.locator("select").all()
         if len(selectors) > 0:
+            options = selectors[0].locator("option").all()
+            assert len(options) > 1, "No pipelines available; create one before running e2e tests"
             selectors[0].select_option(index=1)
             time.sleep(1)
 
@@ -149,6 +154,8 @@ def test_start_generation_job():
         # select pipeline
         selectors = page.locator("select").all()
         if len(selectors) > 0:
+            options = selectors[0].locator("option").all()
+            assert len(options) > 1, "No pipelines available; create one before running e2e tests"
             selectors[0].select_option(index=1)
             time.sleep(1)
 

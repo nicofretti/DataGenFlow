@@ -439,7 +439,7 @@ class BaseBlock:
   - outputs: valid, parsed_json
   - category: validators
 - **DuplicateRemover**: embedding-based similarity check (similarity_threshold, comparison_fields, embedding_model)
-  - outputs: *, is_duplicate, similarity_score
+  - outputs: *, is_duplicate, similarity_to_seeds, similarity_to_generated
   - category: validators
 - **DiversityScore**: lexical diversity (field_name)
   - outputs: diversity_score

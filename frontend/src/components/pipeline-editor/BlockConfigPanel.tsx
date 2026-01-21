@@ -256,7 +256,9 @@ export default function BlockConfigPanel({
       const currentValue = typeof value === "string" ? value : "";
       // preserve custom model names not returned by API
       const modelOptions =
-        currentValue && !llmModels.includes(currentValue) ? [currentValue, ...llmModels] : llmModels;
+        currentValue && !llmModels.includes(currentValue)
+          ? [currentValue, ...llmModels]
+          : llmModels;
       return (
         <Select
           value={currentValue}
@@ -436,7 +438,7 @@ export default function BlockConfigPanel({
             <Editor
               key={`${node.id}-${key}`}
               height="200px"
-              defaultLanguage={isJsonMode ? "json" : "python"}
+              language={isJsonMode ? "json" : "python"}
               value={jsonValue}
               onChange={(newValue) => {
                 // keep as string during editing, will be parsed on save if needed

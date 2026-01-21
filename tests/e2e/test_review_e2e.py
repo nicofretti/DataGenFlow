@@ -5,9 +5,13 @@ tests record viewing, status updates, deletion, and export workflows.
 
 import time
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
-from .test_helpers import get_headless_mode
+try:
+    from .test_helpers import get_headless_mode
+except ImportError:
+    from test_helpers import get_headless_mode
 
 
 def test_review_page_loads():
@@ -266,15 +270,13 @@ def test_export_records():
         )
 
         if export_buttons.count() > 0:
-            # setup download listener
-            with page.expect_download(timeout=5000) as download_info:
-                export_buttons.first.click()
-
-            # verify download started (might timeout if no records exist)
             try:
+                # setup download listener
+                with page.expect_download(timeout=5000) as download_info:
+                    export_buttons.first.click()
                 download = download_info.value
                 print(f"download started: {download.suggested_filename}")
-            except Exception:
+            except PlaywrightTimeoutError:
                 print("no download (may be no records)")
 
             # take screenshot

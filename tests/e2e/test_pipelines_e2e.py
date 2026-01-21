@@ -8,10 +8,23 @@ import time
 import pytest
 from playwright.sync_api import expect, sync_playwright
 
-from .test_helpers import cleanup_database, get_headless_mode, wait_for_server
+try:
+    from .test_helpers import cleanup_database, get_headless_mode, wait_for_server
+except ImportError:
+    from test_helpers import cleanup_database, get_headless_mode, wait_for_server
 
 
-def test_pipelines_page_loads():
+@pytest.fixture(scope="module", autouse=True)
+def _e2e_setup_teardown():
+    """setup and teardown for e2e tests"""
+    if not wait_for_server():
+        pytest.skip("server not ready for e2e tests")
+    cleanup_database()
+    yield
+    cleanup_database()
+
+
+def test_pipelines_page_loads(tmp_path):
     """verify pipelines page loads successfully"""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=get_headless_mode())
@@ -31,12 +44,12 @@ def test_pipelines_page_loads():
         expect(page).to_have_title("DataGenFlow")
 
         # take screenshot for debugging
-        page.screenshot(path="/tmp/pipelines_page.png", full_page=True)
+        page.screenshot(path=str(tmp_path / "pipelines_page.png"), full_page=True)
 
         browser.close()
 
 
-def test_view_templates():
+def test_view_templates(tmp_path):
     """verify pipeline templates are displayed"""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=get_headless_mode())
@@ -60,19 +73,21 @@ def test_view_templates():
         )
 
         # take screenshot first for debugging
-        page.screenshot(path="/tmp/templates_view.png", full_page=True)
+        page.screenshot(path=str(tmp_path / "templates_view.png"), full_page=True)
 
-        # if templates exist, there should be use template buttons
-        # otherwise page should at least load without error
-        print(f"found {use_template_buttons.count()} template buttons")
+        # verify page loaded correctly - use exact match to avoid matching "My Pipelines"
+        expect(page.get_by_role("heading", name="Pipelines", exact=True)).to_be_visible()
 
-        # verify page loaded correctly
-        expect(page.get_by_text("Pipelines", exact=True)).to_be_visible()
+        # validate template rendering
+        if use_template_buttons.count() == 0:
+            browser.close()
+            pytest.skip("no templates available to validate")
+        expect(use_template_buttons.first).to_be_visible()
 
         browser.close()
 
 
-def test_create_pipeline_from_template():
+def test_create_pipeline_from_template(tmp_path):
     """test creating a pipeline from a template"""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=get_headless_mode())
@@ -108,7 +123,7 @@ def test_create_pipeline_from_template():
             expect(pipelines_heading).to_be_visible()
 
             # take screenshot
-            page.screenshot(path="/tmp/pipeline_created.png", full_page=True)
+            page.screenshot(path=str(tmp_path / "pipeline_created.png"), full_page=True)
         else:
             browser.close()
             pytest.skip("no template buttons found - templates may not be loaded")
@@ -116,7 +131,7 @@ def test_create_pipeline_from_template():
         browser.close()
 
 
-def test_delete_pipeline():
+def test_delete_pipeline(tmp_path):
     """test deleting a pipeline"""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=get_headless_mode())
@@ -149,34 +164,40 @@ def test_delete_pipeline():
 
         initial_count = delete_buttons.count()
 
-        if initial_count > 0:
-            # click first delete button
-            delete_buttons.first.click()
+        if initial_count == 0:
+            browser.close()
+            pytest.skip("no pipelines available to delete")
 
-            # handle confirmation dialog if present
-            time.sleep(0.5)
+        # click first delete button
+        delete_buttons.first.click()
 
-            # look for confirm button in dialog
-            confirm_buttons = (
-                page.get_by_role("button")
-                .filter(has_text="Confirm")
-                .or_(page.get_by_role("button").filter(has_text="Delete"))
-            )
+        # handle confirmation dialog if present
+        time.sleep(0.5)
 
-            if confirm_buttons.count() > 0:
-                confirm_buttons.first.click()
+        # look for confirm button in dialog
+        confirm_buttons = (
+            page.get_by_role("button")
+            .filter(has_text="Confirm")
+            .or_(page.get_by_role("button").filter(has_text="Delete"))
+        )
 
-            # wait for deletion
-            time.sleep(1)
-            page.wait_for_load_state("networkidle")
+        if confirm_buttons.count() == 0:
+            browser.close()
+            pytest.skip("confirmation dialog not present")
 
-            # take screenshot
-            page.screenshot(path="/tmp/pipeline_deleted.png", full_page=True)
+        confirm_buttons.first.click()
+
+        # wait for deletion
+        time.sleep(1)
+        page.wait_for_load_state("networkidle")
+
+        # take screenshot
+        page.screenshot(path=str(tmp_path / "pipeline_deleted.png"), full_page=True)
 
         browser.close()
 
 
-def test_pipeline_editor_opens():
+def test_pipeline_editor_opens(tmp_path):
     """test that pipeline editor modal opens"""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=get_headless_mode())
@@ -205,22 +226,28 @@ def test_pipeline_editor_opens():
             .or_(page.locator('button[aria-label*="Edit"]'))
         )
 
-        if edit_buttons.count() > 0:
-            edit_buttons.first.click()
-            time.sleep(1)
+        if edit_buttons.count() == 0:
+            browser.close()
+            pytest.skip("no pipelines available to edit")
 
-            # verify modal/editor opened (reactflow canvas should be visible)
-            # look for reactflow container or canvas elements
-            canvas = page.locator(".react-flow, [data-reactflow], canvas").first
-            expect(canvas).to_be_visible(timeout=5000)
+        edit_buttons.first.click()
+        time.sleep(1)
 
-            # take screenshot
-            page.screenshot(path="/tmp/pipeline_editor.png", full_page=True)
+        # verify modal/editor opened (reactflow canvas should be visible)
+        # look for reactflow container or canvas elements
+        canvas = page.locator(".react-flow, [data-reactflow], canvas").first
+        expect(canvas).to_be_visible(timeout=5000)
+
+        # take screenshot
+        page.screenshot(path=str(tmp_path / "pipeline_editor.png"), full_page=True)
 
         browser.close()
 
 
 if __name__ == "__main__":
+    import tempfile
+    from pathlib import Path
+
     print("running pipelines e2e tests...")
 
     # clean database before tests
@@ -229,25 +256,29 @@ if __name__ == "__main__":
     cleanup_database()
     print("✓ database cleaned")
 
-    print("\ntest 1: pipelines page loads")
-    test_pipelines_page_loads()
-    print("✓ passed")
+    # create temp dir for screenshots when running directly
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
 
-    print("\ntest 2: view templates")
-    test_view_templates()
-    print("✓ passed")
+        print("\ntest 1: pipelines page loads")
+        test_pipelines_page_loads(tmp_path)
+        print("✓ passed")
 
-    print("\ntest 3: create pipeline from template")
-    test_create_pipeline_from_template()
-    print("✓ passed")
+        print("\ntest 2: view templates")
+        test_view_templates(tmp_path)
+        print("✓ passed")
 
-    print("\ntest 4: delete pipeline")
-    test_delete_pipeline()
-    print("✓ passed")
+        print("\ntest 3: create pipeline from template")
+        test_create_pipeline_from_template(tmp_path)
+        print("✓ passed")
 
-    print("\ntest 5: pipeline editor opens")
-    test_pipeline_editor_opens()
-    print("✓ passed")
+        print("\ntest 4: delete pipeline")
+        test_delete_pipeline(tmp_path)
+        print("✓ passed")
+
+        print("\ntest 5: pipeline editor opens")
+        test_pipeline_editor_opens(tmp_path)
+        print("✓ passed")
 
     # clean database after tests
     print("\ncleaning up...")

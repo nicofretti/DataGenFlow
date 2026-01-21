@@ -117,7 +117,7 @@ class BaseBlock:
 **validators:**
 - ValidatorBlock: text rules (min_length, max_length, forbidden_words) → text, valid, assistant
 - JSONValidatorBlock: parse json (field_name, required_fields, strict) → valid, parsed_json
-- DuplicateRemover: embedding similarity (similarity_threshold, comparison_fields, embedding_model) → *, is_duplicate, similarity_score
+- DuplicateRemover: embedding similarity (similarity_threshold, comparison_fields, embedding_model) → *, is_duplicate, similarity_to_seeds, similarity_to_generated
 
 **metrics:**
 - DiversityScore: lexical diversity (field_name) → diversity_score

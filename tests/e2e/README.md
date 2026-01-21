@@ -108,7 +108,7 @@ python tests/e2e/test_review_e2e.py
 
 ## Test Structure
 
-```
+```text
 tests/e2e/
 ├── README.md                      # this file
 ├── test_helpers.py                # database cleanup utilities
@@ -263,7 +263,7 @@ file_input.set_input_files(seed_path)
 
 ### cleanup issues
 - servers may not stop cleanly, use `killall uvicorn` or `killall node`
-- remove test database: `rm data/qa_records.db`
+- remove test database (only if using a dedicated test path): `rm data/test_qa_records.db`
 
 ## CI/CD Integration
 
