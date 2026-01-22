@@ -313,5 +313,5 @@ jobs:
 ## Resources
 
 - [Playwright Documentation](https://playwright.dev/python/)
-- [webapp-testing skill](/.claude/plugins/cache/anthropic-agent-skills/document-skills/.../webapp-testing/)
+- [Playwright Best Practices](https://playwright.dev/python/docs/best-practices)
 - [DataGenFlow API docs](/DEVELOPERS.md)

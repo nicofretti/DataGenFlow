@@ -67,6 +67,10 @@ export default function BlockConfigPanel({
       prevConfigRef.current = config;
       setFormData(config || {});
       setErrors({});
+      // reset json mode when switching nodes to avoid state bleeding
+      if (nodeChanged) {
+        setJsonMode({});
+      }
     }
   }, [node.id, config]);
 
@@ -155,8 +159,15 @@ export default function BlockConfigPanel({
     Object.entries(schema).forEach(([key, fieldSchema]: [string, any]) => {
       const value = processedData[key];
 
-      // skip json-or-template fields - they stay as strings
+      // json-or-template fields: validate JSON when in JSON mode
       if (fieldSchema.format === "json-or-template") {
+        if (jsonMode[key] && typeof value === "string" && value.trim()) {
+          try {
+            JSON.parse(value);
+          } catch (e) {
+            validationErrors[key] = `Invalid JSON: ${e instanceof Error ? e.message : "parse error"}`;
+          }
+        }
         return;
       }
 
@@ -182,7 +193,7 @@ export default function BlockConfigPanel({
     setErrors({});
     onUpdate(node.id, processedData);
     onClose();
-  }, [node.id, formData, onUpdate, onClose, block.config_schema]);
+  }, [node.id, formData, onUpdate, onClose, block.config_schema, jsonMode]);
 
   const renderField = (key: string, schema: any) => {
     const value = formData[key] ?? schema.default ?? "";
@@ -436,7 +447,7 @@ export default function BlockConfigPanel({
             }}
           >
             <Editor
-              key={`${node.id}-${key}`}
+              key={`${node.id}-${key}-${isJsonMode}`}
               height="200px"
               language={isJsonMode ? "json" : "python"}
               value={jsonValue}

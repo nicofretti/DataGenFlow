@@ -114,6 +114,9 @@ shadcn radix-ui dialog, replaces browser confirm()
 - fields: string (TextInput/Monaco), number, boolean (Checkbox), object (Monaco JSON), enum (Select), field_reference (TextInput + datalist)
 - shows descriptions, default values
 - monaco for jinja2 templates with wordwrap toggle
+- json-or-template fields: checkbox toggle between JSON mode (validated) and Jinja2 template mode
+- json mode state resets when switching between nodes
+- model dropdowns (LLM/embedding): preserve custom model names not in API response
 
 **StartEndNode.tsx**
 - circular green start, purple end
