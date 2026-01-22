@@ -124,12 +124,14 @@ tests/e2e/
 
 ## Database Cleanup
 
+> **WARNING**: e2e tests delete ALL pipelines, jobs, and records. Always use a dedicated test database or isolated environment - never run against production data.
+
 the **pipelines tests** automatically clean the database before and after running to ensure test isolation:
 
 - **before tests**: deletes all pipelines, jobs, and records
 - **after tests**: cleans up any created data
 
-this ensures each test run starts with a clean state and doesn't interfere with your production data.
+this ensures each test run starts with a clean state.
 
 ## Test Coverage
 
@@ -262,7 +264,7 @@ file_input.set_input_files(seed_path)
 - add wait time for dynamic content
 
 ### cleanup issues
-- servers may not stop cleanly, use `killall uvicorn` or `killall node`
+- servers may not stop cleanly - use `pkill -f "uvicorn.*5000"` or similar pattern-based kill to avoid terminating unrelated processes. `killall` affects all matching processes on the machine.
 - remove test database (only if using a dedicated test path): `rm data/test_qa_records.db`
 
 ## CI/CD Integration

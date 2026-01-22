@@ -418,7 +418,7 @@ class BaseBlock:
 
 ### builtin blocks
 - **StructureSampler**: statistical sampler (target_count, categorical_fields, numeric_fields, dependencies, seed)
-  - outputs: * (dynamic skeletons + hints)
+  - outputs: skeletons, _seed_samples
   - category: seeders
 - **TextGenerator**: text via litellm (system_prompt, user_prompt, model, temperature, max_tokens)
   - outputs: assistant, system, user
@@ -427,7 +427,7 @@ class BaseBlock:
   - outputs: generated
   - category: generators
 - **SemanticInfiller**: complete skeletons with llm (fields_to_generate, model, temperature, max_tokens)
-  - outputs: * (merged skeleton + generated fields)
+  - outputs: samples
   - category: generators
 - **MarkdownMultiplierBlock**: split markdown into chunks (is_multiplier: true, must be first)
   - outputs: content (per chunk)

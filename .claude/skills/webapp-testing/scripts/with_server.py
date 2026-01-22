@@ -84,9 +84,7 @@ def main():
             print(f"Starting server {i + 1}/{len(servers)}: {server['cmd']}")
 
             # Use shell=True to support commands with cd and &&
-            process = subprocess.Popen(
-                server["cmd"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
+            process = subprocess.Popen(server["cmd"], shell=True)
             server_processes.append(process)
 
             # Wait for this server to be ready

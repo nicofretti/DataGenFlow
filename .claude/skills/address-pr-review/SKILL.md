@@ -53,13 +53,33 @@ digraph pr_review_flow {
 }
 ```
 
+## Fetching Comments
+
+**CRITICAL**: Do NOT use `gh api --jq` directly - it truncates comment bodies.
+
+Use the included script:
+
+```bash
+# summary with counts and titles
+python .claude/skills/address-pr-review/scripts/fetch_comments.py <PR> --summary
+
+# show unresolved comments (default)
+python .claude/skills/address-pr-review/scripts/fetch_comments.py <PR>
+
+# single comment by ID
+python .claude/skills/address-pr-review/scripts/fetch_comments.py <PR> --id <ID>
+
+# all comments including resolved
+python .claude/skills/address-pr-review/scripts/fetch_comments.py <PR> --all
+```
+
 ## Quick Reference
 
 **Critical principle:** Reviewer may be wrong - analyze validity before recommending action.
 
 | Phase | Actions |
 |-------|---------|
-| **Fetch** | `gh api repos/{owner}/{repo}/pulls/$PR/comments`<br>Extract: path, line, body, user.login, id<br>Exit if no comments |
+| **Fetch** | Run `--summary` first to see counts<br>Then `--id <ID>` for each comment to analyze<br>Exit if no unresolved comments |
 | **Per Comment** | Show: file:line, author, comment, ±10 lines context<br>Analyze: Valid/Nitpick/Disagree/Question<br>Recommend: Fix/Reply/Skip with reasoning |
 | **Fix** | Minimal changes per llm/rules-*.md<br>Offer reply draft: `Fixed: [what]. [why]`<br>Show: `gh api --method POST repos/{owner}/{repo}/pulls/comments/$ID/replies -f body="..."` |
 | **Reply** | Draft based on type: Question/Suggestion/Disagreement<br>Let user edit<br>Show gh command (never auto-post) |
