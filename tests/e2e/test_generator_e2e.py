@@ -7,12 +7,50 @@ import json
 import os
 import time
 
+import pytest
 from playwright.sync_api import expect, sync_playwright
 
 try:
     from .test_helpers import cleanup_database, get_headless_mode, wait_for_server
 except ImportError:
     from test_helpers import cleanup_database, get_headless_mode, wait_for_server
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _e2e_setup_teardown():
+    """setup and teardown for e2e tests"""
+    if not wait_for_server():
+        pytest.skip("server not ready for e2e tests")
+    cleanup_database()
+    # create a pipeline for generator tests
+    _setup_test_pipeline()
+    yield
+    cleanup_database()
+
+
+def _setup_test_pipeline():
+    """create a pipeline from template for tests"""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=get_headless_mode())
+        page = browser.new_page()
+
+        page.goto("http://localhost:5173")
+        page.wait_for_load_state("networkidle")
+
+        # navigate to pipelines page
+        pipelines_link = page.get_by_text("Pipelines", exact=True)
+        pipelines_link.click()
+        page.wait_for_load_state("networkidle")
+        time.sleep(2)
+
+        # create pipeline from first template
+        create_buttons = page.get_by_role("button").filter(has_text="Use Template")
+        if create_buttons.count() > 0:
+            create_buttons.first.click()
+            time.sleep(2)
+            page.wait_for_load_state("networkidle")
+
+        browser.close()
 
 
 def test_generator_page_loads():
@@ -109,14 +147,14 @@ def test_upload_seed_file():
 
         # find file input
         file_inputs = page.locator('input[type="file"]').all()
+        assert len(file_inputs) > 0, "Seed file input not found on generator page"
 
-        if len(file_inputs) > 0:
-            # upload file
-            file_inputs[0].set_input_files(seed_path)
-            time.sleep(1)
+        # upload file
+        file_inputs[0].set_input_files(seed_path)
+        time.sleep(1)
 
-            # verify file name appears or upload succeeds
-            page.screenshot(path="/tmp/file_uploaded.png", full_page=True)
+        # verify file name appears or upload succeeds
+        page.screenshot(path="/tmp/file_uploaded.png", full_page=True)
 
         # cleanup
         os.remove(seed_path)
@@ -159,9 +197,9 @@ def test_start_generation_job():
 
         # upload file
         file_inputs = page.locator('input[type="file"]').all()
-        if len(file_inputs) > 0:
-            file_inputs[0].set_input_files(seed_path)
-            time.sleep(1)
+        assert len(file_inputs) > 0, "Seed file input not found on generator page"
+        file_inputs[0].set_input_files(seed_path)
+        time.sleep(1)
 
         # find and click generate/start button
         generate_buttons = (
@@ -169,23 +207,22 @@ def test_start_generation_job():
             .filter(has_text="Generate")
             .or_(page.get_by_role("button").filter(has_text="Start"))
         )
+        assert generate_buttons.count() > 0, "Generate/Start button not found"
+        generate_buttons.first.click()
 
-        if generate_buttons.count() > 0:
-            generate_buttons.first.click()
+        # wait for job to start
+        time.sleep(3)
+        page.wait_for_load_state("networkidle")
 
-            # wait for job to start
-            time.sleep(3)
-            page.wait_for_load_state("networkidle")
+        # verify job progress appears
+        # look for progress indicators
+        progress_indicator = page.get_by_text("Progress", exact=False).or_(
+            page.get_by_text("Generated", exact=False)
+        )
+        assert progress_indicator.count() > 0, "Progress indicator should be visible"
 
-            # verify job progress appears
-            # look for progress indicators
-            progress_indicator = page.get_by_text("Progress", exact=False).or_(
-                page.get_by_text("Generated", exact=False)
-            )
-            assert progress_indicator.count() > 0, "Progress indicator should be visible"
-
-            # take screenshot
-            page.screenshot(path="/tmp/job_started.png", full_page=True)
+        # take screenshot
+        page.screenshot(path="/tmp/job_started.png", full_page=True)
 
         # cleanup
         os.remove(seed_path)
@@ -211,31 +248,6 @@ def test_generator_shows_upload_ui():
         browser.close()
 
 
-def setup_test_pipeline():
-    """create a pipeline from template for tests"""
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=get_headless_mode())
-        page = browser.new_page()
-
-        page.goto("http://localhost:5173")
-        page.wait_for_load_state("networkidle")
-
-        # navigate to pipelines page
-        pipelines_link = page.get_by_text("Pipelines", exact=True)
-        pipelines_link.click()
-        page.wait_for_load_state("networkidle")
-        time.sleep(2)
-
-        # create pipeline from first template
-        create_buttons = page.get_by_role("button").filter(has_text="Use Template")
-        if create_buttons.count() > 0:
-            create_buttons.first.click()
-            time.sleep(2)
-            page.wait_for_load_state("networkidle")
-
-        browser.close()
-
-
 if __name__ == "__main__":
     print("running generator e2e tests...")
 
@@ -243,7 +255,7 @@ if __name__ == "__main__":
     print("\nsetup: creating test pipeline...")
     wait_for_server()
     cleanup_database()
-    setup_test_pipeline()
+    _setup_test_pipeline()
     print("✓ test pipeline created")
 
     print("\ntest 1: generator page loads")
