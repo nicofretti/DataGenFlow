@@ -193,8 +193,8 @@ def test_start_generation_job():
         browser.close()
 
 
-def test_job_progress_monitoring():
-    """test that job progress updates are visible"""
+def test_generator_shows_upload_ui():
+    """test that generator page shows upload interface when no job is running"""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=get_headless_mode())
         page = browser.new_page()
@@ -203,18 +203,10 @@ def test_job_progress_monitoring():
         page.wait_for_load_state("networkidle")
         time.sleep(2)
 
-        # look for job progress section or upload UI
-        # check for progress bar, percentage, status indicators, or upload UI
-        progress_or_upload = (
-            page.locator('[role="progressbar"]')
-            .or_(page.locator(".progress, .Progress"))
-            .or_(page.get_by_text("%", exact=False))
-            .or_(page.get_by_text("Upload", exact=False))
-        )
-
-        # page should show either job progress or upload UI
-        assert progress_or_upload.count() > 0, "Page should show progress or upload UI"
-        page.screenshot(path="/tmp/job_progress.png", full_page=True)
+        # verify upload UI is present (the primary interface when no job is running)
+        upload_ui = page.get_by_text("Upload", exact=False)
+        assert upload_ui.count() > 0, "Upload UI should be visible on generator page"
+        page.screenshot(path="/tmp/generator_upload_ui.png", full_page=True)
 
         browser.close()
 
@@ -270,8 +262,8 @@ if __name__ == "__main__":
     test_start_generation_job()
     print("✓ passed")
 
-    print("\ntest 5: job progress monitoring")
-    test_job_progress_monitoring()
+    print("\ntest 5: generator shows upload ui")
+    test_generator_shows_upload_ui()
     print("✓ passed")
 
     # cleanup after tests

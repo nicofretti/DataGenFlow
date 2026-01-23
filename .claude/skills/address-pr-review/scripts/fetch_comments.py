@@ -34,13 +34,16 @@ def get_repo() -> str:
 def fetch_comments(pr_number: str) -> list[dict[str, Any]]:
     repo = get_repo()
     result = subprocess.run(
-        ["gh", "api", f"repos/{repo}/pulls/{pr_number}/comments", "--paginate"],
+        ["gh", "api", f"repos/{repo}/pulls/{pr_number}/comments", "--paginate", "--slurp"],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
+        print(f"failed to fetch comments: {result.stderr.strip()}", file=sys.stderr)
         sys.exit(1)
-    return json.loads(result.stdout)
+    # --slurp wraps paginated results in an outer array
+    pages = json.loads(result.stdout)
+    return [comment for page in pages for comment in page]
 
 
 def is_resolved(comment: dict[str, Any]) -> bool:
