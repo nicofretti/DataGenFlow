@@ -22,7 +22,7 @@ TITLE_PATTERN = re.compile(r"\*\*([^*]+)\*\*")
 
 def get_repo() -> str:
     result = subprocess.run(
-        ["gh", "repo", "view", "--json", "owner,name", "-q", ".owner.login + \"/\" + .name"],
+        ["gh", "repo", "view", "--json", "owner,name", "-q", '.owner.login + "/" + .name'],
         capture_output=True,
         text=True,
     )
@@ -67,7 +67,7 @@ def parse_comment(comment: dict[str, Any]) -> dict[str, Any]:
     # extract description (text after title, before <details>)
     desc = ""
     if title_match:
-        after_title = body[title_match.end():]
+        after_title = body[title_match.end() :]
         details_pos = after_title.find("<details>")
         if details_pos > 0:
             desc = after_title[:details_pos].strip()
@@ -90,11 +90,13 @@ def parse_comment(comment: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def print_comment(parsed: dict[str, Any], index: int | None = None, total: int | None = None) -> None:
+def print_comment(
+    parsed: dict[str, Any], index: int | None = None, total: int | None = None
+) -> None:
     prefix = f"[{index}/{total}] " if index and total else ""
-    loc = f"{parsed['file']}:{parsed['line']}" if parsed['line'] else parsed['file']
+    loc = f"{parsed['file']}:{parsed['line']}" if parsed["line"] else parsed["file"]
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"{prefix}ID: {parsed['id']}")
     print(f"Location: {loc}")
     if parsed["severity"]:
@@ -130,14 +132,15 @@ if __name__ == "__main__":
 
     if mode == "--summary":
         unresolved = [c for c in top_level if not is_resolved(c)]
-        print(f"total: {len(top_level)}, resolved: {len(top_level) - len(unresolved)}, unresolved: {len(unresolved)}")
+        resolved = len(top_level) - len(unresolved)
+        print(f"total: {len(top_level)}, resolved: {resolved}, unresolved: {len(unresolved)}")
         if unresolved:
             print("\nunresolved:")
             for c in unresolved:
                 p = parse_comment(c)
-                loc = f"{p['file']}:{p['line']}" if p['line'] else p['file']
-                sev = f" [{p['severity']}]" if p['severity'] else ""
-                title = f" - {p['title']}" if p['title'] else ""
+                loc = f"{p['file']}:{p['line']}" if p["line"] else p["file"]
+                sev = f" [{p['severity']}]" if p["severity"] else ""
+                title = f" - {p['title']}" if p["title"] else ""
                 print(f"  {p['id']}: {loc}{sev}{title}")
         sys.exit(0)
 

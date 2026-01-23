@@ -12,6 +12,7 @@ from lib.blocks.commons.template_utils import (
     render_and_parse_json,
     validate_string_list,
 )
+from lib.entities import pipeline
 from lib.entities.block_execution_context import BlockExecutionContext
 from lib.errors import BlockExecutionError
 
@@ -81,13 +82,15 @@ class DuplicateRemover(BaseBlock):
         comparison_fields: list[str] | None,
         embedding_config: Any,
         trace_id: str,
-    ) -> list[list[float]]:
-        """get seed embeddings with trace_id caching"""
+    ) -> tuple[list[list[float]], pipeline.Usage]:
+        """get seed embeddings with trace_id caching, returns (embeddings, usage)"""
         from app import llm_config_manager
 
-        # check cache
+        zero_usage = pipeline.Usage()
+
+        # check cache (no usage since already computed)
         if trace_id in self._embeddings_cache:
-            return self._embeddings_cache[trace_id]
+            return self._embeddings_cache[trace_id], zero_usage
 
         logger.info(f"Building reference embeddings for {len(seed_samples)} seed samples")
 
@@ -96,7 +99,7 @@ class DuplicateRemover(BaseBlock):
         seed_texts = [t for t in seed_texts if t]
 
         if not seed_texts:
-            return []
+            return [], zero_usage
 
         embedding_params = llm_config_manager._prepare_embedding_call(
             embedding_config,
@@ -104,11 +107,18 @@ class DuplicateRemover(BaseBlock):
         )
         response = await litellm.aembedding(**embedding_params)
 
+        # extract usage from embedding response
+        usage = pipeline.Usage(
+            input_tokens=getattr(response.usage, "prompt_tokens", 0) or 0,
+            output_tokens=0,  # embeddings don't have output tokens
+            cached_tokens=getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+        )
+
         # cache by trace_id
         self._embeddings_cache[trace_id] = [item["embedding"] for item in response.data]
         logger.info(f"Cached {len(self._embeddings_cache[trace_id])} seed embeddings")
 
-        return self._embeddings_cache[trace_id]
+        return self._embeddings_cache[trace_id], usage
 
     def _compute_similarities(
         self,
@@ -199,7 +209,7 @@ class DuplicateRemover(BaseBlock):
             )
 
             # get seed embeddings (cached by trace_id)
-            seed_embeddings = await self._get_seed_embeddings(
+            seed_embeddings, seed_usage = await self._get_seed_embeddings(
                 seed_samples, comparison_fields, embedding_config, context.trace_id
             )
 
@@ -220,6 +230,20 @@ class DuplicateRemover(BaseBlock):
             response = await litellm.aembedding(**embedding_params)
             sample_embeddings = [item["embedding"] for item in response.data]
 
+            # extract usage from sample embeddings
+            sample_usage = pipeline.Usage(
+                input_tokens=getattr(response.usage, "prompt_tokens", 0) or 0,
+                output_tokens=0,
+                cached_tokens=getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+            )
+
+            # accumulate total usage
+            total_usage = pipeline.Usage(
+                input_tokens=seed_usage.input_tokens + sample_usage.input_tokens,
+                output_tokens=0,
+                cached_tokens=seed_usage.cached_tokens + sample_usage.cached_tokens,
+            )
+
             # compute dual similarities
             enriched_samples = self._compute_similarities(
                 samples,
@@ -232,7 +256,7 @@ class DuplicateRemover(BaseBlock):
                 f"Found {sum(1 for s in enriched_samples if s['is_duplicate'])} duplicates."
             )
 
-            return {"generated_samples": enriched_samples}
+            return {"generated_samples": enriched_samples, "_usage": total_usage.model_dump()}
 
         except Exception as e:
             logger.warning(f"Embedding check failed: {e}. Skipping.")

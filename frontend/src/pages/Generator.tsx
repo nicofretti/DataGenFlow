@@ -40,7 +40,6 @@ export default function Generator() {
   const [generating, setGenerating] = useState(false);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
-  const [isMultiplierPipeline, setIsMultiplierPipeline] = useState(false);
   const [needsMarkdown, setNeedsMarkdown] = useState(false);
   const [validationResult, setValidationResult] = useState<{
     valid: boolean;
@@ -48,7 +47,7 @@ export default function Generator() {
     warnings: string[];
   } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [_, setValidated] = useState(false);
+  const [, setValidated] = useState(false);
 
   const validateSeeds = useCallback(
     async (seedsData: SeedData[]) => {
@@ -112,7 +111,6 @@ export default function Generator() {
     const fetchPipelineDetails = async () => {
       if (!selectedPipeline) {
         if (mounted) {
-          setIsMultiplierPipeline(false);
           setNeedsMarkdown(false);
           setValidationResult(null);
         }
@@ -124,7 +122,6 @@ export default function Generator() {
           signal: controller.signal,
         });
         const data = await res.json();
-        const isMultiplier = data.first_block_is_multiplier || false;
         const firstBlockType = data.first_block_type || "";
         const needsMd = firstBlockType === "MarkdownMultiplierBlock";
 
@@ -141,13 +138,11 @@ export default function Generator() {
           }
         }
 
-        setIsMultiplierPipeline(isMultiplier);
         setNeedsMarkdown(needsMd);
       } catch (err) {
         if (err instanceof Error && err.name !== "AbortError") {
           console.error("Failed to load pipeline details:", err);
           if (mounted) {
-            setIsMultiplierPipeline(false);
             setNeedsMarkdown(false);
           }
         }

@@ -369,6 +369,66 @@ async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
     }
 ```
 
+## Embedding Integration Pattern
+
+Full pattern for blocks that call embedding APIs:
+
+```python
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+    from app import llm_config_manager
+
+    # get embedding config
+    embedding_config = await llm_config_manager.get_embedding_model(
+        self.embedding_model_name
+    )
+
+    # prepare embedding call
+    embedding_params = llm_config_manager._prepare_embedding_call(
+        embedding_config,
+        input_text=texts,  # list of strings
+    )
+
+    response = await litellm.aembedding(**embedding_params)
+    embeddings = [item["embedding"] for item in response.data]
+
+    # extract usage from embedding response (no output tokens)
+    usage_info = pipeline.Usage(
+        input_tokens=getattr(response.usage, "prompt_tokens", 0) or 0,
+        output_tokens=0,  # embeddings don't have output tokens
+        cached_tokens=getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+    )
+
+    return {
+        "embeddings": embeddings,
+        "_usage": usage_info.model_dump(),
+    }
+```
+
+**Note:** If making multiple API calls, accumulate usage:
+
+```python
+total_usage = pipeline.Usage(
+    input_tokens=usage1.input_tokens + usage2.input_tokens,
+    output_tokens=usage1.output_tokens + usage2.output_tokens,
+    cached_tokens=usage1.cached_tokens + usage2.cached_tokens,
+)
+```
+
+**Important:** `_usage` must be at the TOP LEVEL of the return dict, not nested inside other fields. If processing multiple items that each have usage, aggregate before returning:
+
+```python
+# aggregate usage from all items
+total_usage = pipeline.Usage()
+for item in items:
+    if "_usage" in item:
+        item_usage = item.pop("_usage")
+        total_usage.input_tokens += item_usage.get("input_tokens", 0)
+        total_usage.output_tokens += item_usage.get("output_tokens", 0)
+        total_usage.cached_tokens += item_usage.get("cached_tokens", 0)
+
+return {"items": items, "_usage": total_usage.model_dump()}
+```
+
 ## State Management
 
 ### Reading State
@@ -560,7 +620,8 @@ Add to `tests/integration/test_data_augmentation.py`.
 | Imports inside functions | Not the codebase style | Move to top (except llm_config_manager) |
 | Over-engineering | Too many tiny functions | KISS - keep it simple |
 | Comments describe what | Obvious from code | Explain WHY, lowercase |
-| Forgot `_usage` | Usage not tracked | Always return `_usage` from LLM |
+| Forgot `_usage` | Usage not tracked | Always return `_usage` from LLM/embeddings |
+| `_usage` nested in items | Usage not found | `_usage` must be at TOP LEVEL of return dict |
 | Missing `_config_descriptions` | No help text in UI | Add descriptions for all params |
 | Wrong enum format | UI doesn't render dropdown | Use `_config_enums` class attribute |
 
@@ -585,7 +646,7 @@ Add to `tests/integration/test_data_augmentation.py`.
 - [ ] Use `llm_config_manager.get_llm_model()` for LLM
 - [ ] Use `llm_config_manager.get_embedding_model()` for embeddings
 - [ ] Add trace metadata to `llm_params["metadata"]`
-- [ ] Track usage with `pipeline.Usage()` and return `_usage`
+- [ ] Track usage with `pipeline.Usage()` and return `_usage` (LLM and embeddings)
 - [ ] Use trace_id-keyed caching if needed
 - [ ] Write lowercase comments explaining WHY
 
@@ -607,7 +668,7 @@ Add to `tests/integration/test_data_augmentation.py`.
 - [ ] Imports at top (except llm_config_manager)
 - [ ] No instance-level state
 - [ ] KISS principle followed
-- [ ] `_usage` returned if using LLM
+- [ ] `_usage` returned if using LLM or embeddings
 - [ ] All UI integrations correct (enums, field refs, descriptions)
 
 ## Reference Examples

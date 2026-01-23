@@ -462,4 +462,13 @@ class SemanticInfiller(BaseBlock):
 
         logger.info(f"Successfully generated {len(samples)} samples")
 
-        return {"samples": samples}
+        # aggregate usage from all samples
+        total_usage = pipeline.Usage()
+        for sample in samples:
+            if "_usage" in sample:
+                sample_usage = sample.pop("_usage")
+                total_usage.input_tokens += sample_usage.get("input_tokens", 0)
+                total_usage.output_tokens += sample_usage.get("output_tokens", 0)
+                total_usage.cached_tokens += sample_usage.get("cached_tokens", 0)
+
+        return {"samples": samples, "_usage": total_usage.model_dump()}

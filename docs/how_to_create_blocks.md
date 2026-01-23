@@ -35,23 +35,32 @@ DataGenFlow includes these atomic blocks:
 **Generators:**
 - **TextGenerator**: Generate text using LiteLLM (multi-provider LLM access)
 - **StructuredGenerator**: Generate structured JSON with schema validation
+- **SemanticInfiller**: Complete skeleton records by generating missing fields
+
+**Seeders:**
+- **StructureSampler**: Statistical sampler that generates skeleton records preserving distributions
+- **MarkdownMultiplierBlock**: Split markdown documents into chunks for batch processing
+
+**Validators:**
+- **ValidatorBlock**: Validate text content (length, forbidden words, patterns)
+- **JSONValidatorBlock**: Parse and validate JSON from any accumulated state field
+- **DuplicateRemover**: Detect duplicates using embedding similarity
 
 **Metrics:**
 - **DiversityScore**: Calculate lexical diversity for text variations
 - **CoherenceScore**: Measure text coherence based on sentence structure
 - **RougeScore**: Calculate ROUGE score comparing generated vs reference text
+- **RagasMetrics**: Evaluate QA quality using RAGAS metrics (faithfulness, relevancy, etc.)
 
-**Validators:**
-- **ValidatorBlock**: Validate text content (length, forbidden words, patterns)
-- **JSONValidatorBlock**: Parse and validate JSON from any accumulated state field
-
-**Seeders:**
-- **MarkdownMultiplierBlock**: Split markdown documents into chunks for batch processing
+**Utilities:**
+- **FieldMapper**: Create new fields from Jinja2 expressions
 
 **Observability:**
 - **LangfuseBlock**: Log execution traces to Langfuse observability platform
 
 You can create custom blocks to add your own logic and integrate with external services.
+
+> **For Claude Code users:** Use the `implementing-datagenflow-blocks` skill when creating or modifying blocks. It provides detailed patterns for UI integration, usage tracking, and testing.
 
 ## Quick Example
 
@@ -613,6 +622,54 @@ async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
     )
 
     return {"result": results}
+```
+
+### Usage Tracking (for LLM/Embedding Blocks)
+
+If your block makes LLM or embedding API calls, you must track and return usage so it appears in the UI:
+
+```python
+from lib.entities import pipeline
+import litellm
+
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+    from app import llm_config_manager
+
+    # make LLM call
+    llm_config = await llm_config_manager.get_llm_model(self.model_name)
+    llm_params = llm_config_manager.prepare_llm_call(llm_config, messages=messages)
+    response = await litellm.acompletion(**llm_params)
+
+    # extract usage from response
+    usage_info = pipeline.Usage(
+        input_tokens=response.usage.prompt_tokens or 0,
+        output_tokens=response.usage.completion_tokens or 0,
+        cached_tokens=getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+    )
+
+    # return _usage at TOP LEVEL of result dict
+    return {
+        "result": response.choices[0].message.content,
+        "_usage": usage_info.model_dump(),
+    }
+```
+
+**Important rules:**
+- `_usage` must be at the **top level** of the return dict, not nested inside other fields
+- For embedding calls, `output_tokens` is always 0
+- If processing multiple items with individual usage, aggregate before returning:
+
+```python
+# aggregate usage from multiple API calls
+total_usage = pipeline.Usage()
+for item in items:
+    if "_usage" in item:
+        item_usage = item.pop("_usage")
+        total_usage.input_tokens += item_usage.get("input_tokens", 0)
+        total_usage.output_tokens += item_usage.get("output_tokens", 0)
+        total_usage.cached_tokens += item_usage.get("cached_tokens", 0)
+
+return {"items": items, "_usage": total_usage.model_dump()}
 ```
 
 ### Documentation

@@ -165,7 +165,8 @@ export default function BlockConfigPanel({
           try {
             JSON.parse(value);
           } catch (e) {
-            validationErrors[key] = `Invalid JSON: ${e instanceof Error ? e.message : "parse error"}`;
+            validationErrors[key] =
+              `Invalid JSON: ${e instanceof Error ? e.message : "parse error"}`;
           }
         }
         return;

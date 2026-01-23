@@ -423,7 +423,4 @@ curl http://localhost:8000/api/export?job_id=1 | jq 'select(.is_duplicate == fal
 
 - [Templates Overview](templates) - All available templates
 - [How to Use](how_to_use) - Running pipelines with templates
-- [Custom Blocks](how_to_create_blocks) - Understanding multiplier blocks
-- [StructureSampler Block](how_to_create_blocks#structuresampler)
-- [SemanticInfiller Block](how_to_create_blocks#semanticinfiller)
-- [DuplicateRemover Block](how_to_create_blocks#duplicateremover)
+- [Custom Blocks](how_to_create_blocks) - Creating custom blocks and understanding multipliers

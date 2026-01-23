@@ -228,7 +228,7 @@ class TestSemanticInfillerExecution:
         assert sample["plan"] == "Free"
         assert sample["role"] == "Viewer"
         assert sample["bio"] == "Generated bio"
-        assert "_usage" in sample
+        assert "_usage" in result
 
     @pytest.mark.asyncio
     @patch("litellm.acompletion")
