@@ -39,7 +39,7 @@ DataGenFlow includes these atomic blocks:
 
 **Seeders:**
 - **StructureSampler**: Statistical sampler that generates skeleton records preserving distributions
-- **MarkdownMultiplierBlock**: Split markdown documents into chunks for batch processing
+- **MarkdownMultiplierBlock**: Split Markdown documents into chunks for batch processing
 
 **Validators:**
 - **ValidatorBlock**: Validate text content (length, forbidden words, patterns)

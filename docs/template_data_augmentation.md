@@ -104,7 +104,7 @@ Input: samples array
 - **`comparison_fields`** - Fields to check for duplicates using embedding similarity (description)
 
 > **Note:** `price` appears in both `numeric_fields` and `fields_to_generate`. This provides range hints to guide the LLM while letting it generate contextually appropriate prices.
-
+>
 > **Tip:** Use 4-10 diverse samples for best results. More samples = better distribution learning.
 
 ## Output Format

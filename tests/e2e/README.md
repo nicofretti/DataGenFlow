@@ -264,7 +264,7 @@ file_input.set_input_files(seed_path)
 - add wait time for dynamic content
 
 ### cleanup issues
-- servers may not stop cleanly - use `pkill -f "uvicorn.*5000"` or similar pattern-based kill to avoid terminating unrelated processes. `killall` affects all matching processes on the machine.
+- servers may not stop cleanly - use `pkill -f "uvicorn.*8000"` (or match your configured port) to avoid terminating unrelated processes. `killall` affects all matching processes on the machine.
 - remove test database (only if using a dedicated test path): `rm data/test_qa_records.db`
 
 ## CI/CD Integration

@@ -80,13 +80,12 @@ def test_upload_seed_file():
         browser = p.chromium.launch(headless=get_headless_mode())
         page = browser.new_page()
 
-        # create test seed file
+        # create test seed file matching JSON Generation template (expects 'content' field)
         seed_data = [
             {
                 "repetitions": 1,
                 "metadata": {
-                    "topic": "artificial intelligence",
-                    "role": "teacher",
+                    "content": "Artificial intelligence is transforming education by enabling personalized learning experiences.",
                 },
             }
         ]
@@ -131,13 +130,12 @@ def test_start_generation_job():
         browser = p.chromium.launch(headless=get_headless_mode())
         page = browser.new_page()
 
-        # create test seed file
+        # create test seed file matching JSON Generation template (expects 'content' field)
         seed_data = [
             {
                 "repetitions": 1,
                 "metadata": {
-                    "topic": "machine learning",
-                    "role": "expert",
+                    "content": "Machine learning is a subset of AI that enables computers to learn from data without explicit programming.",
                 },
             }
         ]

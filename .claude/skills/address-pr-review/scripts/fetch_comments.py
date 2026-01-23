@@ -69,10 +69,15 @@ def parse_comment(comment: dict[str, Any]) -> dict[str, Any]:
     if title_match:
         after_title = body[title_match.end() :]
         details_pos = after_title.find("<details>")
-        if details_pos > 0:
+        if details_pos >= 0:
             desc = after_title[:details_pos].strip()
-        elif len(after_title) < 500:
+        else:
             desc = after_title.strip()
+    else:
+        # no bold title - use full body as description
+        desc = body.strip()
+    if len(desc) > 500:
+        desc = desc[:500].rstrip() + "…"
 
     # clean description of markdown artifacts
     desc = re.sub(r"<!--.*?-->", "", desc, flags=re.DOTALL).strip()
@@ -117,6 +122,13 @@ if __name__ == "__main__":
 
     pr_number = sys.argv[1]
     mode = sys.argv[2] if len(sys.argv) > 2 else "--unresolved"
+
+    if not pr_number.isdigit():
+        print("PR number must be numeric")
+        sys.exit(1)
+    if mode == "--id" and len(sys.argv) <= 3:
+        print("missing id for --id")
+        sys.exit(1)
 
     comments = fetch_comments(pr_number)
     top_level = [c for c in comments if c.get("in_reply_to_id") is None]

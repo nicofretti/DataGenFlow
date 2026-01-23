@@ -379,7 +379,7 @@ from lib.entities.block_execution_context import BlockExecutionContext
 class BaseBlock:
     name: str
     description: str
-    category: str  # generators, validators, metrics, seeders, general
+    category: str  # generators, validators, metrics, seeders, multipliers, observability, utilities
     inputs: list[str]
     outputs: list[str]
 
