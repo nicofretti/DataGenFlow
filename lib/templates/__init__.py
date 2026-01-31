@@ -57,8 +57,8 @@ class TemplateRegistry:
 
                     self._templates[template_id] = template_data
                     self._sources[template_id] = "builtin"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"failed to load builtin template {template_file}: {e}")
 
     def _load_user_templates(self, user_dir: Path) -> None:
         """load user templates, skipping ids that already exist as builtin"""
@@ -77,8 +77,8 @@ class TemplateRegistry:
 
                     self._templates[template_id] = template_data
                     self._sources[template_id] = "user"
-            except Exception:
-                logger.warning(f"failed to load user template {template_file}")
+            except Exception as e:
+                logger.warning(f"failed to load user template {template_file}: {e}")
 
     def register(
         self,

@@ -88,10 +88,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await storage.init_db()
 
     # ensure extension directories exist
-    from pathlib import Path as _Path
-
-    _Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", "user_blocks")).mkdir(exist_ok=True)
-    _Path(os.getenv("DATAGENFLOW_TEMPLATES_PATH", "user_templates")).mkdir(exist_ok=True)
+    Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", "user_blocks")).mkdir(exist_ok=True)
+    Path(os.getenv("DATAGENFLOW_TEMPLATES_PATH", "user_templates")).mkdir(exist_ok=True)
 
     # start file watcher for hot reload
     file_watcher = ExtensionFileWatcher(registry, template_registry)

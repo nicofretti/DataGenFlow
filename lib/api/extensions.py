@@ -50,7 +50,7 @@ async def extensions_templates() -> list[TemplateInfo]:
 @router.post("/reload")
 async def reload_extensions() -> dict[str, str]:
     """manually trigger extension reload"""
-    registry._discover_blocks()
+    registry.reload()
     return {"status": "ok", "message": "Extensions reloaded"}
 
 

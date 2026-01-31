@@ -83,6 +83,11 @@ class BlockRegistry:
             error=error,
         )
 
+    def reload(self) -> None:
+        """re-scan all block directories and refresh the registry"""
+        self._entries.clear()
+        self._discover_blocks()
+
     def unregister(self, block_type: str) -> None:
         self._entries.pop(block_type, None)
 

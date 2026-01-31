@@ -83,7 +83,7 @@ class BlockFileHandler(DebouncedHandler):
             return
 
         logger.info(f"block file {event_type}: {path}")
-        self.registry._discover_blocks()
+        self.registry.reload()
 
 
 class TemplateFileHandler(DebouncedHandler):
