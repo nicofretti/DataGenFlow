@@ -26,6 +26,9 @@ from lib.entities import (
     SeedValidationRequest,
     ValidationConfig,
 )
+from lib.api.extensions import router as extensions_router
+from lib.entities.extensions import BlockInfo, TemplateInfo
+from lib.file_watcher import ExtensionFileWatcher
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
 from lib.job_processor import process_job_in_thread
 from lib.job_queue import JobQueue
@@ -84,6 +87,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     await storage.init_db()
 
+    # ensure extension directories exist
+    from pathlib import Path as _Path
+
+    _Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", "user_blocks")).mkdir(exist_ok=True)
+    _Path(os.getenv("DATAGENFLOW_TEMPLATES_PATH", "user_templates")).mkdir(exist_ok=True)
+
+    # start file watcher for hot reload
+    file_watcher = ExtensionFileWatcher(registry, template_registry)
+    file_watcher.start()
+
     # patch langfuse bug before enabling it
     _patch_langfuse_usage_bug()
 
@@ -97,7 +110,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     litellm.callbacks = [UsageTracker.callback]
 
     yield
-    # close storage connection on shutdown
+
+    file_watcher.stop()
     await storage.close()
 
 
@@ -480,7 +494,7 @@ async def download_export(
 
 
 @api_router.get("/blocks")
-async def list_blocks() -> list[dict[str, Any]]:
+async def list_blocks() -> list[BlockInfo]:
     """list all registered blocks with dynamically injected model options"""
     blocks = registry.list_blocks()
 
@@ -492,16 +506,13 @@ async def list_blocks() -> list[dict[str, Any]]:
 
     # inject model options into block schemas
     for block in blocks:
-        block_type = block.get("type")
-        props = block.get("config_schema", {}).get("properties", {})
+        props = block.config_schema.get("properties", {})
 
-        # inject LLM model options
-        if block_type in ["TextGenerator", "StructuredGenerator", "RagasMetrics"]:
+        if block.type in ["TextGenerator", "StructuredGenerator", "RagasMetrics"]:
             if "model" in props:
                 props["model"]["enum"] = model_names
 
-        # inject embedding model options for RagasMetrics
-        if block_type == "RagasMetrics":
+        if block.type == "RagasMetrics":
             if "embedding_model" in props:
                 props["embedding_model"]["enum"] = embedding_names
 
@@ -788,7 +799,7 @@ async def test_embedding_connection(
 
 
 @api_router.get("/templates")
-async def list_templates() -> list[dict[str, Any]]:
+async def list_templates() -> list[TemplateInfo]:
     """List all available pipeline templates"""
     return template_registry.list_templates()
 
@@ -808,8 +819,9 @@ async def create_pipeline_from_template(template_id: str) -> dict[str, Any]:
     return {"id": pipeline_id, "name": pipeline_name, "template_id": template_id}
 
 
-# include api router with /api prefix
+# include api routers
 app.include_router(api_router, prefix="/api")
+app.include_router(extensions_router, prefix="/api")
 
 # serve frontend (built react app)
 frontend_dir = Path("frontend/build")

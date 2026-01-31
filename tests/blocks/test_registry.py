@@ -7,7 +7,7 @@ def test_registry_discovers_blocks():
     blocks = registry.list_blocks()
 
     # should discover at least the core blocks
-    block_types = [b["type"] for b in blocks]
+    block_types = [b.type for b in blocks]
     assert "TextGenerator" in block_types
     assert "ValidatorBlock" in block_types
     assert "JSONValidatorBlock" in block_types

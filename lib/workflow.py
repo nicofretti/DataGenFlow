@@ -37,7 +37,7 @@ class Pipeline:
 
             block_class = registry.get_block_class(block_type)
             if not block_class:
-                available = list(registry._blocks.keys())
+                available = registry.list_block_types()
                 raise BlockNotFoundError(
                     f"Block '{block_type}' not found",
                     detail={"block_type": block_type, "available_blocks": available},

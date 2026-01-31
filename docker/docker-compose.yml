@@ -11,8 +11,11 @@ services:
     volumes:
       # Mount data directory for persistence
       - ./data:/app/data
-      # Mount custom blocks directory for hot-reloading (restart required for new blocks)
+      # Mount custom blocks directory for hot-reloading
       - ./lib/blocks/custom:/app/lib/blocks/custom
+      # Mount user extension directories (managed by dgf CLI)
+      - ./user_blocks:/app/user_blocks
+      - ./user_templates:/app/user_templates
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Box, Text, TextInput } from "@primer/react";
+import { Box, Text, TextInput, Tooltip } from "@primer/react";
 import { SearchIcon, ChevronDownIcon, ChevronRightIcon } from "@primer/octicons-react";
 
 interface Block {
@@ -10,6 +10,9 @@ interface Block {
   outputs: string[];
   config_schema: Record<string, any>;
   category: string;
+  source?: string;
+  available?: boolean;
+  error?: string | null;
 }
 
 interface BlockPaletteProps {
@@ -185,46 +188,75 @@ export default function BlockPalette({ blocks }: BlockPaletteProps) {
               {/* Block Items */}
               {!isCollapsed && (
                 <Box sx={{ ml: 3, mt: 1 }}>
-                  {blocks.map((block) => (
-                    <Box
-                      key={block.type}
-                      draggable
-                      onDragStart={(e: React.DragEvent<HTMLDivElement>) =>
-                        onDragStart(e, block.type)
-                      }
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        p: 2,
-                        mb: 1,
-                        borderRadius: 1,
-                        bg: "canvas.subtle",
-                        cursor: "grab",
-                        borderLeft: "2px solid",
-                        borderColor: info.color,
-                        "&:hover": {
-                          bg: "accent.subtle",
-                        },
-                        "&:active": {
-                          cursor: "grabbing",
-                        },
-                      }}
-                    >
-                      {/* <Text sx={{ fontSize: "14px" }}>{info.icon}</Text> */}
-                      <Text
+                  {blocks.map((block) => {
+                    const isAvailable = block.available !== false;
+                    const blockItem = (
+                      <Box
+                        key={block.type}
+                        draggable={isAvailable}
+                        onDragStart={
+                          isAvailable
+                            ? (e: React.DragEvent<HTMLDivElement>) => onDragStart(e, block.type)
+                            : undefined
+                        }
                         sx={{
-                          fontSize: "13px",
-                          color: "fg.default",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          p: 2,
+                          mb: 1,
+                          borderRadius: 1,
+                          bg: isAvailable ? "canvas.subtle" : "neutral.subtle",
+                          cursor: isAvailable ? "grab" : "not-allowed",
+                          borderLeft: "2px solid",
+                          borderColor: isAvailable ? info.color : "border.muted",
+                          opacity: isAvailable ? 1 : 0.5,
+                          "&:hover": isAvailable
+                            ? { bg: "accent.subtle" }
+                            : {},
+                          "&:active": isAvailable
+                            ? { cursor: "grabbing" }
+                            : {},
                         }}
                       >
-                        {block.name}
-                      </Text>
-                    </Box>
-                  ))}
+                        <Text
+                          sx={{
+                            fontSize: "13px",
+                            color: isAvailable ? "fg.default" : "fg.muted",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            flex: 1,
+                          }}
+                        >
+                          {block.name}
+                        </Text>
+                        {block.source && block.source !== "builtin" && (
+                          <Text
+                            sx={{
+                              fontSize: "10px",
+                              color: "fg.muted",
+                              bg: "neutral.subtle",
+                              px: 1,
+                              borderRadius: 1,
+                            }}
+                          >
+                            {block.source}
+                          </Text>
+                        )}
+                      </Box>
+                    );
+
+                    if (!isAvailable && block.error) {
+                      return (
+                        <Tooltip key={block.type} aria-label={block.error} direction="e">
+                          {blockItem}
+                        </Tooltip>
+                      );
+                    }
+
+                    return blockItem;
+                  })}
                 </Box>
               )}
             </Box>
