@@ -221,7 +221,7 @@ class AdvancedBlock(BaseBlock):
         self.mode = mode
         self.temperature = temperature
 
-    async def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, data: BlockExecutionContext) -> dict[str, Any]:
         # Your implementation here
         return {"result": "processed"}
 ```
