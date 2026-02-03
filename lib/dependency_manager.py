@@ -4,8 +4,10 @@ Dependency manager for block dependencies.
 Parses, checks, and installs pip dependencies declared in block classes.
 """
 
+import asyncio
 import importlib.metadata
 import logging
+import re
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -15,6 +17,9 @@ if TYPE_CHECKING:
 from lib.entities.extensions import DependencyInfo
 
 logger = logging.getLogger(__name__)
+
+# only allow valid pip package names (PEP 508)
+_VALID_PACKAGE_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?")
 
 
 class DependencyError(Exception):
@@ -26,6 +31,15 @@ def _parse_package_name(requirement: str) -> str:
     for sep in (">=", "<=", "==", ">", "<", "[", "!=", "~="):
         requirement = requirement.split(sep)[0]
     return requirement.strip()
+
+
+def _validate_requirement(req: str) -> None:
+    """reject requirements that look like argument injection"""
+    if req.startswith("-"):
+        raise DependencyError(f"invalid requirement (looks like a flag): {req}")
+    name = _parse_package_name(req)
+    if not _VALID_PACKAGE_RE.fullmatch(name):
+        raise DependencyError(f"invalid package name: {name}")
 
 
 class DependencyManager:
@@ -60,10 +74,13 @@ class DependencyManager:
                 ))
         return result
 
-    def install(self, requirements: list[str], timeout: int = 300) -> list[str]:
-        """install requirements using uv. returns list of installed packages."""
+    def _install_sync(self, requirements: list[str], timeout: int = 300) -> list[str]:
+        """synchronous install — run via asyncio.to_thread from async code"""
         if not requirements:
             return []
+
+        for req in requirements:
+            _validate_requirement(req)
 
         cmd = ["uv", "pip", "install", "--quiet"] + requirements
         logger.info(f"installing dependencies: {requirements}")
@@ -78,6 +95,10 @@ class DependencyManager:
             raise DependencyError(f"installation timed out after {timeout}s")
         except FileNotFoundError:
             raise DependencyError("uv not found")
+
+    async def install(self, requirements: list[str], timeout: int = 300) -> list[str]:
+        """install requirements using uv without blocking the event loop"""
+        return await asyncio.to_thread(self._install_sync, requirements, timeout)
 
 
 dependency_manager = DependencyManager()

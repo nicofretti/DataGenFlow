@@ -99,11 +99,8 @@ class TemplateFileHandler(DebouncedHandler):
             return
 
         logger.info(f"template file {event_type}: {path}")
-
-        if event_type == "deleted":
-            self.registry.unregister(path.stem)
-        else:
-            self.registry._load_user_templates(self.user_dir)
+        # full reload is safe — uses atomic swap internally
+        self.registry.reload()
 
 
 class ExtensionFileWatcher:

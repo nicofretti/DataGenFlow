@@ -24,16 +24,22 @@ class TemplateRegistry:
     ):
         if templates_dir is None:
             templates_dir = Path(__file__).parent
+        if user_templates_dir is None:
+            user_templates_dir = Path("user_templates")
         self.templates_dir = templates_dir
         self.seeds_dir = templates_dir / "seeds"
+        self.user_templates_dir = user_templates_dir
         self._templates: dict[str, dict[str, Any]] = {}
         self._sources: dict[str, str] = {}
-        self._load_templates()
+        self._load_builtin_into(self._templates, self._sources)
+        if self.user_templates_dir.exists():
+            self._load_user_into(self.user_templates_dir, self._templates, self._sources)
 
-        if user_templates_dir and user_templates_dir.exists():
-            self._load_user_templates(user_templates_dir)
-
-    def _load_templates(self) -> None:
+    def _load_builtin_into(
+        self,
+        templates: dict[str, dict[str, Any]],
+        sources: dict[str, str],
+    ) -> None:
         """load all template yaml files from builtin templates directory"""
         for template_file in self.templates_dir.glob("*.yaml"):
             try:
@@ -55,12 +61,17 @@ class TemplateRegistry:
                                 {"repetitions": 1, "metadata": {"file_content": sf.read()}}
                             ]
 
-                    self._templates[template_id] = template_data
-                    self._sources[template_id] = "builtin"
+                    templates[template_id] = template_data
+                    sources[template_id] = "builtin"
             except Exception as e:
                 logger.warning(f"failed to load builtin template {template_file}: {e}")
 
-    def _load_user_templates(self, user_dir: Path) -> None:
+    def _load_user_into(
+        self,
+        user_dir: Path,
+        templates: dict[str, dict[str, Any]],
+        sources: dict[str, str],
+    ) -> None:
         """load user templates, skipping ids that already exist as builtin"""
         for template_file in user_dir.glob("*.yaml"):
             try:
@@ -68,15 +79,14 @@ class TemplateRegistry:
                     template_data = yaml.safe_load(f)
                     template_id = template_file.stem
 
-                    # builtin takes precedence
-                    if template_id in self._templates:
+                    if template_id in templates:
                         logger.warning(
                             f"user template '{template_id}' skipped: conflicts with builtin"
                         )
                         continue
 
-                    self._templates[template_id] = template_data
-                    self._sources[template_id] = "user"
+                    templates[template_id] = template_data
+                    sources[template_id] = "user"
             except Exception as e:
                 logger.warning(f"failed to load user template {template_file}: {e}")
 
@@ -93,13 +103,26 @@ class TemplateRegistry:
         self._templates.pop(template_id, None)
         self._sources.pop(template_id, None)
 
+    def reload(self) -> None:
+        """re-scan builtin and user template directories.
+        builds into local dicts, then swaps atomically so concurrent readers
+        never see an empty or partial registry."""
+        templates: dict[str, dict[str, Any]] = {}
+        sources: dict[str, str] = {}
+        self._load_builtin_into(templates, sources)
+        if self.user_templates_dir.exists():
+            self._load_user_into(self.user_templates_dir, templates, sources)
+        # atomic swap — GIL guarantees reference assignment is atomic
+        self._templates = templates
+        self._sources = sources
+
     def list_templates(self) -> list[TemplateInfo]:
         """List all available templates"""
         return [
             TemplateInfo(
                 id=template_id,
-                name=template["name"],
-                description=template["description"],
+                name=template.get("name", template_id),
+                description=template.get("description", ""),
                 example_seed=template.get("example_seed"),
                 source=self._sources.get(template_id, "builtin"),
             )

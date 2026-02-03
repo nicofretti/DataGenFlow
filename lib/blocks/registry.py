@@ -1,6 +1,7 @@
 import importlib
 import inspect
 import logging
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -42,9 +43,11 @@ class BlockEntry(BaseModel):
 class BlockRegistry:
     def __init__(self) -> None:
         self._entries: dict[str, BlockEntry] = {}
-        self._discover_blocks()
+        self._entries = self._discover_blocks()
 
-    def _discover_blocks(self) -> None:
+    def _discover_blocks(self) -> dict[str, BlockEntry]:
+        """scan all block directories and return a fresh entries dict"""
+        entries: dict[str, BlockEntry] = {}
         for blocks_dir, source in _SOURCE_MAP.items():
             blocks_path = Path(blocks_dir)
             if not blocks_path.exists():
@@ -56,18 +59,25 @@ class BlockRegistry:
 
                 module_name = f"{blocks_dir.replace('/', '.')}.{py_file.stem}"
                 try:
-                    module = importlib.import_module(module_name)
+                    # reload already-imported modules so file changes are picked up
+                    module = (
+                        importlib.reload(sys.modules[module_name])
+                        if module_name in sys.modules
+                        else importlib.import_module(module_name)
+                    )
                     for _name, obj in inspect.getmembers(module, inspect.isclass):
-                        if issubclass(obj, BaseBlock) and obj not in (
-                            BaseBlock,
-                            BaseMultiplierBlock,
+                        if (
+                            issubclass(obj, BaseBlock)
+                            and obj not in (BaseBlock, BaseMultiplierBlock)
+                            and obj.__module__ == module.__name__
                         ):
-                            self._entries[obj.__name__] = BlockEntry(
+                            entries[obj.__name__] = BlockEntry(
                                 block_class=obj, source=source
                             )
                 except Exception as e:
                     logger.warning(f"failed to load block module {module_name}: {e}")
                     continue
+        return entries
 
     def register(
         self,
@@ -84,9 +94,9 @@ class BlockRegistry:
         )
 
     def reload(self) -> None:
-        """re-scan all block directories and refresh the registry"""
-        self._entries.clear()
-        self._discover_blocks()
+        """re-scan all block directories and refresh the registry.
+        uses atomic swap so concurrent readers never see an empty registry."""
+        self._entries = self._discover_blocks()
 
     def unregister(self, block_type: str) -> None:
         self._entries.pop(block_type, None)
@@ -97,6 +107,9 @@ class BlockRegistry:
 
     def list_block_types(self) -> list[str]:
         return list(self._entries.keys())
+
+    def get_entry(self, block_type: str) -> BlockEntry | None:
+        return self._entries.get(block_type)
 
     def get_block_source(self, block_type: str) -> str | None:
         entry = self._entries.get(block_type)

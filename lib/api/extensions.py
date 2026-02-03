@@ -51,6 +51,7 @@ async def extensions_templates() -> list[TemplateInfo]:
 async def reload_extensions() -> dict[str, str]:
     """manually trigger extension reload"""
     registry.reload()
+    template_registry.reload()
     return {"status": "ok", "message": "Extensions reloaded"}
 
 
@@ -74,25 +75,27 @@ async def validate_block(name: str) -> dict:
 @router.get("/blocks/{name}/dependencies")
 async def block_dependencies(name: str) -> list[DependencyInfo]:
     """get dependency info for a block"""
-    block_class = registry.get_block_class(name)
-    if block_class is None:
+    entry = registry.get_entry(name)
+    if entry is None:
         raise HTTPException(status_code=404, detail=f"Block '{name}' not found")
-    return dependency_manager.get_dependency_info(block_class.dependencies)
+    return dependency_manager.get_dependency_info(entry.block_class.dependencies)
 
 
 @router.post("/blocks/{name}/install-deps")
 async def install_block_deps(name: str) -> dict:
-    """install missing dependencies for a block"""
-    block_class = registry.get_block_class(name)
-    if block_class is None:
+    """install missing dependencies for a block (works for unavailable blocks too)"""
+    entry = registry.get_entry(name)
+    if entry is None:
         raise HTTPException(status_code=404, detail=f"Block '{name}' not found")
 
-    missing = dependency_manager.check_missing(block_class.dependencies)
+    deps = entry.block_class.dependencies
+    missing = dependency_manager.check_missing(deps)
     if not missing:
         return {"status": "ok", "message": "All dependencies already installed"}
 
     try:
-        installed = dependency_manager.install(missing)
+        installed = await dependency_manager.install(missing)
+        registry.reload()
         return {"status": "ok", "installed": installed}
     except DependencyError as e:
         raise HTTPException(status_code=500, detail=str(e))

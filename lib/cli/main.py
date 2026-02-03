@@ -3,6 +3,7 @@
 import ast
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -45,6 +46,16 @@ def get_endpoint() -> str:
 
 def get_client() -> DataGenFlowClient:
     return DataGenFlowClient(get_endpoint())
+
+
+def get_user_blocks_dir() -> Path:
+    """resolve user blocks directory from env or default"""
+    return Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", "user_blocks"))
+
+
+def get_user_templates_dir() -> Path:
+    """resolve user templates directory from env or default"""
+    return Path(os.getenv("DATAGENFLOW_TEMPLATES_PATH", "user_templates"))
 
 
 # ============ Status ============
@@ -110,6 +121,94 @@ def blocks_list() -> None:
         )
 
     console.print(table)
+
+
+@blocks_app.command("add")
+def blocks_add(
+    file: Path = typer.Argument(..., help="Path to block Python file"),
+    install_deps: bool = typer.Option(False, "--install-deps", help="Install block dependencies after adding"),
+) -> None:
+    """Add a block file to the user_blocks directory."""
+    if not file.exists():
+        console.print(f"[red]✗[/red] File not found: {file}")
+        raise typer.Exit(1)
+
+    if not file.suffix == ".py":
+        console.print("[red]✗[/red] Block file must be a .py file")
+        raise typer.Exit(1)
+
+    try:
+        tree = ast.parse(file.read_text())
+    except SyntaxError as e:
+        console.print(f"[red]✗[/red] Syntax error: {e}")
+        raise typer.Exit(1)
+
+    block_names = _find_block_classes(tree)
+    if not block_names:
+        console.print("[red]✗[/red] No block classes found (must inherit from BaseBlock)")
+        raise typer.Exit(1)
+
+    user_blocks_dir = get_user_blocks_dir()
+    user_blocks_dir.mkdir(parents=True, exist_ok=True)
+
+    dest = user_blocks_dir / file.name
+    shutil.copy2(file, dest)
+    console.print(f"[green]✓[/green] Copied {file.name} to {user_blocks_dir}")
+
+    client = get_client()
+
+    # trigger server-side reload so the new block is registered
+    try:
+        client.reload_extensions()
+    except Exception:
+        pass  # server may be unreachable; validation below will report the issue
+
+    for name in block_names:
+        try:
+            result = client.validate_block(name)
+            if result.get("valid"):
+                console.print(f"[green]✓[/green] Block '{name}' validated")
+            else:
+                console.print(f"[yellow]![/yellow] Block '{name}': {result.get('error', 'unknown error')}")
+        except Exception as e:
+            console.print(f"[yellow]![/yellow] Could not validate '{name}': {e}")
+
+    if not install_deps:
+        return
+
+    for name in block_names:
+        try:
+            console.print(f"  Installing deps for '{name}'...")
+            client.install_block_deps(name)
+            console.print(f"[green]✓[/green] Dependencies installed for '{name}'")
+        except Exception as e:
+            console.print(f"[red]✗[/red] Failed to install deps for '{name}': {e}")
+
+
+@blocks_app.command("remove")
+def blocks_remove(
+    name: str = typer.Argument(..., help="Block class name to remove"),
+) -> None:
+    """Remove a block file from the user_blocks directory."""
+    user_blocks_dir = get_user_blocks_dir()
+    if not user_blocks_dir.exists():
+        console.print(f"[red]✗[/red] User blocks directory not found: {user_blocks_dir}")
+        raise typer.Exit(1)
+
+    # search all .py files for the block class
+    for py_file in user_blocks_dir.glob("*.py"):
+        try:
+            tree = ast.parse(py_file.read_text())
+        except SyntaxError:
+            continue
+        block_names = _find_block_classes(tree)
+        if name in block_names:
+            py_file.unlink()
+            console.print(f"[green]✓[/green] Removed {py_file.name} (contained block '{name}')")
+            return
+
+    console.print(f"[red]✗[/red] Block '{name}' not found in {user_blocks_dir}")
+    raise typer.Exit(1)
 
 
 @blocks_app.command("validate")
@@ -202,6 +301,82 @@ def templates_list() -> None:
         )
 
     console.print(table)
+
+
+@templates_app.command("add")
+def templates_add(
+    file: Path = typer.Argument(..., help="Path to template YAML file"),
+) -> None:
+    """Add a template file to the user_templates directory."""
+    if not file.exists():
+        console.print(f"[red]✗[/red] File not found: {file}")
+        raise typer.Exit(1)
+
+    if file.suffix not in (".yaml", ".yml"):
+        console.print("[red]✗[/red] Template file must be a .yaml or .yml file")
+        raise typer.Exit(1)
+
+    import yaml
+
+    try:
+        with open(file) as f:
+            data = yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        console.print(f"[red]✗[/red] Invalid YAML: {e}")
+        raise typer.Exit(1)
+
+    errors = []
+    if "name" not in data:
+        errors.append("Missing 'name' field")
+    if "blocks" not in data:
+        errors.append("Missing 'blocks' field")
+    elif not isinstance(data["blocks"], list) or len(data["blocks"]) == 0:
+        errors.append("'blocks' must be a non-empty list")
+
+    if errors:
+        console.print(f"[red]✗[/red] {file.name} is invalid:")
+        for error in errors:
+            console.print(f"  - {error}")
+        raise typer.Exit(1)
+
+    user_templates_dir = get_user_templates_dir()
+    user_templates_dir.mkdir(parents=True, exist_ok=True)
+
+    dest = user_templates_dir / file.name
+    shutil.copy2(file, dest)
+    console.print(f"[green]✓[/green] Added template '{data['name']}' to {user_templates_dir}")
+
+
+@templates_app.command("remove")
+def templates_remove(
+    template_id: str = typer.Argument(..., help="Template ID to remove"),
+) -> None:
+    """Remove a template file from the user_templates directory."""
+    user_templates_dir = get_user_templates_dir()
+    if not user_templates_dir.exists():
+        console.print(f"[red]✗[/red] User templates directory not found: {user_templates_dir}")
+        raise typer.Exit(1)
+
+    import yaml
+
+    for yaml_file in list(user_templates_dir.glob("*.yaml")) + list(user_templates_dir.glob("*.yml")):
+        try:
+            with open(yaml_file) as f:
+                data = yaml.safe_load(f)
+        except Exception:
+            continue
+
+        # match by explicit id field or by filename stem
+        file_id = data.get("id", yaml_file.stem)
+        if file_id != template_id:
+            continue
+
+        yaml_file.unlink()
+        console.print(f"[green]✓[/green] Removed template '{template_id}' ({yaml_file.name})")
+        return
+
+    console.print(f"[red]✗[/red] Template '{template_id}' not found in {user_templates_dir}")
+    raise typer.Exit(1)
 
 
 @templates_app.command("validate")

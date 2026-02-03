@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Box, Heading, Text, Button, Spinner, Label } from "@primer/react";
-import { SyncIcon, CheckCircleFillIcon, XCircleFillIcon, PackageIcon } from "@primer/octicons-react";
+import { SyncIcon, CheckCircleFillIcon, XCircleFillIcon, PackageIcon, CheckIcon, DownloadIcon, PlusIcon } from "@primer/octicons-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import type { BlockInfo, TemplateInfo, ExtensionsStatus } from "../types";
 import { extensionsApi } from "../services/extensionsApi";
 
 export default function Extensions() {
+  const navigate = useNavigate();
   const [status, setStatus] = useState<ExtensionsStatus | null>(null);
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
@@ -101,7 +103,7 @@ export default function Extensions() {
         </Heading>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {blocks.map((block) => (
-            <BlockCard key={block.type} block={block} />
+            <BlockCard key={block.type} block={block} onReload={loadAll} />
           ))}
         </Box>
       </Box>
@@ -113,7 +115,7 @@ export default function Extensions() {
         </Heading>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {templates.map((tmpl) => (
-            <TemplateCard key={tmpl.id} template={tmpl} />
+            <TemplateCard key={tmpl.id} template={tmpl} navigate={navigate} />
           ))}
         </Box>
       </Box>
@@ -172,7 +174,41 @@ function StatusCard({
   );
 }
 
-function BlockCard({ block }: { block: BlockInfo }) {
+function BlockCard({ block, onReload }: { block: BlockInfo; onReload: () => Promise<void> }) {
+  const [validating, setValidating] = useState(false);
+  const [installing, setInstalling] = useState(false);
+
+  const handleValidate = async () => {
+    setValidating(true);
+    try {
+      const result = await extensionsApi.validateBlock(block.type);
+      if (result.valid) {
+        toast.success(`${block.name} is valid`);
+      } else {
+        toast.error(`${block.name} validation failed: ${result.error || "unknown error"}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Validation error: ${message}`);
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleInstallDeps = async () => {
+    setInstalling(true);
+    try {
+      const result = await extensionsApi.installBlockDeps(block.type);
+      toast.success(`Installed: ${result.installed.join(", ") || "all deps satisfied"}`);
+      await onReload();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Install failed: ${message}`);
+    } finally {
+      setInstalling(false);
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -192,7 +228,28 @@ function BlockCard({ block }: { block: BlockInfo }) {
             {block.available ? "available" : "unavailable"}
           </Label>
         </Box>
-        <Text sx={{ fontSize: 0, color: "fg.muted", fontFamily: "mono" }}>{block.type}</Text>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Text sx={{ fontSize: 0, color: "fg.muted", fontFamily: "mono" }}>{block.type}</Text>
+          <Button
+            size="small"
+            leadingVisual={CheckIcon}
+            onClick={handleValidate}
+            disabled={validating}
+          >
+            {validating ? "Validating..." : "Validate"}
+          </Button>
+          {!block.available && (
+            <Button
+              size="small"
+              variant="primary"
+              leadingVisual={DownloadIcon}
+              onClick={handleInstallDeps}
+              disabled={installing}
+            >
+              {installing ? "Installing..." : "Install Deps"}
+            </Button>
+          )}
+        </Box>
       </Box>
       <Text sx={{ fontSize: 1, color: "fg.muted", mt: 1, display: "block" }}>
         {block.description}
@@ -223,7 +280,24 @@ function BlockCard({ block }: { block: BlockInfo }) {
   );
 }
 
-function TemplateCard({ template }: { template: TemplateInfo }) {
+function TemplateCard({ template, navigate }: { template: TemplateInfo; navigate: ReturnType<typeof useNavigate> }) {
+  const [creating, setCreating] = useState(false);
+
+  const handleCreatePipeline = async () => {
+    setCreating(true);
+    try {
+      const res = await fetch(`/api/pipelines/from_template/${template.id}`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to create pipeline from template");
+      toast.success("Pipeline created from template");
+      navigate("/pipelines");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to create pipeline: ${message}`);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -234,9 +308,20 @@ function TemplateCard({ template }: { template: TemplateInfo }) {
         bg: "canvas.subtle",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <Text sx={{ fontWeight: "bold", fontSize: 2, color: "fg.default" }}>{template.name}</Text>
-        <SourceBadge source={template.source} />
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Text sx={{ fontWeight: "bold", fontSize: 2, color: "fg.default" }}>{template.name}</Text>
+          <SourceBadge source={template.source} />
+        </Box>
+        <Button
+          size="small"
+          variant="primary"
+          leadingVisual={PlusIcon}
+          onClick={handleCreatePipeline}
+          disabled={creating}
+        >
+          {creating ? "Creating..." : "Create Pipeline"}
+        </Button>
       </Box>
       <Text sx={{ fontSize: 1, color: "fg.muted", mt: 1, display: "block" }}>
         {template.description}
