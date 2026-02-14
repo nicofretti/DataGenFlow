@@ -54,6 +54,13 @@ class TestExtensionsFullStack:
         deps = resp.json()
         assert isinstance(deps, list)
 
+    def test_reload_returns_success(self, client):
+        """POST /api/extensions/reload returns ok status"""
+        response = client.post("/api/extensions/reload")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+
     def test_reload_preserves_builtin_blocks(self, client):
         """reloading extensions should not lose builtin blocks"""
         blocks_before = client.get("/api/extensions/blocks").json()
@@ -77,6 +84,13 @@ class TestExtensionsFullStack:
     def test_install_deps_nonexistent_block_returns_404(self, client):
         resp = client.post("/api/extensions/blocks/DoesNotExist/install-deps")
         assert resp.status_code == 404
+
+    def test_get_dependencies_for_block_without_deps(self, client):
+        """GET /api/extensions/blocks/{name}/dependencies for block without deps"""
+        response = client.get("/api/extensions/blocks/ValidatorBlock/dependencies")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
 
 
 class TestRegistryWithUserBlocks:

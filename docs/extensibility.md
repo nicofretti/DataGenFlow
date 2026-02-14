@@ -29,9 +29,9 @@ DataGenFlow's extensibility system lets engineers consume DataGenFlow as a Docke
 
 ## Overview
 
-Instead of cloning the DataGenFlow repository, engineers:
+Engineers clone the DataGenFlow repository once, then:
 
-1. Pull the official Docker image
+1. Build the Docker image locally
 2. Mount custom `user_blocks/` and `user_templates/` directories
 3. Manage extensions with the `dgf` CLI or the Extensions UI page
 
@@ -56,20 +56,31 @@ The system provides:
 ## Quick Start
 
 ```bash
-# 1. start DataGenFlow with mounted directories
+# 1. clone DataGenFlow
+git clone https://github.com/your-org/DataGenFlow.git
+cd DataGenFlow
+
+# 2. build the Docker image
+docker build -f docker/Dockerfile -t datagenflow:local .
+
+# 3. create your project directory
+mkdir -p my-project/user_blocks my-project/user_templates my-project/data
+cd my-project
+
+# 4. create docker-compose.yml (see Docker Setup section)
+
+# 5. start DataGenFlow
 docker-compose up -d
 
-# 2. scaffold a block
-dgf blocks scaffold SentimentAnalyzer -c validators
+# 6. scaffold a block
+cd ../DataGenFlow && uv run dgf blocks scaffold SentimentAnalyzer -c validators
+mv sentiment_analyzer.py ../my-project/user_blocks/
 
-# 3. move it to user_blocks (hot reload picks it up)
-mv sentiment_analyzer.py user_blocks/
+# 7. check it's registered
+uv run dgf blocks list
 
-# 4. check it's registered
-dgf blocks list
-
-# 5. open the Extensions page in the UI
-open http://localhost:8000
+# 8. open the Extensions page in the UI
+open http://localhost:8000/extensions
 ```
 
 ## Writing Custom Blocks
@@ -156,10 +167,19 @@ Place templates in `user_templates/` (or the path set by `DATAGENFLOW_TEMPLATES_
 
 ## CLI Reference
 
-The `dgf` CLI communicates with a running DataGenFlow instance over HTTP. Install it with:
+The `dgf` CLI is included in the DataGenFlow repository. Run it with `uv`:
 
 ```bash
-pip install datagenflow  # includes the dgf CLI
+cd /path/to/DataGenFlow
+uv run dgf --help
+```
+
+Or install globally (requires the repo to be cloned):
+
+```bash
+cd /path/to/DataGenFlow
+uv pip install -e .
+dgf --help
 ```
 
 ### Status
@@ -270,12 +290,21 @@ Unavailable blocks are highlighted with a red border and display the error messa
 
 ## Docker Setup
 
-Minimal `docker-compose.yml` for using DataGenFlow with extensions:
+### Building the Image
+
+```bash
+# from DataGenFlow repository root
+docker build -f docker/Dockerfile -t datagenflow:local .
+```
+
+### docker-compose.yml for Your Project
+
+Create this in your project directory (outside DataGenFlow):
 
 ```yaml
 services:
   datagenflow:
-    image: datagenflow/datagenflow:latest
+    image: datagenflow:local
     ports:
       - "8000:8000"
     volumes:
@@ -286,9 +315,26 @@ services:
       - .env
     environment:
       - DATAGENFLOW_HOT_RELOAD=true
+    restart: unless-stopped
 ```
 
-**Environment variables:**
+### Environment Variables
+
+Create a `.env` file:
+
+```bash
+# Required: at least one LLM provider
+OPENAI_API_KEY=sk-...
+
+# Optional: endpoint for dgf CLI
+DATAGENFLOW_ENDPOINT=http://localhost:8000
+
+# Optional: hot reload settings
+DATAGENFLOW_HOT_RELOAD=true
+DATAGENFLOW_HOT_RELOAD_DEBOUNCE_MS=500
+```
+
+**All extensibility variables:**
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -299,20 +345,21 @@ services:
 
 ## Building Custom Images
 
-For production, pre-bake dependencies into the image to avoid runtime installs:
+For production, pre-bake dependencies into the image:
 
 ```bash
 # 1. generate Dockerfile with dependencies from your blocks
-dgf image scaffold --blocks-dir ./user_blocks
+cd /path/to/DataGenFlow
+uv run dgf image scaffold --blocks-dir /path/to/my-project/user_blocks -o /path/to/my-project/Dockerfile.custom
 
-# 2. build the image
-dgf image build -t my-datagenflow:latest
+# 2. build the custom image (from DataGenFlow repo root)
+docker build -f /path/to/my-project/Dockerfile.custom -t my-datagenflow:latest .
 
-# 3. use it in docker-compose
+# 3. update docker-compose.yml to use new image
 # image: my-datagenflow:latest
 ```
 
-The generated `Dockerfile.custom` extends the base image and runs `uv pip install` for all declared dependencies.
+The generated Dockerfile builds from source and runs `uv pip install` for all declared dependencies.
 
 ## Troubleshooting
 
