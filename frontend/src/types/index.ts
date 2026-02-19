@@ -89,6 +89,16 @@ export interface BlockSchema {
 
 export type LLMProvider = "openai" | "anthropic" | "gemini" | "ollama";
 
+export const LLM_PROVIDERS: { value: LLMProvider; label: string }[] = [
+  { value: "openai", label: "OpenAI" },
+  { value: "anthropic", label: "Anthropic" },
+  { value: "gemini", label: "Google Gemini" },
+  { value: "ollama", label: "Ollama" },
+];
+
+export const isLLMProvider = (v: string): v is LLMProvider =>
+  LLM_PROVIDERS.some((p) => p.value === v);
+
 export interface LLMModelConfig {
   name: string;
   provider: LLMProvider;

@@ -200,6 +200,16 @@ class Storage:
         if "is_default" not in llm_column_names:
             await db.execute("ALTER TABLE llm_models ADD COLUMN is_default BOOLEAN DEFAULT 0")
 
+        # ensure at least one llm model is default if models exist
+        await db.execute(
+            """
+            UPDATE llm_models
+            SET is_default = 1
+            WHERE name = (SELECT name FROM llm_models ORDER BY name LIMIT 1)
+            AND (SELECT COUNT(*) FROM llm_models WHERE is_default = 1) = 0
+            """
+        )
+
         # migrate embedding_models table
         cursor = await db.execute("PRAGMA table_info(embedding_models)")
         embedding_columns = await cursor.fetchall()
@@ -207,6 +217,16 @@ class Storage:
 
         if "is_default" not in embedding_column_names:
             await db.execute("ALTER TABLE embedding_models ADD COLUMN is_default BOOLEAN DEFAULT 0")
+
+        # ensure at least one embedding model is default if models exist
+        await db.execute(
+            """
+            UPDATE embedding_models
+            SET is_default = 1
+            WHERE name = (SELECT name FROM embedding_models ORDER BY name LIMIT 1)
+            AND (SELECT COUNT(*) FROM embedding_models WHERE is_default = 1) = 0
+            """
+        )
 
     async def _migrate_env_to_db(self, db: Connection) -> None:
         """migrate .env config to database if no models configured"""
@@ -245,14 +265,26 @@ class Storage:
 
     async def _execute_with_connection(self, func: Callable[[Connection], Any]) -> Any:
         if self._conn:
-            result = await func(self._conn)
-            await self._conn.commit()
-            return result
+            try:
+                result = await func(self._conn)
+                await self._conn.commit()
+            except Exception:
+                logger.exception("transaction failed during _execute_with_connection")
+                await self._conn.rollback()
+                raise
+            else:
+                return result
 
         async with aiosqlite.connect(self.db_path) as db:
-            result = await func(db)
-            await db.commit()
-            return result
+            try:
+                result = await func(db)
+                await db.commit()
+            except Exception:
+                logger.exception("transaction failed during _execute_with_connection")
+                await db.rollback()
+                raise
+            else:
+                return result
 
     async def save_record(
         self, record: RecordCreate, pipeline_id: int | None = None, job_id: int | None = None
@@ -670,43 +702,38 @@ class Storage:
         """create or update llm model config (upsert)"""
 
         async def _save(db: Connection) -> None:
-            await db.execute("BEGIN")
-            try:
-                # check if this is the first model inside transaction
-                cursor = await db.execute("SELECT COUNT(*) FROM llm_models")
-                row = await cursor.fetchone()
-                count = row[0] if row else 0
+            if config.is_default:
+                await db.execute("UPDATE llm_models SET is_default = 0")
 
-                final_is_default = config.is_default or count == 0
+            await db.execute(
+                """
+                INSERT INTO llm_models
+                (name, provider, endpoint, api_key, model_name, is_default)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(name) DO UPDATE SET
+                    provider = excluded.provider,
+                    endpoint = excluded.endpoint,
+                    api_key = excluded.api_key,
+                    model_name = excluded.model_name,
+                    is_default = excluded.is_default
+                """,
+                (
+                    config.name,
+                    config.provider.value,
+                    config.endpoint,
+                    config.api_key,
+                    config.model_name,
+                    config.is_default,
+                ),
+            )
 
-                if final_is_default:
-                    await db.execute("UPDATE llm_models SET is_default = 0")
-
+            # self-healing: ensure at least one default model exists
+            cursor = await db.execute("SELECT COUNT(*) FROM llm_models WHERE is_default = 1")
+            row = await cursor.fetchone()
+            if not row or row[0] == 0:
                 await db.execute(
-                    """
-                    INSERT INTO llm_models
-                    (name, provider, endpoint, api_key, model_name, is_default)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(name) DO UPDATE SET
-                        provider = excluded.provider,
-                        endpoint = excluded.endpoint,
-                        api_key = excluded.api_key,
-                        model_name = excluded.model_name,
-                        is_default = excluded.is_default
-                    """,
-                    (
-                        config.name,
-                        config.provider.value,
-                        config.endpoint,
-                        config.api_key,
-                        config.model_name,
-                        final_is_default,
-                    ),
+                    "UPDATE llm_models SET is_default = 1 WHERE name = ?", (config.name,)
                 )
-                await db.execute("COMMIT")
-            except Exception:
-                await db.execute("ROLLBACK")
-                raise
 
         await self._execute_with_connection(_save)
 
@@ -734,6 +761,7 @@ class Storage:
                 await db.execute("COMMIT")
                 return deleted
             except Exception:
+                logger.exception(f"transaction failed during delete_llm_model for name={name}")
                 await db.execute("ROLLBACK")
                 raise
 
@@ -757,6 +785,7 @@ class Storage:
                 await db.execute("COMMIT")
                 return True
             except Exception:
+                logger.exception(f"transaction failed during set_default_llm_model for name={name}")
                 await db.execute("ROLLBACK")
                 raise
 
@@ -809,45 +838,40 @@ class Storage:
         """create or update embedding model config (upsert)"""
 
         async def _save(db: Connection) -> None:
-            await db.execute("BEGIN")
-            try:
-                # check if this is the first model inside transaction
-                cursor = await db.execute("SELECT COUNT(*) FROM embedding_models")
-                row = await cursor.fetchone()
-                count = row[0] if row else 0
+            if config.is_default:
+                await db.execute("UPDATE embedding_models SET is_default = 0")
 
-                final_is_default = config.is_default or count == 0
+            await db.execute(
+                """
+                INSERT INTO embedding_models
+                    (name, provider, endpoint, api_key, model_name, dimensions, is_default)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(name) DO UPDATE SET
+                    provider = excluded.provider,
+                    endpoint = excluded.endpoint,
+                    api_key = excluded.api_key,
+                    model_name = excluded.model_name,
+                    dimensions = excluded.dimensions,
+                    is_default = excluded.is_default
+                """,
+                (
+                    config.name,
+                    config.provider.value,
+                    config.endpoint,
+                    config.api_key,
+                    config.model_name,
+                    config.dimensions,
+                    config.is_default,
+                ),
+            )
 
-                if final_is_default:
-                    await db.execute("UPDATE embedding_models SET is_default = 0")
-
+            # self-healing: ensure at least one default model exists
+            cursor = await db.execute("SELECT COUNT(*) FROM embedding_models WHERE is_default = 1")
+            row = await cursor.fetchone()
+            if not row or row[0] == 0:
                 await db.execute(
-                    """
-                    INSERT INTO embedding_models
-                        (name, provider, endpoint, api_key, model_name, dimensions, is_default)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(name) DO UPDATE SET
-                        provider = excluded.provider,
-                        endpoint = excluded.endpoint,
-                        api_key = excluded.api_key,
-                        model_name = excluded.model_name,
-                        dimensions = excluded.dimensions,
-                        is_default = excluded.is_default
-                    """,
-                    (
-                        config.name,
-                        config.provider.value,
-                        config.endpoint,
-                        config.api_key,
-                        config.model_name,
-                        config.dimensions,
-                        final_is_default,
-                    ),
+                    "UPDATE embedding_models SET is_default = 1 WHERE name = ?", (config.name,)
                 )
-                await db.execute("COMMIT")
-            except Exception:
-                await db.execute("ROLLBACK")
-                raise
 
         await self._execute_with_connection(_save)
 
@@ -874,6 +898,9 @@ class Storage:
                 await db.execute("COMMIT")
                 return deleted
             except Exception:
+                logger.exception(
+                    f"transaction failed during delete_embedding_model for name={name}"
+                )
                 await db.execute("ROLLBACK")
                 raise
 
@@ -899,6 +926,9 @@ class Storage:
                 await db.execute("COMMIT")
                 return True
             except Exception:
+                logger.exception(
+                    f"transaction failed during set_default_embedding_model for name={name}"
+                )
                 await db.execute("ROLLBACK")
                 raise
 

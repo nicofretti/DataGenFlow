@@ -563,3 +563,15 @@ class TestAPIDefaultModelSelection:
         """Test PUT /api/embedding-models/{name}/default - not found"""
         response = client.put("/api/embedding-models/nonexistent/default")
         assert response.status_code == 404
+
+
+class TestAPILangfuse:
+    """Test Langfuse-related API endpoints"""
+
+    def test_get_langfuse_status(self, client):
+        """Test GET /api/langfuse/status"""
+        response = client.get("/api/langfuse/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert "enabled" in data
+        assert isinstance(data["enabled"], bool)
