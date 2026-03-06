@@ -1,6 +1,7 @@
 """
 Tests for enhanced BlockRegistry: source tracking, register/unregister, unavailable blocks.
 """
+
 from lib.blocks.base import BaseBlock
 from lib.blocks.registry import BlockRegistry
 from lib.entities.extensions import BlockInfo
@@ -102,7 +103,9 @@ def test_register_replaces_existing():
 
 def test_register_unavailable_block():
     reg = BlockRegistry()
-    reg.register(BlockWithDeps, source="user", available=False, error="Missing: some_nonexistent_package")
+    reg.register(
+        BlockWithDeps, source="user", available=False, error="Missing: some_nonexistent_package"
+    )
     blocks = reg.list_blocks()
     block = next(b for b in blocks if b.type == "BlockWithDeps")
     assert block.available is False

@@ -75,7 +75,10 @@ def test_status_counts_are_consistent():
 
     blocks = status["blocks"]
     # total should equal sum of sources
-    assert blocks["total"] == blocks["builtin_blocks"] + blocks["custom_blocks"] + blocks["user_blocks"]
+    assert (
+        blocks["total"]
+        == blocks["builtin_blocks"] + blocks["custom_blocks"] + blocks["user_blocks"]
+    )
     # total should equal available + unavailable
     assert blocks["total"] == blocks["available"] + blocks["unavailable"]
     # should have at least some builtin blocks
@@ -122,7 +125,7 @@ def test_blocks_list_contains_known_builtin_blocks():
     block_types = {b["type"] for b in blocks}
 
     # these should always exist as builtin blocks
-    expected_builtins = {"text_generator", "json_validator", "field_mapper"}
+    expected_builtins = {"TextGenerator", "JSONValidatorBlock", "FieldMapper"}
     for expected in expected_builtins:
         assert expected in block_types, f"expected builtin block '{expected}' not found"
 
@@ -132,7 +135,7 @@ def test_blocks_list_contains_new_blocks():
     blocks = get_blocks_list()
     block_types = {b["type"] for b in blocks}
 
-    new_blocks = {"duplicate_remover", "semantic_infiller", "structure_sampler"}
+    new_blocks = {"DuplicateRemover", "SemanticInfiller", "StructureSampler"}
     for expected in new_blocks:
         assert expected in block_types, f"new block '{expected}' not found in registry"
 
@@ -151,7 +154,16 @@ def test_blocks_sources_are_valid():
 def test_blocks_categories_are_valid():
     """verify all block categories are known"""
     blocks = get_blocks_list()
-    valid_categories = {"generators", "validators", "processors", "seeders", "metrics", "integrations", "general"}
+    valid_categories = {
+        "generators",
+        "validators",
+        "processors",
+        "seeders",
+        "metrics",
+        "integrations",
+        "utilities",
+        "general",
+    }
 
     for block in blocks:
         assert block["category"] in valid_categories, (
@@ -234,7 +246,9 @@ def test_validate_returns_block_name():
 
 def test_validate_nonexistent_block_returns_404():
     """verify validation of nonexistent block returns 404"""
-    resp = httpx.post(f"{BASE_URL}/api/extensions/blocks/nonexistent_block_xyz/validate", timeout=10.0)
+    resp = httpx.post(
+        f"{BASE_URL}/api/extensions/blocks/nonexistent_block_xyz/validate", timeout=10.0
+    )
     assert resp.status_code == 404
 
 
@@ -253,7 +267,9 @@ def test_dependencies_returns_list():
 def test_dependencies_for_block_with_deps():
     """verify blocks with declared dependencies return dependency info"""
     blocks = get_blocks_list()
-    block_with_deps = next((b for b in blocks if b.get("dependencies") and len(b["dependencies"]) > 0), None)
+    block_with_deps = next(
+        (b for b in blocks if b.get("dependencies") and len(b["dependencies"]) > 0), None
+    )
     if block_with_deps is None:
         pytest.skip("no blocks with dependencies found")
 
@@ -267,7 +283,9 @@ def test_dependencies_for_block_with_deps():
 
 def test_dependencies_nonexistent_block_returns_404():
     """verify dependencies for nonexistent block returns 404"""
-    resp = httpx.get(f"{BASE_URL}/api/extensions/blocks/nonexistent_block_xyz/dependencies", timeout=10.0)
+    resp = httpx.get(
+        f"{BASE_URL}/api/extensions/blocks/nonexistent_block_xyz/dependencies", timeout=10.0
+    )
     assert resp.status_code == 404
 
 
@@ -333,8 +351,13 @@ if __name__ == "__main__":
         try:
             test_fn()
             print("✓ passed")
-        except Exception as e:
-            print(f"✗ failed: {e}")
+        except BaseException as e:
+            if type(e).__name__ == "Skipped":
+                print(f"⊘ skipped: {e}")
+            elif isinstance(e, (KeyboardInterrupt, SystemExit)):
+                raise
+            else:
+                print(f"✗ failed: {e}")
 
     cleanup_database()
     print("\n✅ all extensions API e2e tests completed!")

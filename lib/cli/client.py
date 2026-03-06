@@ -1,6 +1,6 @@
 """HTTP client for DataGenFlow API."""
 
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -20,22 +20,24 @@ class DataGenFlowClient:
             return response.json()
 
     def health(self) -> dict[str, Any]:
-        return self._request("GET", "/health")
+        return cast(dict[str, Any], self._request("GET", "/health"))
 
     def extension_status(self) -> dict[str, Any]:
-        return self._request("GET", "/api/extensions/status")
+        return cast(dict[str, Any], self._request("GET", "/api/extensions/status"))
 
     def list_blocks(self) -> list[dict[str, Any]]:
-        return self._request("GET", "/api/extensions/blocks")
+        return cast(list[dict[str, Any]], self._request("GET", "/api/extensions/blocks"))
 
     def list_templates(self) -> list[dict[str, Any]]:
-        return self._request("GET", "/api/extensions/templates")
+        return cast(list[dict[str, Any]], self._request("GET", "/api/extensions/templates"))
 
     def reload_extensions(self) -> dict[str, Any]:
-        return self._request("POST", "/api/extensions/reload")
+        return cast(dict[str, Any], self._request("POST", "/api/extensions/reload"))
 
     def validate_block(self, name: str) -> dict[str, Any]:
-        return self._request("POST", f"/api/extensions/blocks/{name}/validate")
+        path = f"/api/extensions/blocks/{name}/validate"
+        return cast(dict[str, Any], self._request("POST", path))
 
     def install_block_deps(self, name: str) -> dict[str, Any]:
-        return self._request("POST", f"/api/extensions/blocks/{name}/install-deps")
+        path = f"/api/extensions/blocks/{name}/install-deps"
+        return cast(dict[str, Any], self._request("POST", path))

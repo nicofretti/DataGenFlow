@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { Box, Heading, Text, Button, Spinner, Label } from "@primer/react";
-import { SyncIcon, CheckCircleFillIcon, XCircleFillIcon, PackageIcon, CheckIcon, DownloadIcon, PlusIcon } from "@primer/octicons-react";
+import {
+  SyncIcon,
+  CheckCircleFillIcon,
+  XCircleFillIcon,
+  PackageIcon,
+  CheckIcon,
+  DownloadIcon,
+  PlusIcon,
+} from "@primer/octicons-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import type { BlockInfo, TemplateInfo, ExtensionsStatus } from "../types";
@@ -62,11 +70,7 @@ export default function Extensions() {
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 4 }}>
         <Heading sx={{ color: "fg.default" }}>Extensions</Heading>
-        <Button
-          leadingVisual={SyncIcon}
-          onClick={handleReload}
-          disabled={reloading}
-        >
+        <Button leadingVisual={SyncIcon} onClick={handleReload} disabled={reloading}>
           {reloading ? "Reloading..." : "Reload"}
         </Button>
       </Box>
@@ -271,16 +275,20 @@ function BlockCard({ block, onReload }: { block: BlockInfo; onReload: () => Prom
       {block.dependencies.length > 0 && (
         <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1 }}>
           <PackageIcon size={12} />
-          <Text sx={{ fontSize: 0, color: "fg.muted" }}>
-            {block.dependencies.join(", ")}
-          </Text>
+          <Text sx={{ fontSize: 0, color: "fg.muted" }}>{block.dependencies.join(", ")}</Text>
         </Box>
       )}
     </Box>
   );
 }
 
-function TemplateCard({ template, navigate }: { template: TemplateInfo; navigate: ReturnType<typeof useNavigate> }) {
+function TemplateCard({
+  template,
+  navigate,
+}: {
+  template: TemplateInfo;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
   const [creating, setCreating] = useState(false);
 
   const handleCreatePipeline = async () => {

@@ -1,6 +1,7 @@
 """
 Tests for dependency manager: parse, check, info.
 """
+
 from lib.blocks.base import BaseBlock
 
 

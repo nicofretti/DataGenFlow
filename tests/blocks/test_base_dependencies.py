@@ -1,6 +1,7 @@
 """
 Tests for BaseBlock.dependencies attribute and its inclusion in get_schema().
 """
+
 from lib.blocks.base import BaseBlock
 
 

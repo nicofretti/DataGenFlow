@@ -1,6 +1,7 @@
 """
 Tests for file watcher module: debouncing, start/stop, reload on file changes.
 """
+
 import time
 from pathlib import Path
 

@@ -9,7 +9,7 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
@@ -60,15 +60,15 @@ class DebouncedHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent) -> None:
         if not event.is_directory:
-            self._schedule_callback(Path(event.src_path), "created")
+            self._schedule_callback(Path(os.fsdecode(event.src_path)), "created")
 
     def on_modified(self, event: FileSystemEvent) -> None:
         if not event.is_directory:
-            self._schedule_callback(Path(event.src_path), "modified")
+            self._schedule_callback(Path(os.fsdecode(event.src_path)), "modified")
 
     def on_deleted(self, event: FileSystemEvent) -> None:
         if not event.is_directory:
-            self._schedule_callback(Path(event.src_path), "deleted")
+            self._schedule_callback(Path(os.fsdecode(event.src_path)), "deleted")
 
 
 class BlockFileHandler(DebouncedHandler):
@@ -115,13 +115,11 @@ class ExtensionFileWatcher:
     ):
         self.block_registry = block_registry
         self.template_registry = template_registry
-        self.blocks_path = blocks_path or Path(
-            os.getenv("DATAGENFLOW_BLOCKS_PATH", "user_blocks")
-        )
+        self.blocks_path = blocks_path or Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", "user_blocks"))
         self.templates_path = templates_path or Path(
             os.getenv("DATAGENFLOW_TEMPLATES_PATH", "user_templates")
         )
-        self._observer: Observer | None = None
+        self._observer: Any = None  # watchdog.Observer, no stubs available
 
     @property
     def is_running(self) -> bool:

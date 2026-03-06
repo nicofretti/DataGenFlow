@@ -12,18 +12,22 @@ from lib.entities.extensions import BlockInfo
 
 logger = logging.getLogger(__name__)
 
-# maps directory prefixes to source labels
+# resolve builtin/custom paths relative to this file so they work regardless of cwd
+_BLOCKS_DIR = Path(__file__).resolve().parent
+
+# maps (path, module_prefix) to source label
 _SOURCE_MAP = {
-    "lib/blocks/builtin": "builtin",
-    "lib/blocks/custom": "custom",
-    "user_blocks": "user",
+    (_BLOCKS_DIR / "builtin", "lib.blocks.builtin"): "builtin",
+    (_BLOCKS_DIR / "custom", "lib.blocks.custom"): "custom",
+    (Path("user_blocks"), "user_blocks"): "user",
 }
 
 
 class BlockEntry(BaseModel):
     """internal registry entry — wraps a block class with extensibility metadata"""
 
-    block_class: Any  # type[BaseBlock], but pydantic can't validate arbitrary classes
+    block_class: Any | None = None  # type[BaseBlock]; None when import failed
+    type_name: str = ""  # used as fallback type when block_class is None
     source: str = "builtin"
     available: bool = True
     error: str | None = None
@@ -31,6 +35,19 @@ class BlockEntry(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     def to_block_info(self) -> BlockInfo:
+        if self.block_class is None:
+            return BlockInfo(
+                type=self.type_name,
+                name=self.type_name,
+                description="",
+                category="",
+                inputs=[],
+                outputs=[],
+                config_schema={},
+                source=self.source,
+                available=False,
+                error=self.error,
+            )
         schema = self.block_class.get_schema()
         return BlockInfo(
             source=self.source,
@@ -48,8 +65,7 @@ class BlockRegistry:
     def _discover_blocks(self) -> dict[str, BlockEntry]:
         """scan all block directories and return a fresh entries dict"""
         entries: dict[str, BlockEntry] = {}
-        for blocks_dir, source in _SOURCE_MAP.items():
-            blocks_path = Path(blocks_dir)
+        for (blocks_path, module_prefix), source in _SOURCE_MAP.items():
             if not blocks_path.exists():
                 continue
 
@@ -57,7 +73,7 @@ class BlockRegistry:
                 if py_file.name.startswith("_"):
                     continue
 
-                module_name = f"{blocks_dir.replace('/', '.')}.{py_file.stem}"
+                module_name = f"{module_prefix}.{py_file.stem}"
                 try:
                     # reload already-imported modules so file changes are picked up
                     module = (
@@ -71,12 +87,16 @@ class BlockRegistry:
                             and obj not in (BaseBlock, BaseMultiplierBlock)
                             and obj.__module__ == module.__name__
                         ):
-                            entries[obj.__name__] = BlockEntry(
-                                block_class=obj, source=source
-                            )
+                            entries[obj.__name__] = BlockEntry(block_class=obj, source=source)
                 except Exception as e:
                     logger.warning(f"failed to load block module {module_name}: {e}")
-                    continue
+                    # register as unavailable so the UI can surface the failure
+                    entries[py_file.stem] = BlockEntry(
+                        type_name=py_file.stem,
+                        source=source,
+                        available=False,
+                        error=str(e),
+                    )
         return entries
 
     def register(

@@ -1,6 +1,7 @@
 """
 Registry regression tests — lock current BlockRegistry behavior before extensibility changes.
 """
+
 from lib.blocks.base import BaseBlock
 from lib.blocks.registry import BlockRegistry
 from lib.entities.extensions import BlockInfo

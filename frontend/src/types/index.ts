@@ -126,6 +126,14 @@ export interface ConnectionTestResult {
 
 // extensions system types
 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
 export interface BlockInfo {
   type: string;
   name: string;
@@ -133,7 +141,7 @@ export interface BlockInfo {
   category: string;
   inputs: string[];
   outputs: string[];
-  config_schema: Record<string, any>;
+  config_schema: Record<string, JsonValue>;
   is_multiplier: boolean;
   dependencies: string[];
   source: string;
@@ -145,7 +153,7 @@ export interface TemplateInfo {
   id: string;
   name: string;
   description: string;
-  example_seed?: any;
+  example_seed?: JsonValue;
   source: string;
 }
 

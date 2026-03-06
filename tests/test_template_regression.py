@@ -1,6 +1,7 @@
 """
 Template registry regression tests — lock current TemplateRegistry behavior.
 """
+
 from lib.entities.extensions import TemplateInfo
 from lib.templates import TemplateRegistry, template_registry
 

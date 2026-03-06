@@ -1,6 +1,7 @@
 """
 Tests for enhanced TemplateRegistry: user templates dir, source tracking, register/unregister.
 """
+
 import yaml
 
 from lib.entities.extensions import TemplateInfo
@@ -73,7 +74,9 @@ def test_register_user_template():
 
 def test_unregister_template():
     reg = TemplateRegistry()
-    reg.register("to_remove", {"name": "Remove Me", "description": "...", "blocks": []}, source="user")
+    reg.register(
+        "to_remove", {"name": "Remove Me", "description": "...", "blocks": []}, source="user"
+    )
     assert reg.get_template("to_remove") is not None
 
     reg.unregister("to_remove")

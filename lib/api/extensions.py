@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 
 from lib.blocks.registry import registry
@@ -56,7 +58,7 @@ async def reload_extensions() -> dict[str, str]:
 
 
 @router.post("/blocks/{name}/validate")
-async def validate_block(name: str) -> dict:
+async def validate_block(name: str) -> dict[str, Any]:
     """validate a block's availability and dependencies"""
     block_class = registry.get_block_class(name)
     if block_class is None:
@@ -78,15 +80,21 @@ async def block_dependencies(name: str) -> list[DependencyInfo]:
     entry = registry.get_entry(name)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"Block '{name}' not found")
+    if entry.block_class is None:
+        return []
     return dependency_manager.get_dependency_info(entry.block_class.dependencies)
 
 
 @router.post("/blocks/{name}/install-deps")
-async def install_block_deps(name: str) -> dict:
+async def install_block_deps(name: str) -> dict[str, Any]:
     """install missing dependencies for a block (works for unavailable blocks too)"""
     entry = registry.get_entry(name)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"Block '{name}' not found")
+    if entry.block_class is None:
+        raise HTTPException(
+            status_code=422, detail=f"Block '{name}' failed to import — dependencies unknown"
+        )
 
     deps = entry.block_class.dependencies
     missing = dependency_manager.check_missing(deps)

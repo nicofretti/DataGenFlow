@@ -23,10 +23,20 @@ def test_blocks_endpoint_schema_shape(client):
     response = client.get("/api/blocks")
     blocks = response.json()
 
-    required_keys = {"type", "name", "description", "category", "inputs", "outputs", "config_schema"}
+    required_keys = {
+        "type",
+        "name",
+        "description",
+        "category",
+        "inputs",
+        "outputs",
+        "config_schema",
+        "dependencies",
+    }
     for block in blocks:
         missing = required_keys - set(block.keys())
         assert not missing, f"Block {block.get('type', '?')} missing keys: {missing}"
+        assert isinstance(block["dependencies"], list)
 
 
 def test_blocks_endpoint_includes_core_blocks(client):

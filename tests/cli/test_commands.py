@@ -3,7 +3,6 @@ Tests for dgf CLI commands.
 Uses typer CliRunner to test commands without a running server.
 """
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -66,7 +65,7 @@ def mock_client():
 @pytest.fixture
 def cli_app(mock_client):
     """import the app with mocked client"""
-    from lib.cli.main import app, get_client
+    from lib.cli.main import app
 
     # patch get_client to return our mock
     with patch("lib.cli.main.get_client", return_value=mock_client):
@@ -74,7 +73,6 @@ def cli_app(mock_client):
 
 
 class TestStatusCommand:
-
     def test_status_shows_server_info(self, cli_app, mock_client):
         result = runner.invoke(cli_app, ["status"])
         assert result.exit_code == 0
@@ -89,7 +87,6 @@ class TestStatusCommand:
 
 
 class TestBlocksCommands:
-
     def test_blocks_list(self, cli_app, mock_client):
         result = runner.invoke(cli_app, ["blocks", "list"])
         assert result.exit_code == 0
@@ -101,9 +98,7 @@ class TestBlocksCommands:
     def test_blocks_validate_valid_file(self, cli_app, tmp_path):
         block_file = tmp_path / "my_block.py"
         block_file.write_text(
-            'from lib.blocks.base import BaseBlock\n'
-            'class MyBlock(BaseBlock):\n'
-            '    pass\n'
+            "from lib.blocks.base import BaseBlock\nclass MyBlock(BaseBlock):\n    pass\n"
         )
         result = runner.invoke(cli_app, ["blocks", "validate", str(block_file)])
         assert result.exit_code == 0
@@ -142,7 +137,6 @@ class TestBlocksCommands:
 
 
 class TestTemplatesCommands:
-
     def test_templates_list(self, cli_app, mock_client):
         result = runner.invoke(cli_app, ["templates", "list"])
         assert result.exit_code == 0
@@ -154,10 +148,10 @@ class TestTemplatesCommands:
         template_file.write_text(
             'name: "Test Template"\n'
             'description: "A test"\n'
-            'blocks:\n'
-            '  - type: TextGenerator\n'
-            '    config:\n'
-            '      model: gpt-4o-mini\n'
+            "blocks:\n"
+            "  - type: TextGenerator\n"
+            "    config:\n"
+            "      model: gpt-4o-mini\n"
         )
         result = runner.invoke(cli_app, ["templates", "validate", str(template_file)])
         assert result.exit_code == 0
@@ -190,7 +184,6 @@ class TestTemplatesCommands:
 
 
 class TestConfigureCommand:
-
     def test_configure_show(self, cli_app):
         result = runner.invoke(cli_app, ["configure", "--show"])
         assert result.exit_code == 0
@@ -205,7 +198,6 @@ class TestConfigureCommand:
 
 
 class TestImageCommands:
-
     def test_image_scaffold(self, cli_app, tmp_path):
         output = tmp_path / "Dockerfile.custom"
         result = runner.invoke(cli_app, ["image", "scaffold", "-o", str(output)])
@@ -218,8 +210,7 @@ class TestImageCommands:
         blocks_dir = tmp_path / "blocks"
         blocks_dir.mkdir()
         (blocks_dir / "my_block.py").write_text(
-            'class MyBlock:\n'
-            '    dependencies = ["torch>=2.0", "transformers"]\n'
+            'class MyBlock:\n    dependencies = ["torch>=2.0", "transformers"]\n'
         )
         output = tmp_path / "Dockerfile.custom"
         result = runner.invoke(

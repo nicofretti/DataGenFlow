@@ -75,8 +75,7 @@ def status() -> None:
 
         console.print(f"[green]✓[/green] Server: {get_endpoint()}")
         console.print(
-            f"  Blocks: {blocks['available']} available, "
-            f"{blocks['unavailable']} unavailable"
+            f"  Blocks: {blocks['available']} available, {blocks['unavailable']} unavailable"
         )
         console.print(
             f"  Templates: {templates['total']} total "
@@ -126,7 +125,9 @@ def blocks_list() -> None:
 @blocks_app.command("add")
 def blocks_add(
     file: Path = typer.Argument(..., help="Path to block Python file"),
-    install_deps: bool = typer.Option(False, "--install-deps", help="Install block dependencies after adding"),
+    install_deps: bool = typer.Option(
+        False, "--install-deps", help="Install block dependencies after adding"
+    ),
 ) -> None:
     """Add a block file to the user_blocks directory."""
     if not file.exists():
@@ -160,8 +161,8 @@ def blocks_add(
     # trigger server-side reload so the new block is registered
     try:
         client.reload_extensions()
-    except Exception:
-        pass  # server may be unreachable; validation below will report the issue
+    except Exception as e:
+        console.print(f"[yellow]![/yellow] Could not trigger reload: {e}")
 
     for name in block_names:
         try:
@@ -169,7 +170,9 @@ def blocks_add(
             if result.get("valid"):
                 console.print(f"[green]✓[/green] Block '{name}' validated")
             else:
-                console.print(f"[yellow]![/yellow] Block '{name}': {result.get('error', 'unknown error')}")
+                console.print(
+                    f"[yellow]![/yellow] Block '{name}': {result.get('error', 'unknown error')}"
+                )
         except Exception as e:
             console.print(f"[yellow]![/yellow] Could not validate '{name}': {e}")
 
@@ -316,7 +319,7 @@ def templates_add(
         console.print("[red]✗[/red] Template file must be a .yaml or .yml file")
         raise typer.Exit(1)
 
-    import yaml
+    import yaml  # type: ignore[import-untyped]
 
     try:
         with open(file) as f:
@@ -359,11 +362,14 @@ def templates_remove(
 
     import yaml
 
-    for yaml_file in list(user_templates_dir.glob("*.yaml")) + list(user_templates_dir.glob("*.yml")):
+    for yaml_file in list(user_templates_dir.glob("*.yaml")) + list(
+        user_templates_dir.glob("*.yml")
+    ):
         try:
             with open(yaml_file) as f:
                 data = yaml.safe_load(f)
-        except Exception:
+        except Exception as e:
+            console.print(f"[yellow]![/yellow] Skipping {yaml_file.name}: {e}")
             continue
 
         # match by explicit id field or by filename stem
@@ -456,12 +462,8 @@ blocks:
 
 @image_app.command("scaffold")
 def image_scaffold(
-    blocks_dir: Path = typer.Option(
-        None, "--blocks-dir", "-b", help="Directory containing blocks"
-    ),
-    output: Path = typer.Option(
-        Path("Dockerfile.custom"), "-o", "--output", help="Output path"
-    ),
+    blocks_dir: Path = typer.Option(None, "--blocks-dir", "-b", help="Directory containing blocks"),
+    output: Path = typer.Option(Path("Dockerfile.custom"), "-o", "--output", help="Output path"),
 ) -> None:
     """Generate a Dockerfile for custom image with dependencies.
 
@@ -489,7 +491,7 @@ def image_scaffold(
                                 and isinstance(item.value, ast.List)
                             ):
                                 for elt in item.value.elts:
-                                    if isinstance(elt, ast.Constant):
+                                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
                                         deps.add(elt.value)
             except Exception as e:
                 console.print(f"[yellow]Warning:[/yellow] skipping {py_file.name}: {e}")
@@ -563,7 +565,7 @@ CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
         for dep in sorted(deps):
             console.print(f"    - {dep}")
 
-    console.print(f"\n[bold]Build from DataGenFlow repo root:[/bold]")
+    console.print("\n[bold]Build from DataGenFlow repo root:[/bold]")
     console.print(f"  docker build -f {output} -t my-datagenflow:latest .")
 
 

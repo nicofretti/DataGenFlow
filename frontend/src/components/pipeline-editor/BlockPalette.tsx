@@ -211,12 +211,8 @@ export default function BlockPalette({ blocks }: BlockPaletteProps) {
                           borderLeft: "2px solid",
                           borderColor: isAvailable ? info.color : "border.muted",
                           opacity: isAvailable ? 1 : 0.5,
-                          "&:hover": isAvailable
-                            ? { bg: "accent.subtle" }
-                            : {},
-                          "&:active": isAvailable
-                            ? { cursor: "grabbing" }
-                            : {},
+                          "&:hover": isAvailable ? { bg: "accent.subtle" } : {},
+                          "&:active": isAvailable ? { cursor: "grabbing" } : {},
                         }}
                       >
                         <Text

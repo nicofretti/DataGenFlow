@@ -43,7 +43,6 @@ def _validate_requirement(req: str) -> None:
 
 
 class DependencyManager:
-
     def get_block_dependencies(self, block_class: type["BaseBlock"]) -> list[str]:
         return getattr(block_class, "dependencies", [])
 
@@ -63,15 +62,22 @@ class DependencyManager:
             name = _parse_package_name(req)
             try:
                 version = importlib.metadata.version(name)
-                result.append(DependencyInfo(
-                    requirement=req, name=name,
-                    installed_version=version, status="ok",
-                ))
+                result.append(
+                    DependencyInfo(
+                        requirement=req,
+                        name=name,
+                        installed_version=version,
+                        status="ok",
+                    )
+                )
             except importlib.metadata.PackageNotFoundError:
-                result.append(DependencyInfo(
-                    requirement=req, name=name,
-                    status="not_installed",
-                ))
+                result.append(
+                    DependencyInfo(
+                        requirement=req,
+                        name=name,
+                        status="not_installed",
+                    )
+                )
         return result
 
     def _install_sync(self, requirements: list[str], timeout: int = 300) -> list[str]:

@@ -85,6 +85,14 @@ class TestExtensionsFullStack:
         resp = client.post("/api/extensions/blocks/DoesNotExist/install-deps")
         assert resp.status_code == 404
 
+    def test_install_deps_block_with_no_missing_deps_returns_ok(self, client):
+        """POST /api/extensions/blocks/{name}/install-deps when all deps present"""
+        resp = client.post("/api/extensions/blocks/TextGenerator/install-deps")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert "message" in data or "installed" in data
+
     def test_get_dependencies_for_block_without_deps(self, client):
         """GET /api/extensions/blocks/{name}/dependencies for block without deps"""
         response = client.get("/api/extensions/blocks/ValidatorBlock/dependencies")

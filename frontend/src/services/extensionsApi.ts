@@ -28,23 +28,31 @@ class ExtensionsApi {
   }
 
   async validateBlock(name: string): Promise<{ valid: boolean; block: string; error?: string }> {
-    const response = await fetch(`${API_BASE}/extensions/blocks/${encodeURIComponent(name)}/validate`, {
-      method: "POST",
-    });
+    const response = await fetch(
+      `${API_BASE}/extensions/blocks/${encodeURIComponent(name)}/validate`,
+      {
+        method: "POST",
+      }
+    );
     if (!response.ok) throw new Error(`http ${response.status}`);
     return response.json();
   }
 
   async getBlockDependencies(name: string): Promise<DependencyInfo[]> {
-    const response = await fetch(`${API_BASE}/extensions/blocks/${encodeURIComponent(name)}/dependencies`);
+    const response = await fetch(
+      `${API_BASE}/extensions/blocks/${encodeURIComponent(name)}/dependencies`
+    );
     if (!response.ok) throw new Error(`http ${response.status}`);
     return response.json();
   }
 
   async installBlockDeps(name: string): Promise<{ status: string; installed: string[] }> {
-    const response = await fetch(`${API_BASE}/extensions/blocks/${encodeURIComponent(name)}/install-deps`, {
-      method: "POST",
-    });
+    const response = await fetch(
+      `${API_BASE}/extensions/blocks/${encodeURIComponent(name)}/install-deps`,
+      {
+        method: "POST",
+      }
+    );
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || `http ${response.status}`);

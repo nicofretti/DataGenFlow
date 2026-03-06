@@ -11,6 +11,7 @@ from loguru import logger
 from pydantic import ValidationError as PydanticValidationError
 
 from config import settings
+from lib.api.extensions import router as extensions_router
 from lib.blocks.registry import registry
 from lib.constants import RECORD_UPDATABLE_FIELDS
 from lib.entities import (
@@ -26,10 +27,9 @@ from lib.entities import (
     SeedValidationRequest,
     ValidationConfig,
 )
-from lib.api.extensions import router as extensions_router
 from lib.entities.extensions import BlockInfo, TemplateInfo
-from lib.file_watcher import ExtensionFileWatcher
 from lib.errors import BlockExecutionError, BlockNotFoundError, ValidationError
+from lib.file_watcher import ExtensionFileWatcher
 from lib.job_processor import process_job_in_thread
 from lib.job_queue import JobQueue
 from lib.llm_config import LLMConfigError, LLMConfigManager, LLMConfigNotFoundError
