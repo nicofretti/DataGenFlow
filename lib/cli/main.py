@@ -203,6 +203,7 @@ def blocks_remove(
         try:
             tree = ast.parse(py_file.read_text())
         except SyntaxError:
+            console.print(f"[yellow]![/yellow] Skipping {py_file.name}: syntax error")
             continue
         block_names = _find_block_classes(tree)
         if name in block_names:

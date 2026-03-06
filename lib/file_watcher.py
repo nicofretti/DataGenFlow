@@ -49,6 +49,12 @@ class DebouncedHandler(FileSystemEventHandler):
             self._pending[key] = timer
             timer.start()
 
+    def cancel_pending(self) -> None:
+        with self._lock:
+            for timer in self._pending.values():
+                timer.cancel()
+            self._pending.clear()
+
     def _execute_callback(self, path: Path, event_type: str) -> None:
         with self._lock:
             self._pending.pop(str(path), None)
@@ -120,6 +126,7 @@ class ExtensionFileWatcher:
             os.getenv("DATAGENFLOW_TEMPLATES_PATH", "user_templates")
         )
         self._observer: Any = None  # watchdog.Observer, no stubs available
+        self._handlers: list[DebouncedHandler] = []
 
     @property
     def is_running(self) -> bool:
@@ -132,22 +139,21 @@ class ExtensionFileWatcher:
             return
 
         self._observer = Observer()
+        self._handlers = []
         debounce_ms = int(os.getenv("DATAGENFLOW_HOT_RELOAD_DEBOUNCE_MS", "500"))
 
         if self.blocks_path.exists():
-            self._observer.schedule(
-                BlockFileHandler(self.block_registry, debounce_ms),
-                str(self.blocks_path),
-                recursive=False,
-            )
+            block_handler = BlockFileHandler(self.block_registry, debounce_ms)
+            self._observer.schedule(block_handler, str(self.blocks_path), recursive=False)
+            self._handlers.append(block_handler)
             logger.info(f"watching {self.blocks_path} for block changes")
 
         if self.templates_path.exists():
-            self._observer.schedule(
-                TemplateFileHandler(self.template_registry, self.templates_path, debounce_ms),
-                str(self.templates_path),
-                recursive=False,
+            template_handler = TemplateFileHandler(
+                self.template_registry, self.templates_path, debounce_ms
             )
+            self._observer.schedule(template_handler, str(self.templates_path), recursive=False)
+            self._handlers.append(template_handler)
             logger.info(f"watching {self.templates_path} for template changes")
 
         self._observer.start()
@@ -155,6 +161,9 @@ class ExtensionFileWatcher:
 
     def stop(self) -> None:
         if self._observer:
+            for handler in self._handlers:
+                handler.cancel_pending()
+            self._handlers = []
             self._observer.stop()
             self._observer.join(timeout=5)
             self._observer = None

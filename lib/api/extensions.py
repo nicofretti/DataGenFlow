@@ -81,7 +81,9 @@ async def block_dependencies(name: str) -> list[DependencyInfo]:
     if entry is None:
         raise HTTPException(status_code=404, detail=f"Block '{name}' not found")
     if entry.block_class is None:
-        return []
+        raise HTTPException(
+            status_code=422, detail=f"Block '{name}' failed to import — dependencies unknown"
+        )
     return dependency_manager.get_dependency_info(entry.block_class.dependencies)
 
 

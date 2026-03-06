@@ -93,6 +93,28 @@ class TestExtensionsFullStack:
         assert data["status"] == "ok"
         assert "message" in data or "installed" in data
 
+    def test_install_deps_invokes_installer_and_returns_installed_list(self, client):
+        """POST /api/extensions/blocks/{name}/install-deps calls installer when deps are missing"""
+        from unittest.mock import AsyncMock, patch
+
+        with (
+            patch(
+                "lib.api.extensions.dependency_manager.check_missing",
+                return_value=["some-pkg"],
+            ),
+            patch(
+                "lib.api.extensions.dependency_manager.install",
+                new_callable=AsyncMock,
+                return_value=["some-pkg"],
+            ),
+        ):
+            resp = client.post("/api/extensions/blocks/TextGenerator/install-deps")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert data["installed"] == ["some-pkg"]
+
     def test_get_dependencies_for_block_without_deps(self, client):
         """GET /api/extensions/blocks/{name}/dependencies for block without deps"""
         response = client.get("/api/extensions/blocks/ValidatorBlock/dependencies")

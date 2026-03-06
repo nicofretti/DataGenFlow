@@ -134,6 +134,11 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
+export interface JsonSchemaObject {
+  properties?: Record<string, JsonValue>;
+  required?: string[];
+}
+
 export interface BlockInfo {
   type: string;
   name: string;
@@ -141,7 +146,7 @@ export interface BlockInfo {
   category: string;
   inputs: string[];
   outputs: string[];
-  config_schema: Record<string, JsonValue>;
+  config_schema: JsonSchemaObject;
   is_multiplier: boolean;
   dependencies: string[];
   source: string;
