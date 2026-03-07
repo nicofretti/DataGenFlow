@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING, Any, Callable
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
+from lib.constants import DEFAULT_BLOCKS_PATH, DEFAULT_TEMPLATES_PATH
+
 if TYPE_CHECKING:
     from lib.blocks.registry import BlockRegistry
     from lib.templates import TemplateRegistry
@@ -121,9 +123,9 @@ class ExtensionFileWatcher:
     ):
         self.block_registry = block_registry
         self.template_registry = template_registry
-        self.blocks_path = blocks_path or Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", "user_blocks"))
+        self.blocks_path = blocks_path or Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", DEFAULT_BLOCKS_PATH))
         self.templates_path = templates_path or Path(
-            os.getenv("DATAGENFLOW_TEMPLATES_PATH", "user_templates")
+            os.getenv("DATAGENFLOW_TEMPLATES_PATH", DEFAULT_TEMPLATES_PATH)
         )
         self._observer: Any = None  # watchdog.Observer, no stubs available
         self._handlers: list[DebouncedHandler] = []

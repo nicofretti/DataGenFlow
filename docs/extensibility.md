@@ -282,11 +282,9 @@ All extension endpoints live under `/api/extensions/`.
 The Extensions page (`/extensions`) in the frontend shows:
 
 - **Status cards** with block and template counts by source
-- **Block list** with availability status, source badges, and dependency info
-- **Template list** with source badges
+- **Block list** with availability status, source badges, and dependency info. Unavailable blocks show a red border, error message, and an "Install Deps" button.
+- **Template list** with source badges and a **"Create Pipeline"** button that creates a pipeline from the template and navigates to `/pipelines`
 - **Reload button** to trigger a manual re-scan of all extension directories
-
-Unavailable blocks are highlighted with a red border and display the error message (e.g., "Missing dependencies: torch").
 
 ## Docker Setup
 

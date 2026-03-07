@@ -22,14 +22,25 @@ async def extensions_status() -> ExtensionsStatus:
     blocks = registry.list_blocks()
     templates = template_registry.list_templates()
 
+    builtin_count = custom_count = user_count = available_count = 0
+    for b in blocks:
+        if b.source == "builtin":
+            builtin_count += 1
+        elif b.source == "custom":
+            custom_count += 1
+        elif b.source == "user":
+            user_count += 1
+        if b.available:
+            available_count += 1
+
     return ExtensionsStatus(
         blocks=BlocksStatus(
             total=len(blocks),
-            builtin_blocks=sum(1 for b in blocks if b.source == "builtin"),
-            custom_blocks=sum(1 for b in blocks if b.source == "custom"),
-            user_blocks=sum(1 for b in blocks if b.source == "user"),
-            available=sum(1 for b in blocks if b.available),
-            unavailable=sum(1 for b in blocks if not b.available),
+            builtin_blocks=builtin_count,
+            custom_blocks=custom_count,
+            user_blocks=user_count,
+            available=available_count,
+            unavailable=len(blocks) - available_count,
         ),
         templates=TemplatesStatus(
             total=len(templates),
@@ -62,10 +73,9 @@ async def validate_block(name: str) -> dict[str, Any]:
     """validate a block's availability and dependencies"""
     block_class = registry.get_block_class(name)
     if block_class is None:
-        # check if it's registered but unavailable
-        unavailable = next((b for b in registry.list_blocks() if b.type == name), None)
-        if unavailable and not unavailable.available:
-            return {"valid": False, "block": name, "error": unavailable.error}
+        entry = registry.get_entry(name)
+        if entry and not entry.available:
+            return {"valid": False, "block": name, "error": entry.error}
         raise HTTPException(status_code=404, detail=f"Block '{name}' not found")
 
     missing = dependency_manager.check_missing(block_class.dependencies)
@@ -101,7 +111,7 @@ async def install_block_deps(name: str) -> dict[str, Any]:
     deps = entry.block_class.dependencies
     missing = dependency_manager.check_missing(deps)
     if not missing:
-        return {"status": "ok", "message": "All dependencies already installed"}
+        return {"status": "ok", "installed": [], "message": "All dependencies already installed"}
 
     try:
         installed = await dependency_manager.install(missing)

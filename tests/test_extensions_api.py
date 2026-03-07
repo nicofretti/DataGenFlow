@@ -63,3 +63,13 @@ def test_block_dependencies_endpoint(client):
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
+
+
+def test_install_deps_already_installed_returns_installed_key(client):
+    # regression: response must always include 'installed' key so the frontend
+    # can safely call result.installed.join() without a TypeError
+    response = client.post("/api/extensions/blocks/TextGenerator/install-deps")
+    assert response.status_code == 200
+    data = response.json()
+    assert "installed" in data
+    assert isinstance(data["installed"], list)

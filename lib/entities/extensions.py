@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -15,7 +15,7 @@ class BlockInfo(BaseModel):
     config_schema: dict[str, Any]
     is_multiplier: bool = False
     dependencies: list[str] = []
-    source: str = "builtin"
+    source: Literal["builtin", "custom", "user"] = "builtin"
     available: bool = True
     error: str | None = None
 
@@ -27,7 +27,7 @@ class TemplateInfo(BaseModel):
     name: str
     description: str
     example_seed: list[dict[str, Any]] | None = None
-    source: str = "builtin"
+    source: Literal["builtin", "custom", "user"] = "builtin"
 
 
 class BlocksStatus(BaseModel):

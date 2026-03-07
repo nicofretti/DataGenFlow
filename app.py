@@ -13,7 +13,7 @@ from pydantic import ValidationError as PydanticValidationError
 from config import settings
 from lib.api.extensions import router as extensions_router
 from lib.blocks.registry import registry
-from lib.constants import RECORD_UPDATABLE_FIELDS
+from lib.constants import DEFAULT_BLOCKS_PATH, DEFAULT_TEMPLATES_PATH, RECORD_UPDATABLE_FIELDS
 from lib.entities import (
     ConnectionTestResult,
     EmbeddingModelConfig,
@@ -88,8 +88,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await storage.init_db()
 
     # ensure extension directories exist
-    Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", "user_blocks")).mkdir(parents=True, exist_ok=True)
-    Path(os.getenv("DATAGENFLOW_TEMPLATES_PATH", "user_templates")).mkdir(parents=True, exist_ok=True)
+    Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", DEFAULT_BLOCKS_PATH)).mkdir(parents=True, exist_ok=True)
+    Path(os.getenv("DATAGENFLOW_TEMPLATES_PATH", DEFAULT_TEMPLATES_PATH)).mkdir(parents=True, exist_ok=True)
 
     # start file watcher for hot reload
     file_watcher = ExtensionFileWatcher(registry, template_registry)

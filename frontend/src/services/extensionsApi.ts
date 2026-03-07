@@ -46,6 +46,14 @@ class ExtensionsApi {
     return response.json();
   }
 
+  async createPipelineFromTemplate(templateId: string): Promise<void> {
+    const response = await fetch(
+      `${API_BASE}/pipelines/from_template/${encodeURIComponent(templateId)}`,
+      { method: "POST" }
+    );
+    if (!response.ok) throw new Error("Failed to create pipeline from template");
+  }
+
   async installBlockDeps(name: string): Promise<{ status: string; installed: string[] }> {
     const response = await fetch(
       `${API_BASE}/extensions/blocks/${encodeURIComponent(name)}/install-deps`,
