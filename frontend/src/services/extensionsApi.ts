@@ -1,4 +1,4 @@
-import type { BlockInfo, TemplateInfo, ExtensionsStatus, DependencyInfo } from "../types";
+import type { BlockInfo, TemplateInfo, ExtensionsStatus } from "../types";
 
 const API_BASE = "/api";
 
@@ -38,20 +38,12 @@ class ExtensionsApi {
     return response.json();
   }
 
-  async getBlockDependencies(name: string): Promise<DependencyInfo[]> {
-    const response = await fetch(
-      `${API_BASE}/extensions/blocks/${encodeURIComponent(name)}/dependencies`
-    );
-    if (!response.ok) throw new Error(`http ${response.status}`);
-    return response.json();
-  }
-
   async createPipelineFromTemplate(templateId: string): Promise<void> {
     const response = await fetch(
       `${API_BASE}/pipelines/from_template/${encodeURIComponent(templateId)}`,
       { method: "POST" }
     );
-    if (!response.ok) throw new Error("Failed to create pipeline from template");
+    if (!response.ok) throw new Error(`http ${response.status}`);
   }
 
   async installBlockDeps(name: string): Promise<{ status: string; installed: string[] }> {

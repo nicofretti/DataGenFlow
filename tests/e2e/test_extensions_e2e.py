@@ -384,7 +384,7 @@ if __name__ == "__main__":
         ("template cards render", test_extensions_shows_template_cards),
         ("create pipeline from template", test_create_pipeline_from_template_card),
         ("navigate from sidebar", test_navigate_to_extensions_from_sidebar),
-        ("validate button produces toast", test_validate_nonexistent_block_type_in_ui),
+        ("validate button produces toast", test_validate_button_produces_toast),
         ("block descriptions shown", test_extensions_page_shows_block_descriptions),
         ("block dependencies shown", test_extensions_page_shows_block_dependencies),
     ]

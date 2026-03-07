@@ -4,6 +4,7 @@ Pipeline templates for quick onboarding and testing
 
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,7 @@ class TemplateRegistry:
         self.templates_dir = templates_dir
         self.seeds_dir = templates_dir / "seeds"
         self.user_templates_dir = user_templates_dir
+        self._lock = threading.Lock()
         self._templates: dict[str, dict[str, Any]] = {}
         self._sources: dict[str, str] = {}
         self._load_builtin_into(self._templates, self._sources)
@@ -105,16 +107,15 @@ class TemplateRegistry:
 
     def reload(self) -> None:
         """re-scan builtin and user template directories.
-        builds into local dicts, then swaps atomically so concurrent readers
-        never see an empty or partial registry."""
-        templates: dict[str, dict[str, Any]] = {}
-        sources: dict[str, str] = {}
-        self._load_builtin_into(templates, sources)
-        if self.user_templates_dir.exists():
-            self._load_user_into(self.user_templates_dir, templates, sources)
-        # atomic swap — GIL guarantees reference assignment is atomic
-        self._templates = templates
-        self._sources = sources
+        serialized with a lock to prevent concurrent partial-state reads."""
+        with self._lock:
+            templates: dict[str, dict[str, Any]] = {}
+            sources: dict[str, str] = {}
+            self._load_builtin_into(templates, sources)
+            if self.user_templates_dir.exists():
+                self._load_user_into(self.user_templates_dir, templates, sources)
+            self._templates = templates
+            self._sources = sources
 
     def list_templates(self) -> list[TemplateInfo]:
         """List all available templates"""

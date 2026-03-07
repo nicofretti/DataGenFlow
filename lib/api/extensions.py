@@ -116,6 +116,6 @@ async def install_block_deps(name: str) -> dict[str, Any]:
     try:
         installed = await dependency_manager.install(missing)
         registry.reload()
-        return {"status": "ok", "installed": installed}
     except DependencyError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {"status": "ok", "installed": installed}

@@ -63,8 +63,8 @@ class DebouncedHandler(FileSystemEventHandler):
 
         try:
             self.callback(path, event_type)
-        except Exception as e:
-            logger.exception(f"error in file watcher callback: {e}")
+        except Exception:
+            logger.exception("error in file watcher callback")
 
     def on_created(self, event: FileSystemEvent) -> None:
         if not event.is_directory:
@@ -90,7 +90,7 @@ class BlockFileHandler(DebouncedHandler):
         if path.suffix != ".py" or path.name.startswith("_"):
             return
 
-        logger.info(f"block file {event_type}: {path}")
+        logger.info("block file %s: %s", event_type, path)
         self.registry.reload()
 
 
@@ -106,7 +106,7 @@ class TemplateFileHandler(DebouncedHandler):
         if path.suffix not in (".yaml", ".yml"):
             return
 
-        logger.info(f"template file {event_type}: {path}")
+        logger.info("template file %s: %s", event_type, path)
         # full reload is safe — uses atomic swap internally
         self.registry.reload()
 
@@ -123,7 +123,9 @@ class ExtensionFileWatcher:
     ):
         self.block_registry = block_registry
         self.template_registry = template_registry
-        self.blocks_path = blocks_path or Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", DEFAULT_BLOCKS_PATH))
+        self.blocks_path = blocks_path or Path(
+            os.getenv("DATAGENFLOW_BLOCKS_PATH", DEFAULT_BLOCKS_PATH)
+        )
         self.templates_path = templates_path or Path(
             os.getenv("DATAGENFLOW_TEMPLATES_PATH", DEFAULT_TEMPLATES_PATH)
         )
@@ -148,7 +150,7 @@ class ExtensionFileWatcher:
             block_handler = BlockFileHandler(self.block_registry, debounce_ms)
             self._observer.schedule(block_handler, str(self.blocks_path), recursive=False)
             self._handlers.append(block_handler)
-            logger.info(f"watching {self.blocks_path} for block changes")
+            logger.info("watching %s for block changes", self.blocks_path)
 
         if self.templates_path.exists():
             template_handler = TemplateFileHandler(
@@ -156,7 +158,7 @@ class ExtensionFileWatcher:
             )
             self._observer.schedule(template_handler, str(self.templates_path), recursive=False)
             self._handlers.append(template_handler)
-            logger.info(f"watching {self.templates_path} for template changes")
+            logger.info("watching %s for template changes", self.templates_path)
 
         self._observer.start()
         logger.info("extension file watcher started")

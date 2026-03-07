@@ -15,7 +15,6 @@ import type { BlockInfo, TemplateInfo, ExtensionsStatus } from "../types";
 import { extensionsApi } from "../services/extensionsApi";
 
 export default function Extensions() {
-  const navigate = useNavigate();
   const [status, setStatus] = useState<ExtensionsStatus | null>(null);
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
@@ -33,6 +32,7 @@ export default function Extensions() {
       setBlocks(b);
       setTemplates(t);
     } catch (error) {
+      console.error("failed to load extensions:", error);
       const message = error instanceof Error ? error.message : "Unknown error";
       toast.error(`Failed to load extensions: ${message}`);
     } finally {
@@ -44,19 +44,20 @@ export default function Extensions() {
     loadAll();
   }, [loadAll]);
 
-  const handleReload = async () => {
+  const handleReload = useCallback(async () => {
     setReloading(true);
     try {
       await extensionsApi.reload();
       await loadAll();
       toast.success("Extensions reloaded");
     } catch (error) {
+      console.error("failed to reload extensions:", error);
       const message = error instanceof Error ? error.message : "Unknown error";
       toast.error(`Failed to reload: ${message}`);
     } finally {
       setReloading(false);
     }
-  };
+  }, [loadAll]);
 
   if (loading) {
     return (
@@ -119,7 +120,7 @@ export default function Extensions() {
         </Heading>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {templates.map((tmpl) => (
-            <TemplateCard key={tmpl.id} template={tmpl} navigate={navigate} />
+            <TemplateCard key={tmpl.id} template={tmpl} />
           ))}
         </Box>
       </Box>
@@ -192,6 +193,7 @@ function BlockCard({ block, onReload }: { block: BlockInfo; onReload: () => Prom
         toast.error(`${block.name} validation failed: ${result.error || "unknown error"}`);
       }
     } catch (error) {
+      console.error("block validation failed:", error);
       const message = error instanceof Error ? error.message : "Unknown error";
       toast.error(`Validation error: ${message}`);
     } finally {
@@ -206,6 +208,7 @@ function BlockCard({ block, onReload }: { block: BlockInfo; onReload: () => Prom
       toast.success(`Installed: ${result.installed.join(", ") || "all deps satisfied"}`);
       await onReload();
     } catch (error) {
+      console.error("dependency install failed:", error);
       const message = error instanceof Error ? error.message : "Unknown error";
       toast.error(`Install failed: ${message}`);
     } finally {
@@ -282,13 +285,8 @@ function BlockCard({ block, onReload }: { block: BlockInfo; onReload: () => Prom
   );
 }
 
-function TemplateCard({
-  template,
-  navigate,
-}: {
-  template: TemplateInfo;
-  navigate: ReturnType<typeof useNavigate>;
-}) {
+function TemplateCard({ template }: { template: TemplateInfo }) {
+  const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
 
   const handleCreatePipeline = async () => {
@@ -298,6 +296,7 @@ function TemplateCard({
       toast.success("Pipeline created from template");
       navigate("/pipelines");
     } catch (error) {
+      console.error("failed to create pipeline from template:", error);
       const message = error instanceof Error ? error.message : "Unknown error";
       toast.error(`Failed to create pipeline: ${message}`);
     } finally {

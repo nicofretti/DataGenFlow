@@ -2,6 +2,7 @@ import importlib
 import inspect
 import logging
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +27,7 @@ _SOURCE_MAP = {
 class BlockEntry(BaseModel):
     """internal registry entry — wraps a block class with extensibility metadata"""
 
-    block_class: Any | None = None  # type[BaseBlock]; None when import failed
+    block_class: type[BaseBlock] | None = None  # None when import failed
     type_name: str = ""  # used as fallback type when block_class is None
     source: str = "builtin"
     available: bool = True
@@ -59,6 +60,7 @@ class BlockEntry(BaseModel):
 
 class BlockRegistry:
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._entries: dict[str, BlockEntry] = {}
         self._entries = self._discover_blocks()
 
@@ -89,7 +91,7 @@ class BlockRegistry:
                         ):
                             entries[obj.__name__] = BlockEntry(block_class=obj, source=source)
                 except Exception as e:
-                    logger.warning(f"failed to load block module {module_name}: {e}")
+                    logger.exception("failed to load block module %s", module_name)
                     # register as unavailable so the UI can surface the failure
                     entries[py_file.stem] = BlockEntry(
                         type_name=py_file.stem,
@@ -115,8 +117,9 @@ class BlockRegistry:
 
     def reload(self) -> None:
         """re-scan all block directories and refresh the registry.
-        uses atomic swap so concurrent readers never see an empty registry."""
-        self._entries = self._discover_blocks()
+        serialized with a lock since importlib.reload is not thread-safe."""
+        with self._lock:
+            self._entries = self._discover_blocks()
 
     def unregister(self, block_type: str) -> None:
         self._entries.pop(block_type, None)
