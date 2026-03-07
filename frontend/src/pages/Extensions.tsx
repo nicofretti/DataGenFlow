@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Box, Heading, Text, Button, Spinner, Label } from "@primer/react";
 import {
   SyncIcon,
@@ -22,11 +22,7 @@ export default function Extensions() {
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
     try {
       const [s, b, t] = await Promise.all([
         extensionsApi.getStatus(),
@@ -42,7 +38,11 @@ export default function Extensions() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
 
   const handleReload = async () => {
     setReloading(true);
@@ -294,8 +294,7 @@ function TemplateCard({
   const handleCreatePipeline = async () => {
     setCreating(true);
     try {
-      const res = await fetch(`/api/pipelines/from_template/${template.id}`, { method: "POST" });
-      if (!res.ok) throw new Error("Failed to create pipeline from template");
+      await extensionsApi.createPipelineFromTemplate(template.id);
       toast.success("Pipeline created from template");
       navigate("/pipelines");
     } catch (error) {

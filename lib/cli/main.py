@@ -7,11 +7,13 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import httpx
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from lib.cli.client import DataGenFlowClient
+from lib.constants import DEFAULT_BLOCKS_PATH, DEFAULT_TEMPLATES_PATH
 
 app = typer.Typer(
     name="dgf",
@@ -50,12 +52,12 @@ def get_client() -> DataGenFlowClient:
 
 def get_user_blocks_dir() -> Path:
     """resolve user blocks directory from env or default"""
-    return Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", "user_blocks"))
+    return Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", DEFAULT_BLOCKS_PATH))
 
 
 def get_user_templates_dir() -> Path:
     """resolve user templates directory from env or default"""
-    return Path(os.getenv("DATAGENFLOW_TEMPLATES_PATH", "user_templates"))
+    return Path(os.getenv("DATAGENFLOW_TEMPLATES_PATH", DEFAULT_TEMPLATES_PATH))
 
 
 # ============ Status ============
@@ -161,7 +163,7 @@ def blocks_add(
     # trigger server-side reload so the new block is registered
     try:
         client.reload_extensions()
-    except Exception as e:
+    except httpx.HTTPError as e:
         console.print(f"[yellow]![/yellow] Could not trigger reload: {e}")
 
     for name in block_names:
@@ -173,7 +175,7 @@ def blocks_add(
                 console.print(
                     f"[yellow]![/yellow] Block '{name}': {result.get('error', 'unknown error')}"
                 )
-        except Exception as e:
+        except httpx.HTTPError as e:
             console.print(f"[yellow]![/yellow] Could not validate '{name}': {e}")
 
     if not install_deps:
@@ -184,7 +186,7 @@ def blocks_add(
             console.print(f"  Installing deps for '{name}'...")
             client.install_block_deps(name)
             console.print(f"[green]✓[/green] Dependencies installed for '{name}'")
-        except Exception as e:
+        except httpx.HTTPError as e:
             console.print(f"[red]✗[/red] Failed to install deps for '{name}': {e}")
 
 
@@ -363,13 +365,13 @@ def templates_remove(
 
     import yaml
 
-    for yaml_file in list(user_templates_dir.glob("*.yaml")) + list(
-        user_templates_dir.glob("*.yml")
-    ):
+    for yaml_file in user_templates_dir.iterdir():
+        if yaml_file.suffix not in (".yaml", ".yml") or yaml_file.is_dir():
+            continue
         try:
             with open(yaml_file) as f:
                 data = yaml.safe_load(f)
-        except Exception as e:
+        except (yaml.YAMLError, OSError) as e:
             console.print(f"[yellow]![/yellow] Skipping {yaml_file.name}: {e}")
             continue
 
@@ -480,21 +482,8 @@ def image_scaffold(
                 continue
             try:
                 tree = ast.parse(py_file.read_text())
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.ClassDef):
-                        for item in node.body:
-                            if (
-                                isinstance(item, ast.Assign)
-                                and any(
-                                    isinstance(t, ast.Name) and t.id == "dependencies"
-                                    for t in item.targets
-                                )
-                                and isinstance(item.value, ast.List)
-                            ):
-                                for elt in item.value.elts:
-                                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
-                                        deps.add(elt.value)
-            except Exception as e:
+                deps.update(_extract_block_deps(tree))
+            except (SyntaxError, ValueError) as e:
                 console.print(f"[yellow]Warning:[/yellow] skipping {py_file.name}: {e}")
 
     # generate multi-stage dockerfile that builds from source
@@ -627,6 +616,24 @@ def configure(
 
 
 # ============ Helpers ============
+
+
+def _extract_block_deps(tree: ast.AST) -> set[str]:
+    """extract dependency strings from class-level 'dependencies' list assignments"""
+    deps: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for item in node.body:
+            if (
+                isinstance(item, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "dependencies" for t in item.targets)
+                and isinstance(item.value, ast.List)
+            ):
+                for elt in item.value.elts:
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                        deps.add(elt.value)
+    return deps
 
 
 def _find_block_classes(tree: ast.AST) -> list[str]:

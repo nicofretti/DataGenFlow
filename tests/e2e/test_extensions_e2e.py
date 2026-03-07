@@ -303,8 +303,8 @@ def test_navigate_to_extensions_from_sidebar():
 # --- edge case tests ---
 
 
-def test_validate_nonexistent_block_type_in_ui():
-    """verify all Validate buttons are clickable and produce a toast (success or error)"""
+def test_validate_button_produces_toast():
+    """verify Validate button produces a toast (success or error) without crashing"""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=get_headless_mode())
         page = browser.new_page()
