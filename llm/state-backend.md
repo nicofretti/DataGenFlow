@@ -32,7 +32,7 @@ lib/
   job_queue.py            # in-memory job tracking
   job_processor.py        # background processing + usage tracking + constraints
   llm_config.py           # LLMConfigManager
-  constants.py            # RECORD_UPDATABLE_FIELDS
+  constants.py            # RECORD_UPDATABLE_FIELDS, DEFAULT_BLOCKS_PATH, DEFAULT_TEMPLATES_PATH
 app.py                    # endpoints + lifespan
 config.py                 # env Settings
 ```
