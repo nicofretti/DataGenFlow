@@ -98,12 +98,14 @@ class TemplateRegistry:
         template_data: dict[str, Any],
         source: str = "user",
     ) -> None:
-        self._templates[template_id] = template_data
-        self._sources[template_id] = source
+        with self._lock:
+            self._templates[template_id] = template_data
+            self._sources[template_id] = source
 
     def unregister(self, template_id: str) -> None:
-        self._templates.pop(template_id, None)
-        self._sources.pop(template_id, None)
+        with self._lock:
+            self._templates.pop(template_id, None)
+            self._sources.pop(template_id, None)
 
     def reload(self) -> None:
         """re-scan builtin and user template directories.
@@ -119,15 +121,18 @@ class TemplateRegistry:
 
     def list_templates(self) -> list[TemplateInfo]:
         """List all available templates"""
+        with self._lock:
+            templates = self._templates.copy()
+            sources = self._sources.copy()
         return [
             TemplateInfo(
                 id=template_id,
                 name=template.get("name", template_id),
                 description=template.get("description", ""),
                 example_seed=template.get("example_seed"),
-                source=self._sources.get(template_id, "builtin"),
+                source=sources.get(template_id, "builtin"),
             )
-            for template_id, template in self._templates.items()
+            for template_id, template in templates.items()
         ]
 
     def get_template(self, template_id: str) -> dict[str, Any] | None:

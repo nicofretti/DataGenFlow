@@ -20,7 +20,7 @@ _BLOCKS_DIR = Path(__file__).resolve().parent
 _SOURCE_MAP = {
     (_BLOCKS_DIR / "builtin", "lib.blocks.builtin"): "builtin",
     (_BLOCKS_DIR / "custom", "lib.blocks.custom"): "custom",
-    (Path("user_blocks"), "user_blocks"): "user",
+    (Path("user_blocks").resolve(), "user_blocks"): "user",
 }
 
 
@@ -108,12 +108,13 @@ class BlockRegistry:
         available: bool = True,
         error: str | None = None,
     ) -> None:
-        self._entries[block_class.__name__] = BlockEntry(
-            block_class=block_class,
-            source=source,
-            available=available,
-            error=error,
-        )
+        with self._lock:
+            self._entries[block_class.__name__] = BlockEntry(
+                block_class=block_class,
+                source=source,
+                available=available,
+                error=error,
+            )
 
     def reload(self) -> None:
         """re-scan all block directories and refresh the registry.
@@ -122,7 +123,8 @@ class BlockRegistry:
             self._entries = self._discover_blocks()
 
     def unregister(self, block_type: str) -> None:
-        self._entries.pop(block_type, None)
+        with self._lock:
+            self._entries.pop(block_type, None)
 
     def get_block_class(self, block_type: str) -> type[BaseBlock] | None:
         entry = self._entries.get(block_type)

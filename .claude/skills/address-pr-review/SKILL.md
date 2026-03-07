@@ -81,8 +81,8 @@ python .claude/skills/address-pr-review/scripts/fetch_comments.py <PR> --all
 |-------|---------|
 | **Fetch** | Run `--summary` first to see counts<br>Then `--id <ID>` for each comment to analyze<br>Exit if no unresolved comments |
 | **Per Comment** | Show: file:line, author, comment, ±10 lines context<br>Analyze: Valid/Nitpick/Disagree/Question<br>Recommend: Fix/Reply/Skip with reasoning |
-| **Fix** | Minimal changes per llm/rules-*.md<br>Offer reply draft: `Fixed: [what]. [why]`<br>Show: `gh api --method POST repos/{owner}/{repo}/pulls/comments/$ID/replies -f body="..."` |
-| **Reply** | Draft based on type: Question/Suggestion/Disagreement<br>Let user edit<br>Show gh command (never auto-post) |
+| **Fix** | Minimal changes per llm/rules-*.md<br>Do NOT reply — just fix the code |
+| **Reply** | Draft based on type: Question/Suggestion/Disagreement<br>Wait 2 minutes between each reply<br>Post with: `gh api --method POST repos/{owner}/{repo}/pulls/{PR}/comments -f body="..." -F in_reply_to=<ID>`<br>(never auto-post without user confirmation) |
 | **Summary** | Processed X/N: Fixed Y, Replied Z, Skipped W<br>List: files modified, reply drafts, next steps |
 
 ## Critical Principles
@@ -90,7 +90,8 @@ python .claude/skills/address-pr-review/scripts/fetch_comments.py <PR> --all
 | Principle | Violation Pattern |
 |-----------|-------------------|
 | **Analyze first** | Accepting all feedback as valid without critical analysis |
-| **Never auto-post** | Posting replies automatically instead of showing gh command |
+| **Never auto-post** | Posting replies automatically without user confirmation or skipping 2-minute wait between replies |
+| **No reply on fix** | Replying to comments that were addressed with a code fix — fixes speak for themselves |
 | **One at a time** | Batch processing all comments without individual analysis |
 | **Show context** | Making changes without displaying ±10 lines around code |
 | **Minimal changes** | Large refactors in response to small comments |

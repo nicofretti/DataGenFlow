@@ -275,10 +275,10 @@ function BlockCard({ block, onReload }: { block: BlockInfo; onReload: () => Prom
           <Text sx={{ fontSize: 0, color: "danger.fg" }}>{block.error}</Text>
         </Box>
       )}
-      {block.dependencies.length > 0 && (
+      {block.dependencies?.length > 0 && (
         <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1 }}>
           <PackageIcon size={12} />
-          <Text sx={{ fontSize: 0, color: "fg.muted" }}>{block.dependencies.join(", ")}</Text>
+          <Text sx={{ fontSize: 0, color: "fg.muted" }}>{block.dependencies?.join(", ")}</Text>
         </Box>
       )}
     </Box>
