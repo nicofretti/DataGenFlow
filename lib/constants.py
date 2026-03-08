@@ -1,5 +1,8 @@
 """shared constants for the application"""
 
+DEFAULT_BLOCKS_PATH = "user_blocks"
+DEFAULT_TEMPLATES_PATH = "user_templates"
+
 # fields that can be updated on a record via API
 RECORD_UPDATABLE_FIELDS = frozenset({"output", "status", "metadata"})
 

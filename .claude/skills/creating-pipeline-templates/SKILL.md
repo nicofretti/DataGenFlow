@@ -71,7 +71,58 @@ StructureSampler → SemanticInfiller → DuplicateRemover
 
 # generation + metrics
 StructuredGenerator → FieldMapper → RagasMetrics
+
+# generation + review-friendly output
+StructuredGenerator → FieldMapper (flatten for review)
 ```
+
+## Adding a FieldMapper for Review
+
+The Review page displays records from the **last block's accumulated_state**. Only **first-level keys** are shown as primary/secondary fields. Nested objects (e.g. `generated.confirmed_dependencies`) appear as raw JSON strings and can't be configured as separate review fields.
+
+**Always add a `FieldMapper` as the last block** to surface the fields reviewers need at the top level.
+
+### Why it matters
+
+Without a FieldMapper, the accumulated_state after a `StructuredGenerator` looks like:
+```json
+{
+  "input_field": "...",
+  "generated": {
+    "question": "...",
+    "answer": "...",
+    "contexts": ["..."]
+  }
+}
+```
+The review UI sees `input_field` and `generated` (a blob). Reviewers can't configure `question` or `answer` as primary fields.
+
+### How to add it
+
+Add a `FieldMapper` as the **last block** (or last before metrics/observability blocks):
+
+```yaml
+  - type: FieldMapper
+    config:
+      mappings:
+        # Flatten nested fields to top level
+        question: "{{ generated.question }}"
+        answer: "{{ generated.answer }}"
+        # tojson is safe only for structured data (IDs, numbers, short labels)
+        # avoid tojson on arrays/objects with free-text — newlines/quotes break JSON parsing
+        context_count: "{{ generated.contexts | length }}"
+        # Carry forward useful seed metadata
+        source: "{{ source_document }}"
+```
+
+### Rules
+
+1. **Map every field the reviewer needs** — if it's not a first-level key after the last block, it won't be configurable in the review field settings
+2. **Use `| tojson`** for arrays/objects — FieldMapper auto-parses JSON strings back to objects, so the review UI can display them properly. **Exception:** `tojson` on arrays/objects whose values contain unescaped quotes or newlines (e.g. free-text descriptions) will break FieldMapper JSON parsing. In that case, map only scalar summaries (counts, IDs) and let the array flow through as an existing first-level key.
+3. **Use `| length`** for counts — gives reviewers a quick numeric summary without expanding lists
+4. **Use `| default('')`** for optional fields — prevents Jinja2 errors when a field is missing
+5. **Don't map internal/noisy fields** — skip `folder_path`, `_usage`, `_seed_samples` etc. Only map what's useful for human review
+6. **Order matters** — FieldMapper outputs merge into accumulated_state, so its keys become the available fields in the Review "Configure Fields" modal
 
 ## Step-by-Step Workflow
 
@@ -126,6 +177,8 @@ StructuredGenerator → FieldMapper → RagasMetrics
 | Missing seed variable referenced in prompt | Add the variable to seed metadata |
 | MarkdownMultiplierBlock not first | Multiplier blocks must always be first |
 | Seed file not named `seed_<template_id>.*` | Template ID must match: `foo.yaml` → `seed_foo.json` |
+| Nested fields not visible in Review UI | Add a `FieldMapper` as last block to flatten nested outputs to top-level keys |
+| Review shows `generated` as a JSON blob | Map individual sub-fields: `question: "{{ generated.question }}"` |
 
 ## Checklist
 
@@ -135,6 +188,7 @@ StructuredGenerator → FieldMapper → RagasMetrics
 - [ ] Single execution produces expected output fields
 - [ ] Trace shows all blocks executed successfully
 - [ ] Seed file has 2-3 diverse examples
+- [ ] FieldMapper as last block flattens outputs for Review UI (all reviewer-relevant fields are top-level keys)
 
 ## Related Skills
 

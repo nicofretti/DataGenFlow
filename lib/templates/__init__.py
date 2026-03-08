@@ -3,25 +3,46 @@ Pipeline templates for quick onboarding and testing
 """
 
 import json
+import logging
+import threading
 from pathlib import Path
 from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
+from lib.entities.extensions import TemplateInfo
+
+logger = logging.getLogger(__name__)
+
 
 class TemplateRegistry:
-    """Registry for pipeline templates"""
+    """Registry for pipeline templates with builtin and user template support"""
 
-    def __init__(self, templates_dir: Path | None = None):
+    def __init__(
+        self,
+        templates_dir: Path | None = None,
+        user_templates_dir: Path | None = None,
+    ):
         if templates_dir is None:
             templates_dir = Path(__file__).parent
+        if user_templates_dir is None:
+            user_templates_dir = Path("user_templates")
         self.templates_dir = templates_dir
         self.seeds_dir = templates_dir / "seeds"
+        self.user_templates_dir = user_templates_dir
+        self._lock = threading.Lock()
         self._templates: dict[str, dict[str, Any]] = {}
-        self._load_templates()
+        self._sources: dict[str, str] = {}
+        self._load_builtin_into(self._templates, self._sources)
+        if self.user_templates_dir.exists():
+            self._load_user_into(self.user_templates_dir, self._templates, self._sources)
 
-    def _load_templates(self) -> None:
-        """load all template yaml files from templates directory"""
+    def _load_builtin_into(
+        self,
+        templates: dict[str, dict[str, Any]],
+        sources: dict[str, str],
+    ) -> None:
+        """load all template yaml files from builtin templates directory"""
         for template_file in self.templates_dir.glob("*.yaml"):
             try:
                 with open(template_file, "r") as f:
@@ -42,25 +63,86 @@ class TemplateRegistry:
                                 {"repetitions": 1, "metadata": {"file_content": sf.read()}}
                             ]
 
-                    self._templates[template_id] = template_data
-            except Exception:
-                pass
+                    templates[template_id] = template_data
+                    sources[template_id] = "builtin"
+            except Exception as e:
+                logger.warning(f"failed to load builtin template {template_file}: {e}")
 
-    def list_templates(self) -> list[dict[str, Any]]:
+    def _load_user_into(
+        self,
+        user_dir: Path,
+        templates: dict[str, dict[str, Any]],
+        sources: dict[str, str],
+    ) -> None:
+        """load user templates, skipping ids that already exist as builtin"""
+        for template_file in user_dir.glob("*.yaml"):
+            try:
+                with open(template_file, "r") as f:
+                    template_data = yaml.safe_load(f)
+                    template_id = template_file.stem
+
+                    if template_id in templates:
+                        logger.warning(
+                            f"user template '{template_id}' skipped: conflicts with builtin"
+                        )
+                        continue
+
+                    templates[template_id] = template_data
+                    sources[template_id] = "user"
+            except Exception as e:
+                logger.warning(f"failed to load user template {template_file}: {e}")
+
+    def register(
+        self,
+        template_id: str,
+        template_data: dict[str, Any],
+        source: str = "user",
+    ) -> None:
+        with self._lock:
+            self._templates[template_id] = template_data
+            self._sources[template_id] = source
+
+    def unregister(self, template_id: str) -> None:
+        with self._lock:
+            self._templates.pop(template_id, None)
+            self._sources.pop(template_id, None)
+
+    def reload(self) -> None:
+        """re-scan builtin and user template directories.
+        serialized with a lock to prevent concurrent partial-state reads."""
+        with self._lock:
+            templates: dict[str, dict[str, Any]] = {}
+            sources: dict[str, str] = {}
+            self._load_builtin_into(templates, sources)
+            if self.user_templates_dir.exists():
+                self._load_user_into(self.user_templates_dir, templates, sources)
+            self._templates = templates
+            self._sources = sources
+
+    def list_templates(self) -> list[TemplateInfo]:
         """List all available templates"""
+        with self._lock:
+            templates = self._templates.copy()
+            sources = self._sources.copy()
         return [
-            {
-                "id": template_id,
-                "name": template["name"],
-                "description": template["description"],
-                "example_seed": template.get("example_seed"),
-            }
-            for template_id, template in self._templates.items()
+            TemplateInfo(
+                id=template_id,
+                name=template.get("name", template_id),
+                description=template.get("description", ""),
+                example_seed=template.get("example_seed"),
+                source=sources.get(template_id, "builtin"),
+            )
+            for template_id, template in templates.items()
         ]
 
     def get_template(self, template_id: str) -> dict[str, Any] | None:
         """Get template definition by ID"""
-        return self._templates.get(template_id)
+        with self._lock:
+            return self._templates.get(template_id)
+
+    def get_template_source(self, template_id: str) -> str | None:
+        with self._lock:
+            return self._sources.get(template_id)
 
 
 # Singleton instance

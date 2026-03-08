@@ -75,6 +75,21 @@ uv run python "$PROJECT_ROOT/scripts/with_server.py" \
     -- uv run python "$SCRIPT_DIR/test_review_e2e.py"
 echo ""
 
+echo "📋 Test Suite 4: Extensions (UI)"
+echo "-------------------------"
+uv run python "$PROJECT_ROOT/scripts/with_server.py" \
+    --server "$BACKEND_CMD" --port 8000 \
+    --server "$FRONTEND_CMD" --port 5173 \
+    -- uv run python "$SCRIPT_DIR/test_extensions_e2e.py"
+echo ""
+
+echo "📋 Test Suite 5: Extensions (API)"
+echo "-------------------------"
+uv run python "$PROJECT_ROOT/scripts/with_server.py" \
+    --server "$BACKEND_CMD" --port 8000 \
+    -- uv run python "$SCRIPT_DIR/test_extensions_api_e2e.py"
+echo ""
+
 echo "✅ All E2E tests completed!"
 echo ""
 echo "📸 Screenshots saved to /tmp/"

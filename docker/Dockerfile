@@ -61,8 +61,8 @@ COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 # Copy built frontend from frontend-builder
 COPY --from=frontend-builder /app/build /app/frontend/build
 
-# Create data directory and ensure custom blocks directory exists
-RUN mkdir -p /app/data /app/lib/blocks/custom
+# Create data directory, custom blocks, and user extension directories
+RUN mkdir -p /app/data /app/lib/blocks/custom /app/user_blocks /app/user_templates
 
 # Set environment variables
 ENV PATH="/app/.venv/bin:$PATH"

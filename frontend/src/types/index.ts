@@ -123,3 +123,65 @@ export interface ConnectionTestResult {
   message: string;
   latency_ms: number | null;
 }
+
+// extensions system types
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+export interface JsonSchemaObject {
+  properties?: Record<string, JsonValue>;
+  required?: string[];
+}
+
+export interface BlockInfo {
+  type: string;
+  name: string;
+  description: string;
+  category: string;
+  inputs: string[];
+  outputs: string[];
+  config_schema: JsonSchemaObject;
+  is_multiplier: boolean;
+  dependencies: string[];
+  source: string;
+  available: boolean;
+  error: string | null;
+}
+
+export interface TemplateInfo {
+  id: string;
+  name: string;
+  description: string;
+  example_seed?: JsonValue;
+  source: string;
+}
+
+export interface ExtensionsStatus {
+  blocks: {
+    total: number;
+    builtin_blocks: number;
+    custom_blocks: number;
+    user_blocks: number;
+    available: number;
+    unavailable: number;
+  };
+  templates: {
+    total: number;
+    builtin_templates: number;
+    user_templates: number;
+  };
+}
+
+export interface DependencyInfo {
+  requirement: string;
+  name: string;
+  installed_version: string | null;
+  status: string;
+  error: string | null;
+}

@@ -15,6 +15,7 @@ frontend/src/
     Generator.tsx      # upload + job progress + validation
     Review.tsx         # cards + collapsible trace + job filter
     Settings.tsx       # LLM/embedding config management
+    Extensions.tsx     # blocks + templates status, install deps, create pipeline from template
   components/
     GlobalJobIndicator.tsx     # header job status
     ConfigureFieldsModal.tsx   # field configuration
@@ -68,6 +69,13 @@ frontend/src/
 - export scoped to job
 - real-time updates: 2s polling, incremental record visibility
 - view stability: tracks by ID, single mode preserves current record
+
+### Extensions.tsx
+- status cards: block counts by source (builtin/custom/user), template counts
+- block list: availability badge, source badge (SourceBadge), validate button, install-deps button (unavailable only)
+- template list: source badge, "Create Pipeline" button → POST /api/pipelines/from_template/{id} → navigate to /pipelines
+- reload button: triggers manual re-scan of extension directories
+- all api calls via extensionsApi service (extensionsApi.ts)
 
 ### Settings.tsx
 - LLM/embedding model management via ModelCard components

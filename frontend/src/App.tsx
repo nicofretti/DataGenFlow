@@ -8,11 +8,13 @@ import {
   ChecklistIcon,
   WorkflowIcon,
   GearIcon,
+  PackageIcon,
 } from "@primer/octicons-react";
 import Generator from "./pages/Generator";
 import Review from "./pages/Review";
 import Pipelines from "./pages/Pipelines";
 import Settings from "./pages/Settings";
+import Extensions from "./pages/Extensions";
 import GlobalJobIndicator from "./components/GlobalJobIndicator";
 import { JobProvider } from "./contexts/JobContext";
 import { useTheme as shadcnUseTheme, ThemeProvider as ShadcnThemeProvider } from "next-themes";
@@ -54,6 +56,7 @@ function Navigation() {
     { path: "/pipelines", label: "Pipelines", icon: WorkflowIcon },
     { path: "/", label: "Generator", icon: BeakerIcon },
     { path: "/review", label: "Review", icon: ChecklistIcon },
+    { path: "/extensions", label: "Extensions", icon: PackageIcon },
     { path: "/settings", label: "Settings", icon: GearIcon },
   ];
 
@@ -147,6 +150,7 @@ function Navigation() {
             <Route path="/" element={<Generator />} />
             <Route path="/review" element={<Review />} />
             <Route path="/pipelines" element={<Pipelines />} />
+            <Route path="/extensions" element={<Extensions />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </Box>

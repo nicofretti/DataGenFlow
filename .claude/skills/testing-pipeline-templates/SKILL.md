@@ -32,7 +32,12 @@ curl -s -X POST http://localhost:8000/api/pipelines/<ID>/execute \
 - `trace` — each entry has `block_type`, `execution_time`, `output`
 - `accumulated_state` — data flowing correctly between blocks?
 
-**Red flags:** missing fields, metadata pollution (extra fields like `samples`, `target_count`), execution_time >30s, empty/null generator outputs.
+**Check review readiness:**
+- Look at the **last trace entry's `accumulated_state`** — these are the fields visible in the Review UI
+- All reviewer-relevant fields should be **first-level keys** (not nested under `generated` or other objects)
+- If useful fields are nested, add a `FieldMapper` as the last block to flatten them (see `creating-pipeline-templates` skill)
+
+**Red flags:** missing fields, metadata pollution (extra fields like `samples`, `target_count`), execution_time >30s, empty/null generator outputs, reviewer-relevant data buried in nested objects.
 
 ## Phase 2: Small Batch
 

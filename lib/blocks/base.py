@@ -11,6 +11,7 @@ class BaseBlock(ABC):
     category: str = "general"
     inputs: list[str] = []
     outputs: list[str] = []
+    dependencies: list[str] = []
 
     @abstractmethod
     async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
@@ -40,6 +41,7 @@ class BaseBlock(ABC):
             "outputs": cls.outputs,
             "config_schema": cls.get_config_schema(),
             "is_multiplier": getattr(cls, "is_multiplier", False),
+            "dependencies": cls.dependencies,
         }
 
 

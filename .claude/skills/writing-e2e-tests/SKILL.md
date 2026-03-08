@@ -23,7 +23,7 @@ tests/e2e/
 ```bash
 # single suite
 python .claude/skills/webapp-testing/scripts/with_server.py \
-  --server "cd /home/nicof/develop/DataGenFlow && DATABASE_PATH=data/test_qa_records.db uv run python app.py" \
+  --server "DATABASE_PATH=data/test_qa_records.db uv run python app.py" \
   --port 8000 \
   -- python tests/e2e/test_<feature>_e2e.py
 
@@ -121,7 +121,7 @@ page.locator("text=completed").wait_for(timeout=30000)
 ```bash
 echo "Running <feature> tests..."
 python .claude/skills/webapp-testing/scripts/with_server.py \
-  --server "cd $PROJECT_DIR && DATABASE_PATH=data/test_qa_records.db uv run python app.py" \
+  --server "DATABASE_PATH=data/test_qa_records.db uv run python app.py" \
   --port 8000 \
   -- python tests/e2e/test_<feature>_e2e.py
 ```

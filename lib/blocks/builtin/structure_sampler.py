@@ -74,6 +74,7 @@ class StructureSampler(BaseBlock):
         )
         self.seed = seed
         self._rng = random.Random(seed)
+        self._field_deps: dict[str, list[str]] = {}
 
     def _validate_samples(self, samples: list[dict[str, Any]]) -> None:
         """validate samples meet minimum requirements"""
@@ -109,7 +110,7 @@ class StructureSampler(BaseBlock):
     ) -> dict[str, dict[str, float]]:
         """compute conditional probabilities for dependent fields"""
         conditional_probs = {}
-        for child_field, parent_fields in self.dependencies.items():
+        for child_field, parent_fields in self._field_deps.items():
             if child_field not in self.categorical_fields:
                 continue
 
@@ -194,7 +195,7 @@ class StructureSampler(BaseBlock):
         """
         # build in-degree map
         in_degree = {field: 0 for field in fields}
-        for child_field, parent_fields in self.dependencies.items():
+        for child_field, parent_fields in self._field_deps.items():
             if child_field in in_degree:
                 in_degree[child_field] = len(parent_fields)
 
@@ -209,7 +210,7 @@ class StructureSampler(BaseBlock):
             if not no_deps:
                 raise ValidationError(
                     "Circular dependency detected in field dependencies",
-                    detail={"dependencies": self.dependencies},
+                    detail={"dependencies": self._field_deps},
                 )
 
             # add to result
@@ -218,7 +219,7 @@ class StructureSampler(BaseBlock):
 
             # decrease in-degree for children
             for field in no_deps:
-                for child_field, parent_fields in self.dependencies.items():
+                for child_field, parent_fields in self._field_deps.items():
                     if field in parent_fields and child_field in remaining:
                         in_degree[child_field] -= 1
 
@@ -237,9 +238,9 @@ class StructureSampler(BaseBlock):
         self, field: str, skeleton: dict[str, Any], profile: dict[str, Any]
     ) -> Any:
         """sample value for a single categorical field, respecting dependencies"""
-        if field in self.dependencies:
+        if field in self._field_deps:
             # conditional sampling based on parent values
-            parent_fields = self.dependencies[field]
+            parent_fields = self._field_deps[field]
             parent_values = tuple(skeleton.get(p) for p in parent_fields)
             parent_str = ",".join(f"{p}={v}" for p, v in zip(parent_fields, parent_values))
             key = f"{field}|{parent_str}"
@@ -370,7 +371,7 @@ class StructureSampler(BaseBlock):
         # store parsed values for use in methods
         self.categorical_fields = categorical_fields
         self.numeric_fields = numeric_fields
-        self.dependencies = dependencies
+        self._field_deps = dependencies
 
         # read samples from initial state
         samples = context.get_state("samples", [])
