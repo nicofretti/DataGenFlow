@@ -75,7 +75,7 @@ class TestStructureSamplerDistributions:
         )
         # set attributes that would normally be set in execute()
         block.categorical_fields = ["plan", "role"]
-        block.dependencies = {"role": ["plan"]}
+        block._field_deps = {"role": ["plan"]}
 
         samples = [
             {"plan": "Free", "role": "Viewer"},

@@ -467,6 +467,88 @@ async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
     cached_embeddings = self._embeddings_cache[trace_id]
 ```
 
+## Agentic Tool-Calling Block Pattern
+
+For blocks that need multi-turn LLM reasoning with tool use (e.g. exploring an external data source before generating output):
+
+```python
+async def execute(self, context: BlockExecutionContext) -> dict[str, Any]:
+    from app import llm_config_manager
+
+    llm_config = await llm_config_manager.get_llm_model(self.model_name)
+    total_usage = pipeline.Usage(input_tokens=0, output_tokens=0, cached_tokens=0)
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": render_template(self.user_prompt, context.accumulated_state)},
+    ]
+
+    for turn in range(self.max_turns):
+        if turn == self.max_turns - 1:
+            messages.append({"role": "user", "content": "Wrap up and return final JSON now."})
+
+        llm_params = llm_config_manager.prepare_llm_call(
+            llm_config,
+            messages=messages,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            tools=TOOLS,
+            tool_choice="auto",
+        )
+        llm_params["metadata"] = {"trace_id": context.trace_id, "tags": ["datagenflow"]}
+
+        response = await litellm.acompletion(**llm_params)
+        msg = response.choices[0].message
+        total_usage.input_tokens += response.usage.prompt_tokens or 0
+        total_usage.output_tokens += response.usage.completion_tokens or 0
+        total_usage.cached_tokens += getattr(response.usage, "cache_read_input_tokens", 0) or 0
+
+        if not msg.tool_calls:
+            # final answer — parse JSON
+            try:
+                result = json.loads(msg.content or "{}")
+            except json.JSONDecodeError:
+                result = {}
+            return {"my_result": result.get("my_result", []), "_usage": total_usage.model_dump()}
+
+        # append assistant message and process tool calls
+        messages.append({"role": "assistant", "content": None, "tool_calls": [
+            {"id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+            for tc in msg.tool_calls
+        ]})
+        for tc in msg.tool_calls:
+            try:
+                args = json.loads(tc.function.arguments)
+            except json.JSONDecodeError:
+                args = {}
+            # always use .get() — LLM may send malformed args
+            tool_result = _execute_tool(tc.function.name, args)
+            messages.append({"role": "tool", "tool_call_id": tc.id, "content": tool_result})
+
+    # max turns exhausted — force final answer without tools
+    messages.append({"role": "user", "content": "No more tool calls. Return final JSON NOW."})
+    llm_params = llm_config_manager.prepare_llm_call(
+        llm_config, messages=messages,
+        temperature=self.temperature, max_tokens=self.max_tokens,
+    )
+    llm_params["metadata"] = {"trace_id": context.trace_id, "tags": ["datagenflow"]}
+    response = await litellm.acompletion(**llm_params)
+    try:
+        result = json.loads(response.choices[0].message.content or "{}")
+    except json.JSONDecodeError:
+        result = {}
+    return {"my_result": result.get("my_result", []), "_usage": total_usage.model_dump()}
+```
+
+**Key rules:**
+- Always nudge on last turn (`turn == max_turns - 1`) before the forced final call
+- Always force a final call without tools when max_turns exhausted — otherwise you get no output
+- Use `args.get("key", "")` not `args["key"]` — LLM may send malformed arguments
+- If tool responses contain `"$ref"` keys, rename before sending: `output.replace('"$ref"', '"schema_ref"')` — Gemini rejects `$ref` in tool responses
+- Cap tool result sizes (e.g. 50 items max) to avoid context overflow
+
+---
+
 ## Multiplier Blocks
 
 Blocks that generate multiple items from one input:

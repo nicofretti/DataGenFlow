@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Box, Button, TextInput, FormControl, Select, Dialog } from "@primer/react";
 import type { EmbeddingModelConfig, LLMProvider } from "../../types";
+import { isLLMProvider, LLM_PROVIDERS } from "../../types";
 
 interface Props {
   isOpen: boolean;
@@ -8,13 +9,6 @@ interface Props {
   onSave: (config: EmbeddingModelConfig) => Promise<void>;
   initialData?: EmbeddingModelConfig;
 }
-
-const PROVIDERS: { value: LLMProvider; label: string }[] = [
-  { value: "openai", label: "OpenAI" },
-  { value: "anthropic", label: "Anthropic" },
-  { value: "gemini", label: "Google Gemini" },
-  { value: "ollama", label: "Ollama" },
-];
 
 const PROVIDER_DEFAULTS: Record<
   LLMProvider,
@@ -58,14 +52,18 @@ export default function EmbeddingFormModal({ isOpen, onClose, onSave, initialDat
       setApiKey(initialData.api_key || "");
       setModelName(initialData.model_name);
       setDimensions(initialData.dimensions?.toString() || "");
-    } else {
-      // set defaults for new model
-      const defaults = PROVIDER_DEFAULTS[provider];
+    } else if (isOpen) {
+      // set defaults for new model only when opening
+      const defaultProvider: LLMProvider = "openai";
+      const defaults = PROVIDER_DEFAULTS[defaultProvider];
+      setName("");
+      setProvider(defaultProvider);
       setEndpoint(defaults.endpoint);
       setModelName(defaults.model);
       setDimensions(defaults.dimensions?.toString() || "");
+      setApiKey("");
     }
-  }, [initialData, provider]);
+  }, [isOpen, initialData]);
 
   const handleProviderChange = (newProvider: LLMProvider) => {
     setProvider(newProvider);
@@ -92,8 +90,8 @@ export default function EmbeddingFormModal({ isOpen, onClose, onSave, initialDat
     if (provider !== "ollama" && !apiKey.trim()) {
       newErrors.apiKey = "api key is required for this provider";
     }
-    if (dimensions && isNaN(parseInt(dimensions))) {
-      newErrors.dimensions = "dimensions must be a number";
+    if (dimensions && (isNaN(Number(dimensions)) || Number(dimensions) < 1)) {
+      newErrors.dimensions = "dimensions must be a number greater than 0";
     }
 
     setErrors(newErrors);
@@ -110,6 +108,7 @@ export default function EmbeddingFormModal({ isOpen, onClose, onSave, initialDat
       api_key: apiKey.trim() || null,
       model_name: modelName.trim(),
       dimensions: dimensions ? parseInt(dimensions) : null,
+      is_default: initialData?.is_default ?? false,
     };
 
     setSaving(true);
@@ -163,10 +162,13 @@ export default function EmbeddingFormModal({ isOpen, onClose, onSave, initialDat
           <FormControl.Label sx={{ color: "fg.default" }}>Provider</FormControl.Label>
           <Select
             value={provider}
-            onChange={(e) => handleProviderChange(e.target.value as LLMProvider)}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (isLLMProvider(val)) handleProviderChange(val);
+            }}
             block
           >
-            {PROVIDERS.map((p) => (
+            {LLM_PROVIDERS.map((p) => (
               <Select.Option key={p.value} value={p.value}>
                 {p.label}
               </Select.Option>

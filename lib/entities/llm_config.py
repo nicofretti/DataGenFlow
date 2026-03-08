@@ -40,6 +40,12 @@ class EmbeddingModelConfig(BaseModel):
         """convert None to empty string for database compatibility"""
         return v if v is not None else ""
 
+    @field_validator("dimensions", mode="before")
+    @classmethod
+    def validate_dimensions(cls, v: int | None) -> int:
+        """coerce None to 0"""
+        return v if v is not None else 0
+
 
 class ConnectionTestResult(BaseModel):
     success: bool

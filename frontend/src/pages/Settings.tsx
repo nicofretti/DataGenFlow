@@ -29,6 +29,9 @@ export default function Settings() {
   const isMountedRef = useRef(true);
 
   useEffect(() => {
+    // Reset to true on each mount (important for React StrictMode double-mount)
+    isMountedRef.current = true;
+
     loadLlmModels();
     loadEmbeddingModels();
     loadLangfuseStatus();
@@ -64,14 +67,10 @@ export default function Settings() {
 
   const loadLangfuseStatus = async () => {
     try {
-      const res = await fetch("/api/langfuse/status");
-      if (!res.ok) {
-        throw new Error(`http ${res.status}`);
-      }
-      const data = await res.json();
+      const data = await llmConfigApi.getLangfuseStatus();
       if (isMountedRef.current) {
         setLangfuseEnabled(data.enabled);
-        setLangfuseHost(data.host);
+        setLangfuseHost(data.host ?? null);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -214,7 +213,7 @@ export default function Settings() {
       loadEmbeddingModels();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(`Failed to save LLM model: ${message}`);
+      toast.error(`Failed to save embedding model: ${message}`);
       throw error;
     }
   };

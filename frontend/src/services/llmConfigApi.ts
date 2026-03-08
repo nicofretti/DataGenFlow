@@ -139,6 +139,17 @@ class LLMConfigApi {
     if (!response.ok) throw new Error(`http ${response.status}`);
     return response.json();
   }
+
+  async getLangfuseStatus(): Promise<{
+    enabled: boolean;
+    host?: string;
+    public_key?: string;
+    error?: string;
+  }> {
+    const response = await fetch(`${API_BASE}/langfuse/status`);
+    if (!response.ok) throw new Error(`http ${response.status}`);
+    return response.json();
+  }
 }
 
 export const llmConfigApi = new LLMConfigApi();

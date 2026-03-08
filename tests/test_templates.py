@@ -10,7 +10,7 @@ from lib.workflow import Pipeline as WorkflowPipeline
 def test_template_registry_lists_all_templates():
     """test that all three templates are registered"""
     templates = template_registry.list_templates()
-    template_ids = [t["id"] for t in templates]
+    template_ids = [t.id for t in templates]
 
     assert "json_generation" in template_ids
     assert "text_classification" in template_ids
@@ -23,10 +23,10 @@ def test_templates_have_required_fields():
     templates = template_registry.list_templates()
 
     for template in templates:
-        assert "id" in template
-        assert "name" in template
-        assert "description" in template
-        assert "example_seed" in template
+        assert template.id
+        assert template.name
+        assert template.description
+        assert template.example_seed is not None
 
 
 def test_template_seeds_use_content_field():
@@ -34,7 +34,7 @@ def test_template_seeds_use_content_field():
     templates = template_registry.list_templates()
 
     for template in templates:
-        example_seed = template.get("example_seed")
+        example_seed = template.example_seed
         if example_seed:
             # seeds are arrays
             assert isinstance(example_seed, list)
@@ -51,7 +51,7 @@ def test_template_seeds_use_content_field():
             )
             has_samples = "samples" in first_seed["metadata"]
             assert has_content or has_samples, (
-                f"Template {template['id']} seed missing expected metadata fields"
+                f"Template {template.id} seed missing expected metadata fields"
             )
 
             # ensure no old-style system/user fields
