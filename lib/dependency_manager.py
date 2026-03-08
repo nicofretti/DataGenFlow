@@ -98,9 +98,9 @@ class DependencyManager:
             logger.info(f"successfully installed: {requirements}")
             return requirements
         except subprocess.TimeoutExpired:
-            raise DependencyError(f"installation timed out after {timeout}s")
+            raise DependencyError(f"installation timed out after {timeout}s") from None
         except FileNotFoundError:
-            raise DependencyError("uv not found")
+            raise DependencyError("uv not found") from None
 
     async def install(self, requirements: list[str], timeout: int = 300) -> list[str]:
         """install requirements using uv without blocking the event loop"""

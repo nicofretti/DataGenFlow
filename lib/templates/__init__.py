@@ -137,10 +137,12 @@ class TemplateRegistry:
 
     def get_template(self, template_id: str) -> dict[str, Any] | None:
         """Get template definition by ID"""
-        return self._templates.get(template_id)
+        with self._lock:
+            return self._templates.get(template_id)
 
     def get_template_source(self, template_id: str) -> str | None:
-        return self._sources.get(template_id)
+        with self._lock:
+            return self._sources.get(template_id)
 
 
 # Singleton instance

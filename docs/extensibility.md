@@ -249,7 +249,7 @@ All extension endpoints live under `/api/extensions/`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/extensions/status` | Block/template counts, hot reload status |
+| `GET` | `/api/extensions/status` | Block/template counts by source |
 | `GET` | `/api/extensions/blocks` | List all blocks with source and availability |
 | `GET` | `/api/extensions/templates` | List all templates with source |
 | `POST` | `/api/extensions/reload` | Trigger manual reload of all extensions |
@@ -321,8 +321,8 @@ services:
 Create a `.env` file:
 
 ```bash
-# Required: at least one LLM provider
-OPENAI_API_KEY=sk-...
+# Required: LLM provider API key
+LLM_API_KEY=your-api-key
 
 # Optional: endpoint for dgf CLI
 DATAGENFLOW_ENDPOINT=http://localhost:8000
@@ -368,8 +368,10 @@ The generated Dockerfile builds from source and runs `uv pip install` for all de
 
 ### Block shows as unavailable
 
-- **Cause**: Missing pip dependencies declared in `dependencies` attribute
-- **Fix**: Install via `POST /api/extensions/blocks/{name}/install-deps` or build a custom image with pre-baked dependencies
+Two sub-cases:
+
+1. **Import succeeded but runtime deps are missing** — `dependencies` attribute is readable, `GET /dependencies` lists them, `POST /install-deps` installs and reloads automatically.
+2. **Import itself failed** (syntax error, missing module) — `block_class` is `None`, so `/dependencies` and `/install-deps` both return `422` with the import error. Fix the source file (or install the missing module), then trigger a reload via `POST /api/extensions/reload`. Once the class loads successfully the block becomes available.
 
 ### Hot reload not working
 

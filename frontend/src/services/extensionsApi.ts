@@ -54,8 +54,14 @@ class ExtensionsApi {
       }
     );
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || `http ${response.status}`);
+      let detail = `http ${response.status}`;
+      try {
+        const error = await response.json();
+        detail = error.detail || detail;
+      } catch {
+        // response body not JSON
+      }
+      throw new Error(detail);
     }
     return response.json();
   }

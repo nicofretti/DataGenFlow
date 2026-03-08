@@ -33,6 +33,16 @@ lib/
   job_processor.py        # background processing + usage tracking + constraints
   llm_config.py           # LLMConfigManager
   constants.py            # RECORD_UPDATABLE_FIELDS, DEFAULT_BLOCKS_PATH, DEFAULT_TEMPLATES_PATH
+  entities/
+    extensions.py         # BlockInfo, TemplateInfo, ExtensionsStatus pydantic models
+  api/
+    extensions.py         # /api/extensions/* router
+  blocks/
+    registry.py           # BlockRegistry (thread-safe, singleton)
+  templates/
+    __init__.py           # TemplateRegistry (thread-safe, singleton)
+  file_watcher.py         # ExtensionFileWatcher + DebouncedHandler (hot reload)
+  dependency_manager.py   # DependencyManager (uv-based pip install)
 app.py                    # endpoints + lifespan
 config.py                 # env Settings
 ```
@@ -45,6 +55,16 @@ config.py                 # env Settings
 
 ### blocks
 - `GET /api/blocks` - list registered blocks with schemas
+
+### extensions
+- `GET /api/extensions/status` - block/template counts + hot-reload status
+- `GET /api/extensions/blocks` - list all blocks (with source, available, error)
+- `GET /api/extensions/blocks/{name}` - get single block info
+- `POST /api/extensions/blocks/{name}/validate` - validate block can be instantiated
+- `GET /api/extensions/blocks/{name}/dependencies` - list declared pip requirements
+- `POST /api/extensions/blocks/{name}/install-deps` - install missing dependencies via uv
+- `GET /api/extensions/templates` - list all templates (with source)
+- `POST /api/extensions/reload` - trigger hot reload of blocks + templates
 
 ### templates
 - `GET /api/templates` - list pipeline templates

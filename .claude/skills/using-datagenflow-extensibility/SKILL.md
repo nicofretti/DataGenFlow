@@ -9,7 +9,7 @@ Build data generation pipelines from your own repo using DataGenFlow as a Docker
 
 ## Project Structure
 
-```
+```text
 your-project/
   user_blocks/          # custom Python blocks (auto-discovered)
   user_templates/       # custom YAML pipelines (auto-discovered)
@@ -24,8 +24,8 @@ your-project/
 # 1. Create project structure
 mkdir -p user_blocks user_templates data
 
-# 2. Create .env with at least one LLM provider
-echo "OPENAI_API_KEY=sk-..." > .env
+# 2. Create .env with your LLM provider API key
+echo "LLM_API_KEY=your-api-key" > .env
 
 # 3. Create docker-compose.yml (see Docker section)
 
@@ -55,7 +55,7 @@ services:
     restart: unless-stopped
 ```
 
-Build the image first from DataGenFlow repo: `docker build -f docker/Dockerfile -t datagenflow:local .`
+**Note (contributor setup):** A published image is not yet available. Build locally from the DataGenFlow repo: `docker build -f docker/Dockerfile -t datagenflow:local .`
 
 ## Writing Templates
 
@@ -115,7 +115,7 @@ Key output names by block:
 
 ## Common Pipeline Patterns
 
-```
+```text
 # Simple: generate structured JSON + validate
 StructuredGenerator → JSONValidatorBlock
 
@@ -180,7 +180,7 @@ dgf image scaffold --blocks-dir ./user_blocks  # Dockerfile with deps
 dgf image build -t my-datagenflow:latest       # build custom image
 ```
 
-Run from DataGenFlow repo: `cd /path/to/DataGenFlow && uv run dgf <command>`
+**Note (contributor setup):** Until `dgf` is published to PyPI, run from the DataGenFlow repo: `cd /path/to/DataGenFlow && uv run dgf <command>`
 
 ## Testing a Template
 

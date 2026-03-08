@@ -142,10 +142,13 @@ def test_block_validate_shows_success_toast():
 
         _navigate_to_extensions(page)
 
-        # click the first validate button — all builtin blocks are available
-        page.get_by_role("button", name="Validate").first.click()
+        # click the validate button within the card for the selected available block
+        block_card = page.locator(
+            f"xpath=//*/descendant-or-self::*[normalize-space()='{available_block['name']}']/ancestor::*[.//button[normalize-space()='Validate']][1]"
+        )
+        block_card.get_by_role("button", name="Validate").click()
 
-        # wait for success toast (any block)
+        # wait for success toast
         toast = page.locator("text=is valid")
         expect(toast).to_be_visible(timeout=5000)
 
@@ -370,7 +373,8 @@ def test_extensions_page_shows_block_dependencies():
 if __name__ == "__main__":
     print("running extensions e2e tests...")
 
-    wait_for_server()
+    if not wait_for_server():
+        raise SystemExit("server not ready for e2e tests")
     cleanup_database()
 
     tests = [
@@ -389,6 +393,7 @@ if __name__ == "__main__":
         ("block dependencies shown", test_extensions_page_shows_block_dependencies),
     ]
 
+    failures = 0
     for name, test_fn in tests:
         print(f"\ntest: {name}")
         try:
@@ -401,6 +406,9 @@ if __name__ == "__main__":
                 raise
             else:
                 print(f"✗ failed: {e}")
+                failures += 1
 
     cleanup_database()
+    if failures:
+        raise SystemExit(f"\n{failures} extensions e2e test(s) failed")
     print("\n✅ all extensions e2e tests completed!")

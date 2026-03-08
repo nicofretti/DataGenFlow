@@ -79,7 +79,7 @@ python .claude/skills/address-pr-review/scripts/fetch_comments.py <PR> --all
 
 | Phase | Actions |
 |-------|---------|
-| **Fetch** | Run `--summary` first to see counts<br>Then `--id <ID>` for each comment to analyze<br>Exit if no unresolved comments |
+| **Fetch** | Run `--summary` first to see counts<br>**Only process unresolved comments** — resolved ones are already closed, skip them<br>Then `--id <ID>` for each unresolved comment to analyze<br>Exit if no unresolved comments |
 | **Per Comment** | Show: file:line, author, comment, ±10 lines context<br>Analyze: Valid/Nitpick/Disagree/Question<br>Recommend: Fix/Reply/Skip with reasoning |
 | **Fix** | Minimal changes per llm/rules-*.md<br>Do NOT reply — just fix the code |
 | **Reply** | Draft based on type: Question/Suggestion/Disagreement<br>Wait 2 minutes between each reply<br>Post with: `gh api --method POST repos/{owner}/{repo}/pulls/{PR}/comments -f body="..." -F in_reply_to=<ID>`<br>(never auto-post without user confirmation) |
@@ -89,6 +89,7 @@ python .claude/skills/address-pr-review/scripts/fetch_comments.py <PR> --all
 
 | Principle | Violation Pattern |
 |-----------|-------------------|
+| **Unresolved only** | Processing already-resolved comments — the script default filters to unresolved; never re-open resolved threads |
 | **Analyze first** | Accepting all feedback as valid without critical analysis |
 | **Never auto-post** | Posting replies automatically without user confirmation or skipping 2-minute wait between replies |
 | **No reply on fix** | Replying to comments that were addressed with a code fix — fixes speak for themselves |

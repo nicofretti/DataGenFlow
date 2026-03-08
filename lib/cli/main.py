@@ -251,6 +251,7 @@ def blocks_scaffold(
     filename = re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower() + ".py"
     display_name = re.sub(r"(?<!^)(?=[A-Z])", " ", name)
 
+    output.mkdir(parents=True, exist_ok=True)
     output_path = output / filename
     template = f'''"""
 {display_name} block for DataGenFlow.
@@ -331,6 +332,10 @@ def templates_add(
         console.print(f"[red]✗[/red] Invalid YAML: {e}")
         raise typer.Exit(1)
 
+    if not isinstance(data, dict):
+        console.print("[red]✗[/red] Template file must contain a YAML mapping")
+        raise typer.Exit(1)
+
     errors = []
     if "name" not in data:
         errors.append("Missing 'name' field")
@@ -375,6 +380,10 @@ def templates_remove(
             console.print(f"[yellow]![/yellow] Skipping {yaml_file.name}: {e}")
             continue
 
+        if not isinstance(data, dict):
+            console.print(f"[yellow]![/yellow] Skipping {yaml_file.name}: not a YAML mapping")
+            continue
+
         # match by explicit id field or by filename stem
         file_id = data.get("id", yaml_file.stem)
         if file_id != template_id:
@@ -402,6 +411,10 @@ def templates_validate(
     try:
         with open(path) as f:
             data = yaml.safe_load(f)
+
+        if not isinstance(data, dict):
+            console.print("[red]✗[/red] Template file must contain a YAML mapping")
+            raise typer.Exit(1)
 
         errors = []
         if "name" not in data:

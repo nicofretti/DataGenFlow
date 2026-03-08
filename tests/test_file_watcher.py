@@ -2,7 +2,7 @@
 Tests for file watcher module: debouncing, start/stop, reload on file changes.
 """
 
-import time
+import threading
 from pathlib import Path
 
 from lib.blocks.registry import BlockRegistry
@@ -15,10 +15,12 @@ class TestDebouncedHandler:
         from lib.file_watcher import DebouncedHandler
 
         call_count = 0
+        done = threading.Event()
 
         def callback(path: Path, event_type: str):
             nonlocal call_count
             call_count += 1
+            done.set()
 
         handler = DebouncedHandler(callback, debounce_ms=50)
 
@@ -27,7 +29,7 @@ class TestDebouncedHandler:
         handler._schedule_callback(test_path, "modified")
         handler._schedule_callback(test_path, "modified")
 
-        time.sleep(0.15)
+        assert done.wait(timeout=2), "callback never fired"
         assert call_count == 1
 
     def test_different_paths_not_debounced(self):
@@ -35,16 +37,19 @@ class TestDebouncedHandler:
         from lib.file_watcher import DebouncedHandler
 
         paths_seen: list[str] = []
+        done = threading.Event()
 
         def callback(path: Path, event_type: str):
             paths_seen.append(str(path))
+            if len(paths_seen) >= 2:
+                done.set()
 
         handler = DebouncedHandler(callback, debounce_ms=50)
 
         handler._schedule_callback(Path("/tmp/a.py"), "modified")
         handler._schedule_callback(Path("/tmp/b.py"), "modified")
 
-        time.sleep(0.15)
+        assert done.wait(timeout=2), "not all callbacks fired"
         assert len(paths_seen) == 2
 
 

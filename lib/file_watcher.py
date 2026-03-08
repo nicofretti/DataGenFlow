@@ -123,11 +123,12 @@ class ExtensionFileWatcher:
     ):
         self.block_registry = block_registry
         self.template_registry = template_registry
-        self.blocks_path = blocks_path or Path(
-            os.getenv("DATAGENFLOW_BLOCKS_PATH", DEFAULT_BLOCKS_PATH)
+        self.blocks_path = (
+            blocks_path or Path(os.getenv("DATAGENFLOW_BLOCKS_PATH", DEFAULT_BLOCKS_PATH)).resolve()
         )
-        self.templates_path = templates_path or Path(
-            os.getenv("DATAGENFLOW_TEMPLATES_PATH", DEFAULT_TEMPLATES_PATH)
+        self.templates_path = (
+            templates_path
+            or Path(os.getenv("DATAGENFLOW_TEMPLATES_PATH", DEFAULT_TEMPLATES_PATH)).resolve()
         )
         self._observer: Any = None  # watchdog.Observer, no stubs available
         self._handlers: list[DebouncedHandler] = []

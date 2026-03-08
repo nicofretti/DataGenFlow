@@ -135,6 +135,29 @@ class TestBlocksCommands:
         assert "class SentimentAnalyzer" in content
         assert "BaseBlock" in content
 
+    def test_blocks_add_with_install_deps(self, cli_app, mock_client, tmp_path):
+        block_file = tmp_path / "my_block.py"
+        block_file.write_text(
+            "from lib.blocks.base import BaseBlock\nclass MyBlock(BaseBlock):\n    pass\n"
+        )
+        mock_client.validate_block.return_value = {"valid": True}
+        result = runner.invoke(cli_app, ["blocks", "add", str(block_file), "--install-deps"])
+        assert result.exit_code == 0
+        mock_client.install_block_deps.assert_called_once_with("MyBlock")
+        assert "Dependencies installed" in result.output
+
+    def test_blocks_add_install_deps_failure(self, cli_app, mock_client, tmp_path):
+        block_file = tmp_path / "my_block.py"
+        block_file.write_text(
+            "from lib.blocks.base import BaseBlock\nclass MyBlock(BaseBlock):\n    pass\n"
+        )
+        import httpx
+
+        mock_client.validate_block.return_value = {"valid": True}
+        mock_client.install_block_deps.side_effect = httpx.HTTPError("install failed")
+        result = runner.invoke(cli_app, ["blocks", "add", str(block_file), "--install-deps"])
+        assert "Failed to install deps" in result.output
+
 
 class TestTemplatesCommands:
     def test_templates_list(self, cli_app, mock_client):
